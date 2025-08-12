@@ -1,0 +1,22 @@
+# FastAPI and Uvicorn for web server
+fastapi
+uvicorn[standard]
+
+# Asynchronous task management
+anyio
+
+# Data validation
+pydantic
+
+# Configuration and .env loading
+pyyaml
+python-dotenv
+
+# MongoDB driver
+pymongo
+
+# LLM Provider (Google Gemini uses OpenAI's library structure)
+openai
+
+# Web Search Tool
+tavily-python

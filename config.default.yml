@@ -1,0 +1,20 @@
+system:
+  log_level: "INFO"
+  max_tool_iterations: 5
+
+llm:
+  provider: "google" # 默认使用 google
+  providers:
+    google:
+      # ${VAR_NAME} 会自动从 .env 文件中读取
+      api_key: "${GEMINI_API_KEY}"
+      base_url: "https://generativelanguage.googleapis.com/v1beta/models"
+      model: "gemini-2.5-flash"
+      timeout: 60
+
+database:
+  db_name: "NEXUS_DB"
+  mongo_uri: "${MONGO_URI}"
+
+memory:
+  history_context_size: 20

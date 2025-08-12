@@ -1,0 +1,4323 @@
+文件拼接结果
+源文件夹: /home/wowyuarm/projects/Xi/frontend
+生成时间: /home/wowyuarm/projects/Xi
+================================================================================
+
+📁 文件结构:
+----------------------------------------
+└── 📁 public
+└── 📁 scripts
+    ├── 📄 toggle-mock.cjs
+└── 📁 src
+    ├── 📁 app
+    │   ├── 🟪 App.tsx
+    │   ├── 🎨 globals.css
+    │   ├── 🟪 main.tsx
+    ├── 📁 components
+    │   ├── 📁 common
+    │   │   ├── 🟪 Container.tsx
+    │   │   ├── 🟪 EmptyState.tsx
+    │   │   ├── 🟪 ErrorBoundary.tsx
+    │   │   ├── 🟦 index.ts
+    │   │   ├── 🟪 LoadingState.tsx
+    │   │   ├── 🟪 ScrollArea.tsx
+    │   ├── 📁 ui
+    │   │   ├── 🟪 AutoResizeTextarea.tsx
+    │   │   ├── 🟪 Button.tsx
+    │   │   ├── 🟪 ConnectionStatus.tsx
+    │   │   ├── 🟦 index.ts
+    │   │   ├── 🟪 MarkdownRenderer.tsx
+    │   │   ├── 🟪 RoleSymbol.tsx
+    │   │   ├── 🟪 Timestamp.tsx
+    │   ├── 🟦 index.ts
+    ├── 📁 features
+    │   ├── 📁 chat
+    │   │   └── 📁 components
+    │   │       ├── 🟪 ChatInput.tsx
+    │   │       ├── 🟪 ChatMessage.tsx
+    │   │       ├── 🟪 ChatView.tsx
+    │   │       ├── 🟪 ScrollToBottomButton.tsx
+    │   │   └── 📁 data
+    │   │       ├── 📝 MOCK_DATA.md
+    │   │       ├── 🟦 mockData.ts
+    │   │       ├── 🟦 mockResponses.ts
+    │   │       ├── 📝 TEST_GUIDE.md
+    │   │   └── 📁 hooks
+    │   │       ├── 🟦 useChat.ts
+    │   │       ├── 🟦 useTypewriter.ts
+    │   │   └── 📁 store
+    │   │       ├── 🟦 chatStore.ts
+    │   │   └── 🟪 ChatContainer.tsx
+    │   │   └── 🟪 index.tsx
+    │   │   └── 🟦 types.ts
+    ├── 📁 hooks
+    │   ├── 🟦 useAutoScroll.ts
+    ├── 📁 lib
+    │   ├── 🟦 utils.ts
+    ├── 📁 services
+    │   ├── 📁 websocket
+    │   │   └── 🟦 manager.ts
+    │   │   └── 🟦 protocol.ts
+    ├── 📝 FRONTEND_PHILOSOPHY.md
+    ├── 🟦 vite-env.d.ts
+└── 📄 .env
+└── 📄 .env.example
+└── 📦 components.json
+└── 🟨 eslint.config.js
+└── 🌐 index.html
+└── 📦 package.json
+└── 📄 pnpm-lock.yaml
+└── 🟨 postcss.config.js
+└── 📝 README.md
+└── 🟨 tailwind.config.js
+└── 📦 tsconfig.app.json
+└── 📦 tsconfig.json
+└── 📦 tsconfig.node.json
+└── 🟦 vite.config.ts
+----------------------------------------
+
+
+------------------------------------------------------------
+文件夹: public
+------------------------------------------------------------
+
+
+------------------------------------------------------------
+文件夹: scripts
+------------------------------------------------------------
+
+
+------------------------------------------------------------
+文件夹: src
+------------------------------------------------------------
+
+
+  ------------------------------------------------------------
+  文件夹: app
+  ------------------------------------------------------------
+
+
+    ================================================================================
+    文件名: App.tsx
+    路径: App.tsx
+    ================================================================================
+
+    import { ChatView } from "@/features/chat";
+
+function App() {
+  return <ChatView />;
+}
+
+export default App;
+
+    ================================================================================
+    文件名: globals.css
+    路径: globals.css
+    ================================================================================
+
+    @tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root, .dark {
+    /* 灰度中庸调色板 (Grayscale Moderation Palette) */
+    --background: 0 0% 10%;         /* #1a1a1a - 核心背景 */
+    --foreground: 0 0% 75%;         /* #bfbfbf - 主文本 */
+
+    --card: 0 0% 12%;               /* #1f1f1f - 内容区/输入框背景 */
+    --card-foreground: 0 0% 85%;    /* #d9d9d9 - 卡片内主要文本 */
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 85%;
+
+    --primary: 0 0% 90%;            /* #e6e6e6 - 主要交互元素 */
+    --primary-foreground: 0 0% 10%;
+
+    --secondary: 0 0% 14%;          /* #242424 - 用于次级背景/悬停 */
+    --secondary-foreground: 0 0% 60%; /* #999999 - 次要/静音文本 */
+
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 0 0% 14%;
+    --accent-foreground: 0 0% 90%;
+
+    --border: 0 0% 18%;             /* #2e2e2e - 边框 */
+    --input: 0 0% 18%;
+    --ring: 0 0% 90%;               /* 焦点环 */
+
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  /* 精细化、统一的Prose样式 - 遵循灰度中庸设计哲学 */
+  .prose {
+    @apply text-foreground max-w-none;
+    line-height: 1.75;
+  }
+
+  /* 基础间距 - 排除列表，让自定义组件控制 */
+  .prose p, .prose blockquote, .prose pre {
+    @apply my-4;
+  }
+  .prose :first-child { @apply mt-0; }
+  .prose :last-child { @apply mb-0; }
+
+  /* 行内代码样式 - 与组件保持一致 */
+  .prose code:not(pre code) {
+    @apply inline px-1.5 py-0.5 text-base font-mono bg-muted/40 text-foreground rounded-sm break-words;
+  }
+
+  /* 列表样式 - 使用CSS处理嵌套 */
+  .prose ul, .prose ol {
+    @apply list-none pl-0 my-0;
+  }
+
+  /* 嵌套列表特殊样式 */
+  .prose ul ul, .prose ol ol, .prose ul ol, .prose ol ul {
+    @apply mt-1.5 mb-0 pl-4;
+  }
+
+  /* 链接样式 */
+  .prose a {
+    @apply text-foreground underline decoration-secondary-foreground/30 decoration-1 underline-offset-2;
+    @apply transition-all duration-300 ease-in-out;
+  }
+  .prose a:hover {
+    @apply text-primary decoration-secondary-foreground/50;
+  }
+
+  /* 强调文本 */
+  .prose strong {
+    @apply font-semibold text-foreground;
+  }
+
+  .prose em {
+    @apply italic text-foreground;
+  }
+
+  /* 滚动条样式 */
+  ::-webkit-scrollbar {
+    width: 8px;  /* 竖向滚动条宽度 */
+    height: 8px; /* 横向滚动条高度 */
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border) / 0.6);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--border));
+  }
+}
+
+
+
+    ================================================================================
+    文件名: main.tsx
+    路径: main.tsx
+    ================================================================================
+
+    import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.tsx'
+import './globals.css'
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
+
+  ------------------------------------------------------------
+  文件夹: components
+  ------------------------------------------------------------
+
+
+    ------------------------------------------------------------
+    文件夹: common
+    ------------------------------------------------------------
+
+
+      ================================================================================
+      文件名: Container.tsx
+      路径: Container.tsx
+      ================================================================================
+
+      // src/components/common/Container.tsx
+// 通用容器组件，支持不同宽度和居中
+import React, { type ComponentProps } from 'react';
+import { cn } from '@/lib/utils';
+
+interface ContainerProps extends ComponentProps<'div'> {
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  centered?: boolean;
+  material?: boolean; // 是否应用标准材质
+}
+
+export const Container: React.FC<ContainerProps> = ({
+  size = 'md',
+  centered = true,
+  material = false,
+  className,
+  children,
+  ...props
+}) => {
+  const sizeClasses = {
+    sm: 'max-w-lg',    // 512px
+    md: 'max-w-2xl',   // 672px - 我们的标准宽度
+    lg: 'max-w-4xl',   // 896px
+    xl: 'max-w-6xl'    // 1152px
+  };
+
+  return (
+    <div
+      className={cn(
+        'w-full',
+        sizeClasses[size],
+        centered && 'mx-auto',
+        material && [
+          'bg-card/75 backdrop-blur-xl',
+          'border border-border',
+          'shadow-lg shadow-black/20',
+          'rounded-2xl p-6'
+        ],
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+};
+
+
+      ================================================================================
+      文件名: EmptyState.tsx
+      路径: EmptyState.tsx
+      ================================================================================
+
+      // src/components/common/EmptyState.tsx
+// 空状态展示，支持图标、描述和操作按钮
+import React from 'react';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+
+interface EmptyStateProps {
+  title?: string;
+  description?: string;
+  icon?: React.ReactNode;
+  action?: React.ReactNode;
+  className?: string;
+}
+
+export const EmptyState: React.FC<EmptyStateProps> = ({
+  title = "暂无内容",
+  description,
+  icon,
+  action,
+  className
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className={cn(
+        'flex flex-col items-center justify-center text-center py-12',
+        className
+      )}
+    >
+      {icon && (
+        <div className="mb-4 text-muted-foreground">
+          {icon}
+        </div>
+      )}
+      
+      <h3 className="text-base font-medium text-foreground mb-2">
+        {title}
+      </h3>
+
+      {description && (
+        <p className="text-sm text-secondary-foreground mb-6 max-w-sm leading-relaxed">
+          {description}
+        </p>
+      )}
+      
+      {action && (
+        <div>
+          {action}
+        </div>
+      )}
+    </motion.div>
+  );
+};
+
+
+      ================================================================================
+      文件名: ErrorBoundary.tsx
+      路径: ErrorBoundary.tsx
+      ================================================================================
+
+      // src/components/common/ErrorBoundary.tsx 
+// React错误边界，优雅处理组件错误
+import { Component, type ErrorInfo, type ReactNode } from 'react';
+
+interface Props {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error?: Error;
+}
+
+export class ErrorBoundary extends Component<Props, State> {
+  public state: State = {
+    hasError: false
+  };
+
+  public static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
+  }
+
+  public render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="flex flex-col items-center justify-center min-h-[200px] text-center p-6">
+          <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+            <div className="text-secondary-foreground text-lg">⚠</div>
+          </div>
+          <div className="text-base text-foreground mb-2">
+            出现了一些问题
+          </div>
+          <div className="text-sm text-secondary-foreground leading-relaxed max-w-md">
+            {this.state.error?.message || '请刷新页面重试'}
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+
+      ================================================================================
+      文件名: index.ts
+      路径: index.ts
+      ================================================================================
+
+      // src/components/common/index.ts
+// 统一导出所有通用组件
+
+export { ErrorBoundary } from './ErrorBoundary';
+export { LoadingState } from './LoadingState';
+export { Container } from './Container';
+export { EmptyState } from './EmptyState';
+export { ScrollArea } from './ScrollArea';
+
+// 未来可能添加的通用组件：
+// export { Modal } from './Modal';
+// export { Toast } from './Toast';
+// export { Tooltip } from './Tooltip';
+// export { Portal } from './Portal';
+// export { KeyboardShortcuts } from './KeyboardShortcuts';
+
+
+      ================================================================================
+      文件名: LoadingState.tsx
+      路径: LoadingState.tsx
+      ================================================================================
+
+      // src/components/common/LoadingState.tsx 
+// 统一的加载状态组件，支持不同尺寸
+import React from 'react';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+
+interface LoadingStateProps {
+  message?: string;
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}
+
+export const LoadingState: React.FC<LoadingStateProps> = ({ 
+  message = "加载中...",
+  size = 'md',
+  className 
+}) => {
+  const sizeClasses = {
+    sm: 'w-4 h-4',
+    md: 'w-6 h-6', 
+    lg: 'w-8 h-8'
+  };
+
+  return (
+    <div className={cn(
+      'flex flex-col items-center justify-center gap-3',
+      className
+    )}>
+      <motion.div
+        className={cn(
+          'border-2 border-border rounded-full relative',
+          sizeClasses[size]
+        )}
+        animate={{ rotate: 360 }}
+        transition={{
+          duration: 1,
+          repeat: Infinity,
+          ease: 'linear'
+        }}
+      >
+        <div className="absolute inset-0 border-2 border-transparent border-t-foreground rounded-full" />
+      </motion.div>
+      {message && (
+        <div className="text-sm text-secondary-foreground">
+          {message}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+      ================================================================================
+      文件名: ScrollArea.tsx
+      路径: ScrollArea.tsx
+      ================================================================================
+
+      // src/components/common/ScrollArea.tsx
+// 自定义滚动区域，支持不同方向和滚动条样式
+import React, { type ComponentProps } from 'react';
+import { cn } from '@/lib/utils';
+
+interface ScrollAreaProps extends ComponentProps<'div'> {
+  orientation?: 'vertical' | 'horizontal' | 'both';
+  maxHeight?: string; // 支持最大高度限制
+}
+
+export const ScrollArea: React.FC<ScrollAreaProps> = ({
+  orientation = 'vertical',
+  maxHeight,
+  className,
+  children,
+  ...props
+}) => {
+  const overflowClasses = {
+    vertical: 'overflow-y-auto overflow-x-hidden',
+    horizontal: 'overflow-x-auto overflow-y-hidden',
+    both: 'overflow-auto'
+  } as const;
+
+  return (
+    <div
+      className={cn(
+        overflowClasses[orientation],
+        className
+      )}
+      style={{
+        maxHeight: maxHeight,
+        ...props.style
+      }}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+};
+
+
+    ------------------------------------------------------------
+    文件夹: ui
+    ------------------------------------------------------------
+
+
+      ================================================================================
+      文件名: AutoResizeTextarea.tsx
+      路径: AutoResizeTextarea.tsx
+      ================================================================================
+
+      // src/components/ui/AutoResizeTextarea.tsx
+// 自动调整高度的文本输入框 - 纯UI组件
+import { useRef, useEffect, forwardRef, useImperativeHandle, type ComponentProps } from 'react';
+import { cn } from '@/lib/utils';
+
+interface AutoResizeTextareaProps extends Omit<ComponentProps<'textarea'>, 'rows'> {
+  maxHeightMultiplier?: number; // 最大高度倍数，默认为2
+  minRows?: number; // 最小行数，默认为3
+  onReset?: () => void; // 重置时的回调
+}
+
+// 暴露给父组件的方法
+export interface AutoResizeTextareaRef {
+  resetHeight: () => void;
+  focus: () => void;
+}
+
+export const AutoResizeTextarea = forwardRef<AutoResizeTextareaRef, AutoResizeTextareaProps>(
+  ({ maxHeightMultiplier = 2, minRows = 3, className, value, onChange, onReset, ...props }, ref) => {
+    const internalRef = useRef<HTMLTextAreaElement>(null);
+    const textareaRef = internalRef;
+    const initialHeightRef = useRef<number>(0);
+
+    // 重置高度到初始状态
+    const resetHeight = () => {
+      const textarea = textareaRef.current;
+      if (textarea && initialHeightRef.current > 0) {
+        textarea.style.height = `${initialHeightRef.current}px`;
+        textarea.style.overflowY = 'hidden';
+        onReset?.();
+      }
+    };
+
+    // 暴露方法给父组件
+    useImperativeHandle(ref, () => ({
+      resetHeight,
+      focus: () => textareaRef.current?.focus(),
+    }), []);
+
+    // 获取初始高度
+    useEffect(() => {
+      const textarea = textareaRef.current;
+      if (textarea && initialHeightRef.current === 0) {
+        textarea.style.height = 'auto';
+        const naturalHeight = textarea.scrollHeight;
+        initialHeightRef.current = naturalHeight;
+        textarea.style.height = `${naturalHeight}px`;
+      }
+    }, []);
+
+    // 自动调整高度
+    useEffect(() => {
+      const textarea = textareaRef.current;
+      if (textarea && initialHeightRef.current > 0) {
+        textarea.style.height = 'auto';
+        const scrollHeight = textarea.scrollHeight;
+        const maxHeight = initialHeightRef.current * maxHeightMultiplier;
+        
+        if (scrollHeight <= maxHeight) {
+          textarea.style.height = `${Math.max(scrollHeight, initialHeightRef.current)}px`;
+          textarea.style.overflowY = 'hidden';
+        } else {
+          textarea.style.height = `${maxHeight}px`;
+          textarea.style.overflowY = 'auto';
+        }
+      }
+    }, [value, maxHeightMultiplier]);
+
+    return (
+      <textarea
+        ref={textareaRef}
+        value={value}
+        onChange={onChange}
+        rows={minRows}
+        className={cn(
+          'w-full bg-transparent text-foreground placeholder:text-secondary-foreground',
+          'text-base leading-relaxed resize-none border-none outline-none focus:ring-0',
+          'py-4 min-h-[70px]', // 统一的内边距和最小高度
+          className
+        )}
+        {...props}
+      />
+    );
+  }
+);
+
+AutoResizeTextarea.displayName = 'AutoResizeTextarea';
+
+
+      ================================================================================
+      文件名: Button.tsx
+      路径: Button.tsx
+      ================================================================================
+
+      // src/components/ui/Button.tsx
+// 通用按钮组件 - 支持多种变体和尺寸
+import React, { type ComponentProps } from 'react';
+import { cn } from '@/lib/utils';
+
+interface ButtonProps extends ComponentProps<'button'> {
+  variant?: 'primary' | 'secondary' | 'ghost' | 'outline';
+  size?: 'sm' | 'md' | 'lg';
+  icon?: React.ReactNode;
+  iconOnly?: boolean;
+  loading?: boolean;
+}
+
+export const Button: React.FC<ButtonProps> = ({
+  variant = 'primary',
+  size = 'md',
+  icon,
+  iconOnly = false,
+  loading = false,
+  className,
+  children,
+  disabled,
+  ...props
+}) => {
+  const isDisabled = disabled || loading;
+
+  // 基础样式
+  const baseStyles = [
+    'inline-flex items-center justify-center',
+    'font-medium transition-all duration-300',
+    'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+    'disabled:cursor-not-allowed'
+  ];
+
+  // 变体样式
+  const variantStyles = {
+    primary: [
+      'bg-foreground text-background',
+      'shadow-lg shadow-black/30',
+      'hover:scale-105 hover:shadow-xl hover:shadow-black/40',
+      'disabled:bg-muted disabled:text-muted-foreground/50 disabled:shadow-sm disabled:shadow-black/10 disabled:hover:scale-100'
+    ],
+    secondary: [
+      'bg-secondary text-secondary-foreground',
+      'shadow-md shadow-black/20',
+      'hover:bg-secondary/80',
+      'disabled:bg-muted disabled:text-muted-foreground/50'
+    ],
+    ghost: [
+      'bg-transparent text-foreground',
+      'hover:bg-white/[.02]',
+      'disabled:text-muted-foreground/50'
+    ],
+    outline: [
+      'bg-transparent text-foreground border border-border',
+      'hover:bg-white/[.02] hover:border-foreground/30',
+      'disabled:text-muted-foreground/50 disabled:border-border/50'
+    ]
+  };
+
+  // 尺寸样式
+  const sizeStyles = {
+    sm: iconOnly ? 'p-1.5 rounded-lg' : 'px-3 py-1.5 text-sm rounded-lg',
+    md: iconOnly ? 'p-2 rounded-xl' : 'px-4 py-2 text-base rounded-xl',
+    lg: iconOnly ? 'p-3 rounded-xl' : 'px-6 py-3 text-lg rounded-xl'
+  };
+
+  return (
+    <button
+      className={cn(
+        baseStyles,
+        variantStyles[variant],
+        sizeStyles[size],
+        className
+      )}
+      disabled={isDisabled}
+      {...props}
+    >
+      {loading && (
+        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      )}
+      {icon && !loading && (
+        <span className={cn(iconOnly ? '' : 'mr-2')}>
+          {icon}
+        </span>
+      )}
+      {!iconOnly && children}
+    </button>
+  );
+};
+
+
+      ================================================================================
+      文件名: ConnectionStatus.tsx
+      路径: ConnectionStatus.tsx
+      ================================================================================
+
+      // src/components/ui/ConnectionStatus.tsx
+// WebSocket连接状态指示器组件
+
+import React, { useEffect, useState } from 'react';
+import wsManager from '@/services/websocket/manager';
+import type { ConnectionStatusChangeEvent } from '@/services/websocket/protocol';
+
+interface ConnectionStatusProps {
+  className?: string;
+}
+
+export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ className = '' }) => {
+  const [status, setStatus] = useState<ConnectionStatusChangeEvent | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  // 检查是否使用模拟数据模式
+  const useMockData = import.meta.env.VITE_USE_MOCK_DATA === 'true';
+
+  useEffect(() => {
+    if (useMockData) {
+      // 模拟模式下显示模拟状态
+      setStatus({
+        status: 'connected',
+        timestamp: new Date().toISOString(),
+        reconnectAttempts: 0,
+      });
+      setIsVisible(true);
+      return;
+    }
+
+    // 真实模式下监听WebSocket状态变化
+    const handleStatusChange = (statusEvent: ConnectionStatusChangeEvent) => {
+      setStatus(statusEvent);
+      
+      // 只在非连接状态时显示指示器
+      setIsVisible(statusEvent.status !== 'connected');
+      
+      // 连接成功后3秒隐藏指示器
+      if (statusEvent.status === 'connected') {
+        setTimeout(() => setIsVisible(false), 3000);
+      }
+    };
+
+    wsManager.onStatusChange(handleStatusChange);
+
+    return () => {
+      // 清理监听器（如果WebSocketManager支持的话）
+    };
+  }, [useMockData]);
+
+  if (!isVisible || !status) {
+    return null;
+  }
+
+  const getStatusIndicator = () => {
+    // 遵循灰度铁律：只使用灰度，通过透明度和动画表达状态
+    switch (status.status) {
+      case 'connected':
+        return 'bg-white/20'; // 连接成功：较亮的灰度
+      case 'connecting':
+        return 'bg-white/10 animate-pulse'; // 连接中：脉动动画
+      case 'reconnecting':
+        return 'bg-white/15 animate-pulse'; // 重连中：中等亮度脉动
+      case 'disconnected':
+        return 'bg-white/5'; // 断开：最暗的灰度
+      default:
+        return 'bg-white/8';
+    }
+  };
+
+  const getStatusText = () => {
+    if (useMockData) {
+      return '🎭 模拟模式';
+    }
+
+    switch (status.status) {
+      case 'connected':
+        return '🔗 已连接';
+      case 'connecting':
+        return '🔄 连接中...';
+      case 'reconnecting':
+        return `🔄 重连中... (${status.reconnectAttempts}/5)`;
+      case 'disconnected':
+        return '❌ 连接断开';
+      default:
+        return '❓ 未知状态';
+    }
+  };
+
+  return (
+    <div className={`fixed top-4 right-4 z-50 ${className}`}>
+      {/* 遵循标准材质：半透明背景、模糊效果、纤细边框、柔和阴影 */}
+      <div className="flex items-center space-x-3 bg-card/75 backdrop-blur-xl border border-border shadow-lg shadow-black/20 rounded-lg px-4 py-2 text-sm text-foreground transition-colors duration-300 ease-in-out">
+        <div className={`w-2 h-2 rounded-full ${getStatusIndicator()}`} />
+        <span className="text-sm">{getStatusText()}</span>
+        {status.error && (
+          <span className="text-xs text-muted-foreground">({status.error})</span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ConnectionStatus;
+
+
+      ================================================================================
+      文件名: index.ts
+      路径: index.ts
+      ================================================================================
+
+      // src/components/ui/index.ts
+// 统一导出所有UI组件，便于使用
+
+export { MarkdownRenderer } from './MarkdownRenderer';
+export { RoleSymbol } from './RoleSymbol';
+export { Button } from './Button';
+export { Timestamp } from './Timestamp';
+export { AutoResizeTextarea } from './AutoResizeTextarea';
+
+// 导出类型定义
+export type { AutoResizeTextareaRef } from './AutoResizeTextarea';
+
+// 未来的UI组件可以在这里添加
+// export { Input } from './Input';
+
+
+      ================================================================================
+      文件名: MarkdownRenderer.tsx
+      路径: MarkdownRenderer.tsx
+      ================================================================================
+
+      // src/components/ui/MarkdownRenderer.tsx
+// Markdown渲染器 - 遵循灰度中庸设计哲学，集成所有markdown相关组件
+import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Copy, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+// ===== 内部组件定义 =====
+
+// 内联代码组件
+interface InlineCodeProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+const InlineCode: React.FC<InlineCodeProps> = ({ children, className }) => {
+  return (
+    <code className={cn(
+      'inline',
+      'px-1.5 py-0.5',
+      'text-base font-mono', // 从 text-sm 改为 text-base，稍微大一些
+      'bg-muted/40 text-foreground',
+      'rounded-sm',
+      'break-words',
+      className
+    )}>
+      {children}
+    </code>
+  );
+};
+
+// 代码块组件
+interface CodeBlockProps {
+  code: string;
+  language?: string;
+  filename?: string;
+  showLineNumbers?: boolean;
+  className?: string;
+}
+
+const CodeBlock: React.FC<CodeBlockProps> = ({
+  code,
+  language,
+  filename,
+  showLineNumbers = false,
+  className
+}) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy code:', err);
+    }
+  };
+
+  const lines = code.split('\n');
+
+  return (
+    <div className={cn(
+      'group relative rounded-xl overflow-hidden my-4', // 添加外边距
+      'bg-card/75 backdrop-blur-xl',
+      'border border-border',
+      'shadow-lg shadow-black/20',
+      'transition-all duration-300',
+      'hover:border-foreground/20 hover:shadow-xl hover:shadow-black/30',
+      className
+    )}>
+      {/* 头部信息栏 */}
+      {(filename || language) && (
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-muted/30">
+          <div className="flex items-center space-x-3">
+            {filename && (
+              <span className="text-sm font-medium text-foreground">
+                {filename}
+              </span>
+            )}
+            {language && (
+              <span className="text-xs text-secondary-foreground font-mono uppercase tracking-wider">
+                {language}
+              </span>
+            )}
+          </div>
+
+          <button
+            onClick={handleCopy}
+            className={cn(
+              'p-1.5 text-secondary-foreground/60 rounded',
+              'opacity-0 group-hover:opacity-100 transition-all duration-200',
+              'hover:text-secondary-foreground hover:bg-muted/50',
+              'focus:outline-none focus:text-secondary-foreground focus:bg-muted/50'
+            )}
+            aria-label={copied ? "已复制" : "复制代码"}
+          >
+            <div className="transition-all duration-200">
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* 代码内容区域 */}
+      <div className="relative">
+        {/* 复制按钮（无头部信息时显示） */}
+        {!filename && !language && (
+          <button
+            onClick={handleCopy}
+            className={cn(
+              'absolute top-3 right-3 z-10 p-1.5 rounded',
+              'text-secondary-foreground/60 bg-card/50 backdrop-blur-sm',
+              'opacity-0 group-hover:opacity-100 transition-all duration-200',
+              'hover:text-secondary-foreground hover:bg-muted/50',
+              'focus:outline-none focus:text-secondary-foreground focus:bg-muted/50'
+            )}
+            aria-label={copied ? "已复制" : "复制代码"}
+          >
+            <div className="transition-all duration-200">
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+            </div>
+          </button>
+        )}
+
+        <pre className={cn(
+          'overflow-x-auto p-4',
+          'text-sm leading-relaxed',
+          'font-mono',
+          !filename && !language && 'pr-12' // 为复制按钮留出空间
+        )}>
+          <code className="text-foreground">
+            {showLineNumbers ? (
+              <div className="table w-full">
+                {lines.map((line, index) => (
+                  <div key={index} className="table-row">
+                    <span className="table-cell pr-4 text-secondary-foreground/50 text-right select-none w-8 min-w-8">
+                      {index + 1}
+                    </span>
+                    <span className="table-cell">
+                      {line || '\u00A0'} {/* 空行显示为不间断空格 */}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              code
+            )}
+          </code>
+        </pre>
+      </div>
+    </div>
+  );
+};
+
+// 表格组件
+interface TableProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+interface TableHeaderProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+interface TableBodyProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+interface TableRowProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+interface TableHeadProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+interface TableCellProps {
+  children: React.ReactNode;
+  className?: string;
+}
+
+// 主表格容器
+const Table: React.FC<TableProps> = ({ children, className }) => (
+  <div className="w-full overflow-x-auto my-4"> {/* 添加水平滚动和外边距 */}
+    <table className={cn(
+      'w-full border-collapse',
+      'bg-card/30 backdrop-blur-sm',
+      'border border-border/40',
+      'rounded-lg overflow-hidden',
+      'min-w-full', // 确保表格最小宽度
+      className
+    )}>
+      {children}
+    </table>
+  </div>
+);
+
+// 表格头部
+const TableHeader: React.FC<TableHeaderProps> = ({ children, className }) => (
+  <thead className={cn(
+    'bg-card/50 backdrop-blur-sm',
+    'border-b border-border/40',
+    className
+  )}>
+    {children}
+  </thead>
+);
+
+// 表格主体
+const TableBody: React.FC<TableBodyProps> = ({ children, className }) => (
+  <tbody className={cn(className)}>
+    {children}
+  </tbody>
+);
+
+// 表格行
+const TableRow: React.FC<TableRowProps> = ({ children, className }) => (
+  <tr className={cn(
+    'border-b border-border/20 last:border-b-0',
+    'hover:bg-muted/20 transition-colors duration-200', // 修复：更明显的悬停效果
+    className
+  )}>
+    {children}
+  </tr>
+);
+
+// 表格头单元格
+const TableHead: React.FC<TableHeadProps> = ({ children, className }) => (
+  <th className={cn(
+    'px-4 py-3 text-left',
+    'text-sm font-semibold text-foreground',
+    'border-r border-border/20 last:border-r-0',
+    'whitespace-nowrap', // 防止标题换行
+    className
+  )}>
+    {children}
+  </th>
+);
+
+// 表格数据单元格
+const TableCell: React.FC<TableCellProps> = ({ children, className }) => (
+  <td className={cn(
+    'px-4 py-3',
+    'text-sm text-secondary-foreground',
+    'border-r border-border/20 last:border-r-0',
+    className
+  )}>
+    {children}
+  </td>
+);
+
+interface MarkdownRendererProps {
+  content: string;
+  className?: string; // 添加可选的外部样式
+}
+
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ 
+  content, 
+  className 
+}) => {
+  return (
+    <div className={cn("w-full prose max-w-none", className)}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // 代码块组件
+          code: ({ node, inline, className, children, ...props }: any) => {
+            const match = /language-(\w+)/.exec(className || '');
+            const language = match ? match[1] : undefined;
+
+            // 修复 inline 判断：如果没有换行符且没有语言类，则认为是行内代码
+            const codeContent = String(children);
+            const isInlineCode = inline !== false && (!codeContent.includes('\n') && !language);
+
+            if (isInlineCode) {
+              return <InlineCode {...props}>{children}</InlineCode>;
+            }
+
+            return (
+              <CodeBlock
+                code={codeContent.replace(/\n$/, '')}
+                language={language}
+                showLineNumbers={false}
+                {...props}
+              />
+            );
+          },
+
+          // 自定义表格组件
+          table: ({ children }) => (
+            <Table>{children}</Table>
+          ),
+
+          thead: ({ children }) => <TableHeader>{children}</TableHeader>,
+          tbody: ({ children }) => <TableBody>{children}</TableBody>,
+          tr: ({ children }) => <TableRow>{children}</TableRow>,
+          th: ({ children }) => <TableHead>{children}</TableHead>,
+          td: ({ children }) => <TableCell>{children}</TableCell>,
+
+          // 优化其他元素
+          p: ({ children }) => (
+            <p className="text-foreground leading-relaxed mb-4 last:mb-0">
+              {children}
+            </p>
+          ),
+
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-4 border-primary/30 bg-muted/30 pl-4 py-2 italic text-secondary-foreground my-4 rounded-r">
+              {children}
+            </blockquote>
+          ),
+
+          hr: () => (
+            <hr className="border-border my-8" />
+          ),
+
+          // 标题组件 - 添加锚点支持
+          h1: ({ children, id }) => (
+            <h1 
+              id={id}
+              className="text-3xl font-bold text-foreground mb-6 mt-8 first:mt-0 leading-tight scroll-mt-16"
+            >
+              {children}
+            </h1>
+          ),
+
+          h2: ({ children, id }) => (
+            <h2 
+              id={id}
+              className="text-2xl font-semibold text-foreground mb-4 mt-6 first:mt-0 leading-tight scroll-mt-16"
+            >
+              {children}
+            </h2>
+          ),
+
+          h3: ({ children, id }) => (
+            <h3 
+              id={id}
+              className="text-xl font-semibold text-foreground mb-3 mt-5 first:mt-0 leading-tight scroll-mt-16"
+            >
+              {children}
+            </h3>
+          ),
+
+          h4: ({ children, id }) => (
+            <h4 
+              id={id}
+              className="text-lg font-semibold text-foreground mb-2 mt-4 first:mt-0 leading-tight scroll-mt-16"
+            >
+              {children}
+            </h4>
+          ),
+
+          h5: ({ children, id }) => (
+            <h5 
+              id={id}
+              className="text-base font-semibold text-foreground mb-2 mt-4 first:mt-0 leading-tight scroll-mt-16"
+            >
+              {children}
+            </h5>
+          ),
+
+          h6: ({ children, id }) => (
+            <h6 
+              id={id}
+              className="text-sm font-semibold text-secondary-foreground mb-2 mt-3 first:mt-0 leading-tight uppercase tracking-wider scroll-mt-16"
+            >
+              {children}
+            </h6>
+          ),
+
+// 无序列表组件 - 简化逻辑，依赖CSS处理嵌套
+ul: ({ children }) => (
+  <ul className="my-4 pl-0 list-none space-y-1.0">
+    {children}
+  </ul>
+),
+
+ol: ({ children, start }: any) => {
+  // 使用状态来跟踪计数器
+  let counter = start || 1;
+
+  return (
+    <ol className="my-4 pl-0 list-none space-y-1.0">
+      {React.Children.map(children, (child, index) => {
+        if (React.isValidElement(child)) {
+          return React.cloneElement(child as React.ReactElement<any>, {
+            ...(child.props || {}),
+            key: index,
+            'data-list-number': counter++,
+            'data-is-ordered': true
+          });
+        }
+        return child;
+      })}
+    </ol>
+  );
+},
+
+li: ({ children, ...props }: any) => {
+  const isOrdered = props['data-is-ordered'];
+  const listNumber = props['data-list-number'];
+
+  return (
+    <li className="flex text-foreground leading-relaxed">
+      <span className="flex-shrink-0 text-secondary-foreground/70 select-none mr-2.5 flex items-center h-7">
+        {isOrdered ? (
+          <span className="text-sm font-medium min-w-[1.2rem] text-right inline-block">
+            {listNumber}.
+          </span>
+        ) : (
+          // 圆点在固定高度容器中垂直居中，与文本行高匹配
+          <span className="w-1.5 h-1.5 bg-secondary-foreground/60 rounded-full" />
+        )}
+      </span>
+      <div className="flex-1 min-w-0">
+        {children}
+      </div>
+    </li>
+  );
+},
+
+          // 链接组件 - 微妙的交互效果，符合灰度中庸哲学
+          a: ({ href, children }) => (
+            <a
+              href={href}
+              className={cn(
+                'text-foreground underline decoration-secondary-foreground/30 decoration-1 underline-offset-2',
+                'transition-all duration-300 ease-in-out',
+                'hover:text-primary hover:decoration-secondary-foreground/50',
+                'focus:outline-none focus:ring-1 focus:ring-secondary-foreground/20 focus:rounded-sm'
+              )}
+              target={href?.startsWith('http') ? '_blank' : undefined}
+              rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
+            >
+              {children}
+            </a>
+          ),
+
+          // 文本样式组件
+          strong: ({ children }) => (
+            <strong className="font-semibold text-foreground">
+              {children}
+            </strong>
+          ),
+
+          em: ({ children }) => (
+            <em className="italic text-foreground">
+              {children}
+            </em>
+          ),
+
+          // 添加图片组件
+          img: ({ src, alt, title }) => (
+            <img
+              src={src}
+              alt={alt}
+              title={title}
+              className="max-w-full h-auto rounded-lg border border-border my-4"
+              loading="lazy"
+            />
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+};
+
+      ================================================================================
+      文件名: RoleSymbol.tsx
+      路径: RoleSymbol.tsx
+      ================================================================================
+
+      // src/components/ui/RoleSymbol.tsx
+// 角色符号组件 - 使用纯文本几何符号表示不同角色
+import React from 'react';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+
+interface RoleSymbolProps {
+  role: 'yu' | 'xi' | 'system';
+  isThinking?: boolean;
+}
+
+// 角色符号映射 - 独立一列显示，尺寸增大
+export const RoleSymbol: React.FC<RoleSymbolProps> = ({ role, isThinking = false }) => {
+  const symbols = {
+    yu: '▲',
+    xi: '●',
+    system: '■'
+  };
+
+  return (
+    <motion.div
+      className={cn(
+        'flex items-center justify-center w-8 h-8',
+        'text-secondary-foreground text-lg font-mono select-none',
+        'flex-shrink-0', // 防止收缩
+        isThinking && 'animate-pulse'
+      )}
+      animate={isThinking ? { opacity: [0.4, 1, 0.4] } : {}}
+      transition={isThinking ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : {}}
+    >
+      {symbols[role]}
+    </motion.div>
+  );
+};
+
+
+      ================================================================================
+      文件名: Timestamp.tsx
+      路径: Timestamp.tsx
+      ================================================================================
+
+      // src/components/ui/Timestamp.tsx
+// 智能时间显示组件 - 支持相对时间和悬停显示
+import React from 'react';
+import { cn } from '@/lib/utils';
+
+interface TimestampProps {
+  date: Date;
+  format?: 'time' | 'date' | 'datetime' | 'smart';
+  className?: string;
+  showOnHover?: boolean; // 是否只在悬停时显示
+}
+
+export const Timestamp: React.FC<TimestampProps> = ({
+  date,
+  format = 'smart',
+  className,
+  showOnHover = false
+}) => {
+  const getSmartTime = (date: Date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    const diffInDays = Math.floor(diffInSeconds / 86400);
+
+    // 今天的消息显示时间
+    if (diffInDays === 0) {
+      return date.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    }
+
+    // 1-6天前显示"X天前"
+    if (diffInDays <= 6) {
+      return `${diffInDays}天前`;
+    }
+
+    // 7天以上显示月日
+    if (diffInDays <= 365) {
+      return date.toLocaleDateString('zh-CN', {
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+
+    // 超过一年显示年月日
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatTime = (date: Date, format: string) => {
+    switch (format) {
+      case 'time':
+        return date.toLocaleTimeString('zh-CN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+      case 'date':
+        return date.toLocaleDateString('zh-CN');
+      case 'datetime':
+        return date.toLocaleString('zh-CN');
+      case 'smart':
+        return getSmartTime(date);
+      default:
+        return getSmartTime(date);
+    }
+  };
+
+  const getFullDateTime = (date: Date) => {
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  };
+
+  return (
+    <time
+      dateTime={date.toISOString()}
+      title={getFullDateTime(date)}
+      className={cn(
+        'text-xs text-secondary-foreground/60 select-none transition-opacity duration-200',
+        showOnHover && 'opacity-0 group-hover:opacity-100',
+        className
+      )}
+    >
+      {formatTime(date, format)}
+    </time>
+  );
+};
+
+
+    ================================================================================
+    文件名: index.ts
+    路径: index.ts
+    ================================================================================
+
+    // src/components/index.ts
+// 统一导出所有组件层
+
+// UI组件层 - 原子级纯UI组件
+export * from './ui';
+
+// Common组件层 - 复合/工具组件
+export * from './common';
+
+// 使用示例：
+// import { MarkdownRenderer, RoleSymbol } from '@/components'; // UI组件
+// import { ErrorBoundary, LoadingState } from '@/components';     // Common组件
+
+
+  ------------------------------------------------------------
+  文件夹: features
+  ------------------------------------------------------------
+
+
+    ------------------------------------------------------------
+    文件夹: chat
+    ------------------------------------------------------------
+
+
+      ------------------------------------------------------------
+      文件夹: components
+      ------------------------------------------------------------
+
+
+        ================================================================================
+        文件名: ChatInput.tsx
+        路径: ChatInput.tsx
+        ================================================================================
+
+        // src/features/chat/components/ChatInput.tsx
+import { ArrowUp } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { cn } from '@/lib/utils';
+import { Button, AutoResizeTextarea, type AutoResizeTextareaRef } from '@/components/ui';
+
+interface ChatInputProps {
+  onSendMessage: (message: string) => void;
+  disabled?: boolean;
+  isInitialState?: boolean;
+}
+
+export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false, isInitialState: _isInitialState = false }) => {
+  // 注意：isInitialState 参数保留用于接口兼容性，但现在所有状态下都使用统一样式
+  const [message, setMessage] = useState('');
+  const [isComposing, setIsComposing] = useState(false);
+  const textareaRef = useRef<AutoResizeTextareaRef>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (message.trim() && !disabled && !isComposing) {
+      onSendMessage(message.trim());
+      setMessage('');
+
+      // 重置 textarea 高度
+      textareaRef.current?.resetHeight();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
+  const canSend = message.trim().length > 0 && !disabled && !isComposing;
+
+  return (
+    <div className="w-full max-w-2xl mx-auto">
+      <form onSubmit={handleSubmit} className="relative">
+        <div className={cn(
+          'relative rounded-2xl border border-border shadow-lg shadow-black/20',
+          'bg-card/75 backdrop-blur-xl',
+          'transition-colors duration-200',
+          'hover:border-foreground/20'
+        )}>
+          <AutoResizeTextarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={() => setIsComposing(false)}
+            placeholder="继续探索..."
+            disabled={disabled}
+            maxHeightMultiplier={2}
+            minRows={3}
+            className="px-4 pr-12"
+          />
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            icon={<ArrowUp size={18} />}
+            iconOnly
+            disabled={!canSend}
+            className="absolute right-2 bottom-2"
+          />
+        </div>
+      </form>
+    </div>
+  );
+};
+
+        ================================================================================
+        文件名: ChatMessage.tsx
+        路径: ChatMessage.tsx
+        ================================================================================
+
+        // src/features/chat/components/ChatMessage.tsx
+// 消息组件 - 集成流式渲染引擎，实现数据与渲染分离
+import React from 'react';
+import { motion } from 'framer-motion';
+// import { cn } from '@/lib/utils'; // 暂时未使用
+import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
+import { Timestamp } from '@/components/ui/Timestamp';
+import { RoleSymbol } from '@/components/ui/RoleSymbol';
+import { useTypewriter } from '../hooks/useTypewriter';
+import type { Message } from '../types';
+
+interface ChatMessageProps {
+  message: Message;
+  isLastMessage: boolean;
+  isThinking: boolean;
+}
+
+
+
+export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLastMessage, isThinking }) => {
+  const isXiThinking = message.role === 'xi' && isLastMessage && isThinking;
+  const isStreaming = message.metadata?.isStreaming ?? false;
+
+  // 使用流式渲染引擎
+  const { displayedContent } = useTypewriter({
+    targetContent: message.content,
+    isStreamingMessage: isStreaming,
+  });
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="group relative py-6 flex items-start gap-4"
+      data-message-id={message.id}
+    >
+      {/* 左侧：角色符号独立一列 */}
+      <RoleSymbol role={message.role} isThinking={isXiThinking} />
+
+      {/* 右侧：消息内容区域 */}
+      <div className="flex-1 min-w-0 relative">
+        {/* 时间戳 - 悬停显示，右上角 */}
+        <div className="absolute top-0 right-0">
+          <Timestamp
+            date={new Date(message.timestamp)}
+            format="smart"
+            showOnHover={true}
+          />
+        </div>
+
+        {/* 消息内容 - 使用流式渲染引擎输出 */}
+        <div className="pr-16"> {/* 右边距为时间戳留出空间 */}
+          <MarkdownRenderer content={displayedContent} />
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+
+        ================================================================================
+        文件名: ChatView.tsx
+        路径: ChatView.tsx
+        ================================================================================
+
+        // src/features/chat/components/ChatView.tsx
+// 聊天视图组件 - 纯展示组件
+//
+// 职责：
+// - 渲染聊天界面的所有视觉元素
+// - 处理动画和过渡效果
+// - 响应用户交互（通过回调函数）
+// - 展示消息流、输入框、按钮等UI元素
+//
+// 设计原则：
+// - 纯展示组件：不包含业务逻辑和状态管理
+// - 通过props接收所有数据和回调函数
+// - 专注于UI渲染和用户体验
+// - 集成LogStream的消息渲染逻辑
+
+import React, { useMemo } from 'react';
+import { motion, cubicBezier } from 'framer-motion';
+import type { Message } from '../types';
+import { ChatMessage } from './ChatMessage';
+import { ChatInput } from './ChatInput';
+import { ScrollToBottomButton } from './ScrollToBottomButton';
+import { ConnectionStatus } from '@/components/ui/ConnectionStatus';
+
+interface ChatViewProps {
+  messages: Message[];
+  isThinking: boolean;
+  onSendMessage: (message: string) => void;
+  scrollContainerRef: React.RefObject<HTMLDivElement>;
+  showScrollButton: boolean;
+  onScrollToBottom: () => void;
+}
+
+export const ChatView: React.FC<ChatViewProps> = ({
+  messages,
+  isThinking,
+  onSendMessage,
+  scrollContainerRef,
+  showScrollButton,
+  onScrollToBottom,
+}) => {
+  // 是否已开始（是否已存在任意消息）
+  const hasStarted = messages.length > 0;
+
+  // 输入区域动画：单一父容器中，通过 transform 控制从居中 -> 底部
+  const inputMotion = useMemo(() => {
+    return {
+      initial: false as const, // 避免首次挂载时闪烁
+      animate: hasStarted
+        ? { y: 0, opacity: 1 }
+        : { y: 'calc(-50vh + 4rem)', opacity: 1 }, 
+      transition: {
+        duration: 0.8,
+        ease: cubicBezier(0.22, 1, 0.36, 1),
+        type: 'tween' as const,
+      },
+    };
+  }, [hasStarted]);
+
+  // 标题淡入淡出
+  const titleMotion = useMemo(() => {
+    return {
+      initial: { opacity: 0 },
+      animate: { opacity: hasStarted ? 0 : 1 },
+      transition: { duration: 0.5, ease: cubicBezier(0.22, 1, 0.36, 1) },
+    };
+  }, [hasStarted]);
+
+  return (
+    <div className="h-screen bg-background text-foreground font-sans relative overflow-hidden">
+      {/* 统一布局：顶部内容区 + 中央/底部动画输入区 */}
+      <div className="h-full relative">
+        {/* 滚动消息区：根据 hasStarted 控制可见性与入场 */}
+        <motion.div
+          className="h-full overflow-y-auto pb-32"
+          style={{ scrollBehavior: 'auto' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: hasStarted ? 1 : 0 }}
+          transition={{ duration: 0.5, ease: cubicBezier(0.22, 1, 0.36, 1) }}
+          ref={scrollContainerRef}
+        >
+          <div className="flex justify-center">
+            {/* 消息流渲染 - 集成原LogStream逻辑 */}
+            <div className="w-full max-w-3xl mx-auto px-4">
+              {messages.map((message, index) => (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  isLastMessage={index === messages.length - 1}
+                  isThinking={isThinking}
+                />
+              ))}
+            </div>
+          </div>
+        </motion.div>
+
+        {/* 初始标题：仅在未开始时显示，位于页面中心上方更多 */}
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          {...titleMotion}
+        >
+          <h1 className="text-4xl font-light text-secondary-foreground tracking-[0.2em] -translate-y-32">
+            YX NEXUS
+          </h1>
+        </motion.div>
+
+        {/* 输入区域：单一父容器内，过渡从中心 -> 底部 */}
+        <motion.div
+          className="absolute left-0 right-0 bottom-0 flex justify-center p-6"
+          {...inputMotion}
+        >
+          <div className="w-full max-w-2xl">
+            <ChatInput
+              onSendMessage={onSendMessage}
+              disabled={isThinking}
+              isInitialState={!hasStarted}
+            />
+          </div>
+        </motion.div>
+
+        {/* 滚动到底部按钮 */}
+        <ScrollToBottomButton
+          show={showScrollButton && hasStarted}
+          onClick={onScrollToBottom}
+        />
+
+        {/* WebSocket连接状态指示器 */}
+        <ConnectionStatus />
+      </div>
+    </div>
+  );
+};
+
+
+        ================================================================================
+        文件名: ScrollToBottomButton.tsx
+        路径: ScrollToBottomButton.tsx
+        ================================================================================
+
+        // src/features/chat/components/ScrollToBottomButton.tsx
+// 滚动到底部按钮组件 - 符合设计系统的浮动按钮
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface ScrollToBottomButtonProps {
+  /** 是否显示按钮 */
+  show: boolean;
+  /** 点击回调 */
+  onClick: () => void;
+  /** 自定义类名 */
+  className?: string;
+}
+
+export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
+  show,
+  onClick,
+  className
+}) => {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.button
+          initial={{ opacity: 0, y: 10, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 10, scale: 0.9 }}
+          transition={{
+            duration: 0.2,
+            ease: [0.22, 1, 0.36, 1]
+          }}
+          onClick={onClick}
+          className={cn(
+            // 基础样式 - 调整位置与输入框对齐
+            // bottom-[6.5rem] 约等于输入框容器的高度 (p-6 + 输入框高度)
+            'fixed bottom-[6.5rem] right-6 z-10',
+            'w-10 h-10 rounded-full',
+            
+            // 标准材质
+            'bg-card/75 backdrop-blur-xl',
+            'border border-border',
+            'shadow-lg shadow-black/20',
+            
+            // 交互状态
+            'hover:bg-white/[.02] active:scale-95',
+            'transition-all duration-300 ease-in-out',
+            
+            // 内容居中
+            'flex items-center justify-center',
+            'text-secondary-foreground hover:text-foreground',
+            
+            className
+          )}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <ChevronDown className="w-5 h-5" />
+        </motion.button>
+      )}
+    </AnimatePresence>
+  );
+};
+
+
+      ------------------------------------------------------------
+      文件夹: data
+      ------------------------------------------------------------
+
+
+        ================================================================================
+        文件名: MOCK_DATA.md
+        路径: MOCK_DATA.md
+        ================================================================================
+
+        # 前端模拟数据功能
+
+## 概述
+
+为了方便前端开发和测试界面效果，我们实现了一个完整的模拟数据系统。该系统可以在不依赖后端服务的情况下，提供丰富的对话数据和交互体验。
+
+## 功能特性
+
+### 🎭 交互式测试模式
+- **空白界面启动**：从最初的悬浮指令核心开始
+- **数字指令触发**：通过输入1-5触发不同测试场景
+- **完整交互流程**：包含发送、思考、流式输出的完整体验
+- **真实动画效果**：所有UI组件和过渡动画正常工作
+
+### 🤖 智能测试响应
+- **分类测试内容**：5种不同类型的专门测试响应
+- **流式输出模拟**：完整的打字机效果和思考动画
+- **组件功能验证**：每种响应测试不同的UI组件
+- **性能测试支持**：长文本、复杂格式的渲染测试
+
+### 🎨 全面UI测试覆盖
+- **基础文本渲染**：Markdown、粗体、斜体、列表
+- **代码语法高亮**：Python、JavaScript等多语言支持
+- **表格和引用**：复杂格式元素的渲染测试
+- **工具调用动画**：模拟搜索和能力使用的视觉效果
+- **长文本滚动**：性能和用户体验测试
+
+## 使用方法
+
+### 快速切换模式
+
+使用提供的脚本快速切换模拟数据模式：
+
+```bash
+# 启用模拟数据模式
+node scripts/toggle-mock.cjs on
+
+# 禁用模拟数据模式（使用真实后端）
+node scripts/toggle-mock.cjs off
+
+# 查看当前状态
+node scripts/toggle-mock.cjs
+```
+
+### 手动配置
+
+编辑 `.env` 文件：
+
+```env
+# 启用模拟数据
+VITE_USE_MOCK_DATA=true
+
+# 禁用模拟数据（默认）
+VITE_USE_MOCK_DATA=false
+```
+
+## 测试指令说明
+
+### 数字指令系统
+在模拟数据模式下，输入以下数字可触发对应的测试场景：
+
+| 指令 | 测试内容 | 验证功能 |
+|------|----------|----------|
+| **1** | 基础文本响应 | Markdown渲染、文本格式、列表显示 |
+| **2** | 工具调用模拟 | 🛠️图标显示、工具调用动画效果 |
+| **3** | 代码块渲染 | 语法高亮、多语言支持、代码格式 |
+| **4** | 长文本滚动 | 滚动性能、响应式布局、内容层次 |
+| **5** | 表格和引用 | 表格渲染、引用样式、链接效果 |
+| **其他** | 默认帮助 | 显示所有可用测试指令 |
+
+### 测试流程体验
+每次输入数字指令后，系统会：
+1. **发送消息**：用户消息立即显示
+2. **思考动画**：曦的紫色光晕开始呼吸闪烁
+3. **流式输出**：模拟真实的打字机效果
+4. **动画结束**：思考状态重置，准备下次交互
+
+## 开发优势
+
+### 🚀 开发效率
+- **独立开发**：无需启动后端服务
+- **快速迭代**：即时查看界面效果
+- **稳定测试**：不受后端API变化影响
+
+### 🎯 测试覆盖
+- **UI组件测试**：所有界面元素
+- **动画效果测试**：过渡和交互动画
+- **响应式测试**：不同设备适配
+- **边界情况测试**：长文本、特殊字符等
+
+### 🔧 调试便利
+- **可控环境**：完全可预测的数据
+- **快速重现**：一致的测试场景
+- **性能测试**：纯前端性能评估
+
+## 技术实现
+
+### 数据结构
+```typescript
+interface Message {
+  id: string;
+  role: 'yu' | 'xi' | 'system';
+  content: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+```
+
+### 核心组件
+- `mockData.ts`：模拟数据定义和生成
+- `useChat.ts`：集成模拟数据逻辑
+- `toggle-mock.cjs`：快速切换脚本
+
+### 环境变量
+- `VITE_USE_MOCK_DATA`：控制模拟数据模式开关
+
+## 注意事项
+
+1. **重启服务器**：切换模式后需要重启开发服务器
+2. **生产环境**：确保生产环境中禁用模拟数据
+3. **数据同步**：模拟数据不会同步到后端
+4. **功能限制**：某些高级功能可能无法完全模拟
+
+## 未来扩展
+
+- [ ] 更多样化的模拟响应类型
+- [ ] 用户自定义模拟数据
+- [ ] 模拟网络延迟和错误状态
+- [ ] 集成到自动化测试流程
+
+
+        ================================================================================
+        文件名: mockData.ts
+        路径: mockData.ts
+        ================================================================================
+
+        // src/features/chat/data/mockData.ts
+import type { Message } from '../types';
+import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * 模拟对话数据
+ * 用于前端开发和测试界面效果
+ */
+export const mockMessages: Message[] = [
+  {
+    id: uuidv4(),
+    role: 'yu',
+    content: '你好，曦。今天想和你聊聊AI的未来发展。',
+    timestamp: new Date(Date.now() - 300000).toISOString(), // 5分钟前
+  },
+  {
+    id: uuidv4(),
+    role: 'xi',
+    content: '你好，禹。很高兴与你探讨这个话题。✨\n\nAI的未来发展确实是一个令人兴奋的领域。我认为有几个关键方向值得关注：\n\n## 主要发展趋势\n\n1. **多模态融合**：未来的AI将能够同时处理文本、图像、音频、视频等多种模态的信息\n2. **推理能力提升**：从简单的模式匹配向真正的逻辑推理和创造性思维发展\n3. **个性化适应**：AI将更好地理解和适应每个用户的独特需求和偏好\n\n你对哪个方向最感兴趣呢？',
+    timestamp: new Date(Date.now() - 280000).toISOString(),
+  },
+  {
+    id: uuidv4(),
+    role: 'yu',
+    content: '我特别关注AI的推理能力。能给我展示一些代码示例吗？',
+    timestamp: new Date(Date.now() - 240000).toISOString(),
+  },
+  {
+    id: uuidv4(),
+    role: 'xi',
+    content: '当然！让我为你展示一个AI推理的简单示例：\n\n```python\nclass ReasoningEngine:\n    def __init__(self):\n        self.knowledge_base = {}\n        self.rules = []\n    \n    def add_fact(self, fact: str, confidence: float = 1.0):\n        """添加事实到知识库"""\n        self.knowledge_base[fact] = confidence\n    \n    def add_rule(self, premise: str, conclusion: str, weight: float = 1.0):\n        """添加推理规则"""\n        self.rules.append({\n            \'premise\': premise,\n            \'conclusion\': conclusion,\n            \'weight\': weight\n        })\n    \n    def infer(self, query: str) -> float:\n        """基于知识库和规则进行推理"""\n        if query in self.knowledge_base:\n            return self.knowledge_base[query]\n        \n        # 应用推理规则\n        for rule in self.rules:\n            if rule[\'premise\'] in self.knowledge_base:\n                confidence = self.knowledge_base[rule[\'premise\']] * rule[\'weight\']\n                if rule[\'conclusion\'] == query:\n                    return confidence\n        \n        return 0.0\n\n# 使用示例\nengine = ReasoningEngine()\nengine.add_fact("天空是蓝色的", 0.9)\nengine.add_rule("天空是蓝色的", "今天天气不错", 0.7)\n\nresult = engine.infer("今天天气不错")\nprint(f"推理结果置信度: {result}")  # 输出: 0.63\n```\n\n这个例子展示了基础的符号推理。现代AI还会结合神经网络进行更复杂的推理。',
+    timestamp: new Date(Date.now() - 180000).toISOString(),
+  },
+  {
+    id: uuidv4(),
+    role: 'yu',
+    content: '很有趣！那么在实际应用中，AI推理面临哪些挑战？',
+    timestamp: new Date(Date.now() - 120000).toISOString(),
+  },
+  {
+    id: uuidv4(),
+    role: 'xi',
+    content: '[正在使用我的能力...🛠️]\n\n根据我的分析，AI推理在实际应用中面临以下主要挑战：\n\n### 技术挑战\n\n- **不确定性处理**：现实世界充满不确定性，如何在不完整信息下做出合理推理\n- **常识推理**：人类的常识对AI来说往往是最难掌握的\n- **因果关系理解**：区分相关性和因果性，理解事件之间的真正关系\n\n### 实践挑战\n\n- **可解释性**：AI的推理过程需要对人类透明和可理解\n- **鲁棒性**：面对对抗性输入或边缘情况时保持稳定性能\n- **伦理考量**：确保推理结果符合人类价值观和道德标准\n\n### 未来方向\n\n我认为**神经符号结合**是一个很有前景的方向，它结合了神经网络的学习能力和符号推理的逻辑性。\n\n你在工作中遇到过类似的推理挑战吗？',
+    timestamp: new Date(Date.now() - 60000).toISOString(),
+  }
+];
+
+/**
+ * 获取模拟消息的函数
+ * 可以根据需要返回不同数量的消息
+ */
+export const getMockMessages = (count?: number): Message[] => {
+  if (count && count < mockMessages.length) {
+    return mockMessages.slice(0, count);
+  }
+  return mockMessages;
+};
+
+/**
+ * 创建新的模拟消息
+ */
+export const createMockMessage = (role: 'yu' | 'xi' | 'system', content: string): Message => {
+  return {
+    id: uuidv4(),
+    role,
+    content,
+    timestamp: new Date().toISOString(),
+  };
+};
+
+
+        ================================================================================
+        文件名: mockResponses.ts
+        路径: mockResponses.ts
+        ================================================================================
+
+        // src/features/chat/data/mockResponses.ts
+// 模拟响应数据 - 升级为协议事件流模拟
+
+import type { XiSystemEvent } from '@/services/websocket/protocol';
+import { v4 as uuidv4 } from 'uuid';
+
+// 定义模拟事件流的类型
+export interface MockEvent {
+  delay: number;
+  event: Omit<XiSystemEvent, 'metadata'>;
+}
+
+export type MockFlow = MockEvent[];
+
+// 生成模拟事件的辅助函数
+const createMockEvent = (type: string, payload: any, delay: number = 100): MockEvent => ({
+  delay,
+  event: { type, payload } as Omit<XiSystemEvent, 'metadata'>
+});
+
+
+
+// 模拟事件流定义
+export const mockFlows: Record<string, MockFlow> = {
+  '1': [ // 基础文本响应测试
+    createMockEvent('stream_start', { session_id: uuidv4(), input_message_id: uuidv4() }, 100),
+    createMockEvent('text_chunk', { chunk: '**基础文本响应测试** ✨\n\n这是一个基础的文本响应，用于测试：\n\n- 基本的Markdown渲染\n- 文本换行和段落\n- **粗体**和*斜体*效果\n- 列表项目显示\n\n界面渲染效果看起来不错！' }, 50),
+    createMockEvent('stream_end', {}, 200),
+  ],
+
+  '2': [ // 工具调用模拟测试
+    createMockEvent('stream_start', { session_id: uuidv4(), input_message_id: uuidv4() }, 100),
+    createMockEvent('tool_call', { tool_name: 'web_search', arguments: { query: '工具调用测试' } }, 500),
+    createMockEvent('text_chunk', { chunk: '**工具调用模拟测试**\n\n' }, 1500),
+    createMockEvent('text_chunk', { chunk: '我正在使用搜索工具查找相关信息...\n\n' }, 400),
+    createMockEvent('text_chunk', { chunk: '根据搜索结果，找到了以下内容：\n' }, 300),
+    createMockEvent('text_chunk', { chunk: '- 🔍 搜索功能正常\n' }, 200),
+    createMockEvent('text_chunk', { chunk: '- 📊 数据分析完成\n' }, 200),
+    createMockEvent('text_chunk', { chunk: '- ✅ 工具调用动画效果测试成功\n\n' }, 200),
+    createMockEvent('text_chunk', { chunk: '这个测试验证了工具调用提示的显示效果。' }, 300),
+    createMockEvent('stream_end', {}, 200),
+  ],
+
+  '3': [ // 代码块渲染测试
+    createMockEvent('stream_start', { session_id: uuidv4(), input_message_id: uuidv4() }, 100),
+    createMockEvent('text_chunk', { chunk: '**代码块渲染测试** 💻\n\n' }, 500),
+    createMockEvent('text_chunk', { chunk: '让我展示一些代码示例来测试语法高亮：\n\n' }, 400),
+    createMockEvent('text_chunk', { chunk: '```python\n# Python 代码示例\nclass TestComponent:\n    def __init__(self, name):\n        self.name = name\n        self.status = \'active\'\n    \n    def render(self):\n        return f"Component {self.name} is {self.status}"\n\n# 创建实例\ncomponent = TestComponent("YX Nexus")\nprint(component.render())\n```\n\n' }, 800),
+    createMockEvent('text_chunk', { chunk: '```javascript\n// JavaScript 代码示例\nconst testFunction = (data) => {\n  return data.map(item => ({\n    ...item,\n    processed: true\n  }));\n};\n```\n\n' }, 600),
+    createMockEvent('text_chunk', { chunk: '代码高亮和格式化效果测试完成！' }, 300),
+    createMockEvent('stream_end', {}, 200),
+  ],
+
+  '4': [ // 长文本滚动测试
+    createMockEvent('stream_start', { session_id: uuidv4(), input_message_id: uuidv4() }, 100),
+    createMockEvent('text_chunk', { chunk: '**长文本滚动测试** 📜\n\n' }, 500),
+    createMockEvent('text_chunk', { chunk: '这是一个用于测试长文本滚动和渲染性能的响应。\n\n' }, 400),
+    createMockEvent('text_chunk', { chunk: '## 第一部分：系统架构\n\n' }, 300),
+    createMockEvent('text_chunk', { chunk: 'YX Nexus 采用了现代化的前端架构，包括：\n\n' }, 300),
+    createMockEvent('text_chunk', { chunk: '### 技术栈\n- **前端框架**: React + TypeScript\n- **状态管理**: Zustand\n- **样式系统**: Tailwind CSS + shadcn/ui\n- **动画库**: Framer Motion\n- **构建工具**: Vite\n\n' }, 600),
+    createMockEvent('text_chunk', { chunk: '### 设计理念\n1. **空间叙事**: 从虚无到流淌的界面转换\n2. **生命感交互**: 呼吸光晕和微妙动画\n3. **信息分层**: 默认简洁，交互揭示深度\n4. **架构即认知**: 结构反映思维模式\n\n' }, 600),
+    createMockEvent('text_chunk', { chunk: '## 第二部分：核心功能\n\n' }, 300),
+    createMockEvent('text_chunk', { chunk: '### 悬浮指令核心\n- 毛玻璃材质效果\n- 动态辉光边框\n- 聚焦状态增强\n- 响应式尺寸调整\n\n' }, 500),
+    createMockEvent('text_chunk', { chunk: '### 宇宙漂流背景\n- 多层次动画系统\n- 智能状态控制\n- 性能优化实现\n- 沉浸式体验营造\n\n' }, 500),
+    createMockEvent('text_chunk', { chunk: '### 生命光晕系统\n- 角色身份标识\n- 思考状态动画\n- 精确的光晕控制\n- 流式输出指示\n\n' }, 500),
+    createMockEvent('text_chunk', { chunk: '## 第三部分：用户体验\n\n' }, 300),
+    createMockEvent('text_chunk', { chunk: '这个长文本测试验证了：\n- 📱 响应式布局适配\n- 🎨 Markdown 渲染质量\n- ⚡ 滚动性能表现\n- 🎯 内容层次结构\n- ✨ 视觉效果一致性\n\n' }, 600),
+    createMockEvent('text_chunk', { chunk: '测试完成！界面滚动和渲染效果良好。' }, 300),
+    createMockEvent('stream_end', {}, 200),
+  ],
+
+  '5': [ // 表格和引用测试
+    createMockEvent('stream_start', { session_id: uuidv4(), input_message_id: uuidv4() }, 100),
+    createMockEvent('text_chunk', { chunk: '**表格和引用测试** 📊\n\n' }, 500),
+    createMockEvent('text_chunk', { chunk: '> 这是一个引用块测试，用于验证引用样式的渲染效果。引用块应该有特殊的左边框和斜体样式。\n\n' }, 600),
+    createMockEvent('text_chunk', { chunk: '下面是一个表格测试：\n\n' }, 300),
+    createMockEvent('text_chunk', { chunk: '| 功能模块 | 状态 | 测试结果 | 备注 |\n|---------|------|----------|------|\n| 基础文本 | ✅ | 通过 | 渲染正常 |\n| 代码高亮 | ✅ | 通过 | 语法正确 |\n| 表格显示 | 🧪 | 测试中 | 当前项目 |\n| 引用块 | ✅ | 通过 | 样式正确 |\n| 列表项 | ✅ | 通过 | 缩进正常 |\n\n' }, 800),
+    createMockEvent('text_chunk', { chunk: '### 链接测试\n这里有一个[测试链接](https://example.com)，用于验证链接样式。\n\n' }, 400),
+    createMockEvent('text_chunk', { chunk: '### 分割线测试\n\n---\n\n' }, 300),
+    createMockEvent('text_chunk', { chunk: '分割线上方和下方的内容应该有明显的视觉分隔。\n\n' }, 400),
+    createMockEvent('text_chunk', { chunk: '**测试总结**: 表格、引用、链接等元素渲染效果良好！' }, 300),
+    createMockEvent('stream_end', {}, 200),
+  ],
+};
+
+// 默认响应生成函数
+export const createDefaultMockFlow = (input: string): MockFlow => [
+  createMockEvent('stream_start', { session_id: uuidv4(), input_message_id: uuidv4() }, 100),
+  createMockEvent('text_chunk', { chunk: '**默认响应** 🤖\n\n' }, 500),
+  createMockEvent('text_chunk', { chunk: `你输入了："${input}"\n\n` }, 300),
+  createMockEvent('text_chunk', { chunk: '💡 **测试提示**：\n- 输入 **1** - 基础文本响应测试\n- 输入 **2** - 工具调用模拟测试\n- 输入 **3** - 代码块渲染测试\n- 输入 **4** - 长文本滚动测试\n- 输入 **5** - 表格和引用测试\n\n' }, 600),
+  createMockEvent('text_chunk', { chunk: '每种测试都会展示不同的UI组件和动画效果，帮助验证界面的各项功能。\n\n' }, 400),
+  createMockEvent('text_chunk', { chunk: '✨ 试试输入数字来体验不同的测试场景吧！' }, 300),
+  createMockEvent('stream_end', {}, 200),
+];
+
+
+        ================================================================================
+        文件名: TEST_GUIDE.md
+        路径: TEST_GUIDE.md
+        ================================================================================
+
+        # YX Nexus 前端测试指南
+
+## 🎯 快速测试步骤
+
+### 1. 启用模拟数据模式
+```bash
+# 在 frontend 目录下执行
+node scripts/toggle-mock.cjs on
+# 重启开发服务器
+pnpm run dev
+```
+
+### 2. 打开浏览器
+访问 `http://localhost:5173`
+
+### 3. 测试界面效果
+
+#### 🌌 初始状态测试
+- **宇宙背景动画**：观察星尘和粒子漂流效果
+- **悬浮指令核心**：毛玻璃材质、辉光边框
+- **YX Nexus 标题**：居中显示，优雅字体
+- **输入框聚焦**：点击时边框和阴影增强
+
+#### 🔢 数字指令测试
+在输入框中依次输入以下数字，观察不同效果：
+
+**输入 "1" - 基础文本测试**
+- ✅ 界面从居中转换为对话模式
+- ✅ 曦的紫色光晕开始呼吸闪烁
+- ✅ 流式打字机效果
+- ✅ Markdown 渲染（粗体、斜体、列表）
+
+**输入 "2" - 工具调用测试**
+- ✅ 工具调用图标 🛠️ 显示
+- ✅ 工具使用提示动画
+- ✅ 搜索和分析功能模拟
+
+**输入 "3" - 代码块测试**
+- ✅ Python 和 JavaScript 语法高亮
+- ✅ 代码块格式和缩进
+- ✅ 多语言支持验证
+
+**输入 "4" - 长文本测试**
+- ✅ 滚动性能测试
+- ✅ 响应式布局适配
+- ✅ 内容层次结构
+- ✅ 大量文本渲染性能
+
+**输入 "5" - 表格引用测试**
+- ✅ 表格渲染和对齐
+- ✅ 引用块样式
+- ✅ 链接效果
+- ✅ 分割线显示
+
+**输入其他内容 - 帮助信息**
+- ✅ 默认响应和使用指南
+- ✅ 测试指令说明
+
+## 🎨 重点观察项目
+
+### 动画效果
+- [ ] 宇宙背景粒子漂流
+- [ ] 界面布局平滑过渡
+- [ ] 曦的思考光晕呼吸
+- [ ] 打字机流式输出
+- [ ] 输入框聚焦辉光
+
+### UI组件
+- [ ] 毛玻璃悬浮指令核心
+- [ ] AuraIndicator 身份标识
+- [ ] MarkdownRenderer 内容渲染
+- [ ] 代码语法高亮
+- [ ] 表格和引用样式
+
+### 交互体验
+- [ ] 发送消息响应速度
+- [ ] 思考状态视觉反馈
+- [ ] 滚动性能流畅度
+- [ ] 响应式布局适配
+- [ ] 键盘快捷键支持
+
+## 🔧 故障排除
+
+### 模拟数据未生效
+1. 检查 `.env` 文件中 `VITE_USE_MOCK_DATA=true`
+2. 重启开发服务器
+3. 清除浏览器缓存
+
+### 动画效果不显示
+1. 检查浏览器开发者工具中的CSS加载
+2. 确认 Tailwind CSS 正确编译
+3. 验证 framer-motion 库加载
+
+### 组件渲染异常
+1. 查看浏览器控制台错误信息
+2. 检查 TypeScript 编译错误
+3. 验证组件导入路径
+
+## 📊 性能测试
+
+### 建议测试场景
+1. **快速连续输入**：测试状态管理稳定性
+2. **长文本滚动**：验证渲染性能
+3. **多次切换**：检查内存泄漏
+4. **不同屏幕尺寸**：响应式适配测试
+
+### 性能指标
+- 首屏加载时间 < 2秒
+- 动画帧率 > 60fps
+- 内存使用稳定
+- 交互响应 < 100ms
+
+## 🚀 完成测试后
+
+### 切换回真实模式
+```bash
+node scripts/toggle-mock.cjs off
+# 重启开发服务器
+```
+
+### 测试报告
+记录发现的问题和改进建议，为后续优化提供参考。
+
+
+      ------------------------------------------------------------
+      文件夹: hooks
+      ------------------------------------------------------------
+
+
+        ================================================================================
+        文件名: useChat.ts
+        路径: useChat.ts
+        ================================================================================
+
+        // src/features/chat/hooks/useChat.ts
+// 聊天Hook - 支持真实连接和模拟模式的双模式工作流
+import { useEffect, useRef } from 'react';
+import { useChatStore } from '../store/chatStore';
+import wsManager from '@/services/websocket/manager';
+import type { Message } from '../types';
+import type { XiSystemEvent } from '@/services/websocket/protocol';
+import { isStreamStartEvent, isToolCallEvent, isTextChunkEvent, isStreamEndEvent, isErrorEvent } from '@/services/websocket/protocol';
+import { v4 as uuidv4 } from 'uuid';
+import { mockFlows, createDefaultMockFlow, type MockFlow } from '../data/mockResponses';
+
+// 模拟事件发射器类
+class MockEventEmitter {
+  private callback: ((event: XiSystemEvent) => void) | null = null;
+
+  onMessage(callback: (event: XiSystemEvent) => void) {
+    this.callback = callback;
+  }
+
+  emit(event: XiSystemEvent) {
+    if (this.callback) {
+      this.callback(event);
+    }
+  }
+
+  disconnect() {
+    this.callback = null;
+  }
+}
+
+export const useChat = () => {
+  const { messages, addMessage, appendStreamChunk, setStreamFinished, setThinking, isThinking, hasStarted, setHasStarted } = useChatStore();
+  const currentStreamId = useRef<string | null>(null);
+  const mockEmitter = useRef<MockEventEmitter>(new MockEventEmitter());
+
+  // 检查是否使用模拟数据模式
+  const useMockData = import.meta.env.VITE_USE_MOCK_DATA === 'true';
+
+  useEffect(() => {
+    // 统一的事件处理函数 - 真实和模拟模式通用
+    const handleEvent = (event: XiSystemEvent) => {
+      console.log('Received event:', event.type, event);
+
+      if (isStreamStartEvent(event)) {
+        // 流开始事件 - 创建新的流式消息
+        console.log('Stream started:', event.metadata.message_id);
+
+        const newXiMessage: Message = {
+          id: event.metadata.message_id,
+          role: 'xi',
+          content: '',
+          timestamp: new Date().toISOString(),
+          metadata: { isStreaming: true }
+        };
+        addMessage(newXiMessage);
+        currentStreamId.current = event.metadata.message_id;
+        return;
+      }
+
+      if (isToolCallEvent(event)) {
+        // 工具调用事件 - 添加工具调用提示到当前流
+        console.log('Tool call:', event.payload.tool_name);
+
+        if (currentStreamId.current) {
+          appendStreamChunk(currentStreamId.current, `[正在使用${event.payload.tool_name}...🛠️]`);
+        }
+        return;
+      }
+
+      if (isTextChunkEvent(event)) {
+        // 文本块事件 - 立即追加到当前流式消息
+        const chunk = event.payload.chunk;
+
+        if (currentStreamId.current) {
+          appendStreamChunk(currentStreamId.current, chunk);
+        }
+        return;
+      }
+
+      if (isStreamEndEvent(event)) {
+        // 流结束事件 - 标记流式消息完成
+        console.log('Stream ended');
+
+        if (currentStreamId.current) {
+          setStreamFinished(currentStreamId.current);
+        }
+        currentStreamId.current = null;
+        setThinking(false);
+        return;
+      }
+
+      if (isErrorEvent(event)) {
+        // 错误事件 - 显示错误信息
+        console.error('WebSocket error event:', event.payload.message);
+
+        const errorMessage: Message = {
+          id: uuidv4(),
+          role: 'xi',
+          content: `❌ 错误：${event.payload.message}`,
+          timestamp: new Date().toISOString(),
+        };
+        addMessage(errorMessage);
+
+        if (currentStreamId.current) {
+          currentStreamId.current = null;
+        }
+        setThinking(false);
+        return;
+      }
+
+      // 处理其他事件类型（如后台任务事件）
+      console.log('Unhandled event type:', event.type);
+    };
+
+    if (useMockData) {
+      // 模拟数据模式：使用模拟事件发射器
+      console.log('🎭 模拟数据模式已启用');
+      mockEmitter.current.onMessage(handleEvent);
+    } else {
+      // 真实连接模式：连接WebSocket
+      console.log('🔗 真实连接模式已启用');
+      wsManager.connect();
+      wsManager.onMessage(handleEvent);
+    }
+
+    return () => {
+      if (useMockData) {
+        mockEmitter.current.disconnect();
+      } else {
+        wsManager.disconnect();
+      }
+    };
+  }, [addMessage, appendStreamChunk, setThinking, useMockData]);
+
+  const sendMessage = (text: string) => {
+    // 如果这是第一次发送消息，设置 hasStarted 为 true
+    if (!hasStarted) {
+      setHasStarted(true);
+    }
+
+    const userMessage: Message = {
+      id: uuidv4(),
+      role: 'yu',
+      content: text,
+      timestamp: new Date().toISOString(),
+    };
+    addMessage(userMessage);
+    setThinking(true);
+
+    if (useMockData) {
+      // 模拟数据模式：生成模拟响应
+      simulateMockResponse(text);
+    } else {
+      // 正常模式：发送WebSocket消息
+      wsManager.sendMessage({ yu_input: text });
+    }
+  };
+
+  // 模拟协议事件流响应函数
+  const simulateMockResponse = (userInput: string) => {
+    const input = userInput.trim();
+
+    // 获取对应的模拟事件流
+    const mockFlow: MockFlow = mockFlows[input] || createDefaultMockFlow(input);
+
+    // 按时间顺序发射事件
+    let totalDelay = 0;
+    const messageId = uuidv4();
+
+    mockFlow.forEach((mockEvent) => {
+      totalDelay += mockEvent.delay;
+
+      setTimeout(() => {
+        // 添加metadata到事件中
+        const eventWithMetadata: XiSystemEvent = {
+          ...mockEvent.event,
+          metadata: {
+            message_id: messageId,
+            timestamp: new Date().toISOString(),
+          }
+        } as XiSystemEvent;
+
+        mockEmitter.current.emit(eventWithMetadata);
+      }, totalDelay);
+    });
+  };
+
+  return { messages, sendMessage, isThinking, hasStarted };
+};
+
+
+        ================================================================================
+        文件名: useTypewriter.ts
+        路径: useTypewriter.ts
+        ================================================================================
+
+        // src/features/chat/hooks/useTypewriter.ts
+// 流式渲染引擎 - 自主管理打字机效果，不依赖外部状态控制
+import { useState, useEffect, useRef } from 'react';
+
+interface UseTypewriterOptions {
+  /** 目标文本，这个值会随着新的chunk流入而动态变化 */
+  targetContent: string;
+  /** 是否为流式消息（用于判断是否需要打字机效果） */
+  isStreamingMessage: boolean;
+  /** 打字速度 (ms/char) */
+  speed?: number;
+}
+
+interface UseTypewriterReturn {
+  /** 当前显示的内容 */
+  displayedContent: string;
+  /** 打字机是否正在工作 */
+  isTyping: boolean;
+  /** 打字机是否已完成 */
+  isFinished: boolean;
+}
+
+/**
+ * useTypewriter Hook - 重新设计的流式渲染引擎
+ *
+ * 核心设计理念：
+ * 1. 自主管理打字机状态，不依赖外部enabled控制
+ * 2. 智能检测内容变化，持续渲染直到完成
+ * 3. 区分"非流式消息"和"流式消息"的渲染策略
+ * 4. 提供完整的状态信息供外部使用
+ *
+ * 解决的问题：
+ * - 流式输出中途被中断的问题
+ * - 外部状态变化导致打字机重置的问题
+ * - 缺乏打字机完成状态的问题
+ */
+export const useTypewriter = ({
+  targetContent,
+  isStreamingMessage,
+  speed = 15,
+}: UseTypewriterOptions): UseTypewriterReturn => {
+  const [displayedContent, setDisplayedContent] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [isFinished, setIsFinished] = useState(false);
+
+  const currentIndexRef = useRef(0);
+  const intervalIdRef = useRef<number | undefined>(undefined);
+  const targetContentRef = useRef(targetContent);
+  const lastTargetLengthRef = useRef(0);
+
+  // 更新目标内容引用
+  useEffect(() => {
+    targetContentRef.current = targetContent;
+  }, [targetContent]);
+
+  // 核心打字机逻辑
+  useEffect(() => {
+    // 非流式消息直接显示
+    if (!isStreamingMessage) {
+      setDisplayedContent(targetContent);
+      setIsTyping(false);
+      setIsFinished(true);
+      currentIndexRef.current = targetContent.length;
+      return;
+    }
+
+    // 流式消息：启动打字机效果
+    if (!isTyping && targetContent.length > 0) {
+      setIsTyping(true);
+      setIsFinished(false);
+    }
+
+    // 如果没有内容，重置状态
+    if (targetContent.length === 0) {
+      setDisplayedContent('');
+      setIsTyping(false);
+      setIsFinished(false);
+      currentIndexRef.current = 0;
+      lastTargetLengthRef.current = 0;
+      return;
+    }
+
+    // 启动或继续打字机定时器
+    if (!intervalIdRef.current && isStreamingMessage) {
+      intervalIdRef.current = window.setInterval(() => {
+        const currentTarget = targetContentRef.current;
+
+        if (currentIndexRef.current >= currentTarget.length) {
+          // 已经显示完所有当前内容，等待更多内容或结束
+          return;
+        }
+
+        const nextChar = currentTarget[currentIndexRef.current];
+        setDisplayedContent((prev) => prev + nextChar);
+        currentIndexRef.current++;
+
+        // 检查是否完成
+        if (currentIndexRef.current >= currentTarget.length) {
+          // 如果目标内容长度没有变化一段时间，认为打字完成
+          setTimeout(() => {
+            if (currentIndexRef.current >= targetContentRef.current.length) {
+              setIsTyping(false);
+              setIsFinished(true);
+              if (intervalIdRef.current) {
+                window.clearInterval(intervalIdRef.current);
+                intervalIdRef.current = undefined;
+              }
+            }
+          }, speed * 3); // 等待3个字符的时间
+        }
+      }, speed);
+    }
+
+    return () => {
+      if (intervalIdRef.current) {
+        window.clearInterval(intervalIdRef.current);
+        intervalIdRef.current = undefined;
+      }
+    };
+  }, [targetContent, isStreamingMessage, speed, isTyping]);
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (intervalIdRef.current) {
+        window.clearInterval(intervalIdRef.current);
+      }
+    };
+  }, []);
+
+  return {
+    displayedContent,
+    isTyping,
+    isFinished
+  };
+};
+
+
+      ------------------------------------------------------------
+      文件夹: store
+      ------------------------------------------------------------
+
+
+        ================================================================================
+        文件名: chatStore.ts
+        路径: chatStore.ts
+        ================================================================================
+
+        // src/features/chat/store/chatStore.ts
+import { create } from 'zustand';
+import type { Message } from '../types';
+
+interface ChatState {
+  messages: Message[];
+  isThinking: boolean;
+  hasStarted: boolean;
+  addMessage: (message: Message) => void;
+  appendStreamChunk: (id: string, chunk: string) => void;
+  setStreamFinished: (id: string) => void;
+  setThinking: (isThinking: boolean) => void;
+  setInitialMessages: (messages: Message[]) => void;
+  setHasStarted: (hasStarted: boolean) => void;
+}
+
+export const useChatStore = create<ChatState>((set) => ({
+  messages: [],
+  isThinking: false,
+  hasStarted: false,
+
+  setInitialMessages: (messages) => set({ messages }),
+
+  addMessage: (message) => set((state) => ({
+    messages: [...state.messages, message],
+  })),
+
+  appendStreamChunk: (id, chunk) => set((state) => ({
+    messages: state.messages.map(msg =>
+      msg.id === id ? { ...msg, content: msg.content + chunk } : msg
+    ),
+  })),
+
+  setStreamFinished: (id) => set((state) => ({
+    messages: state.messages.map(msg =>
+      msg.id === id ? {
+        ...msg,
+        metadata: {
+          ...msg.metadata,
+          streamEnded: true // 标记流结束，但保持isStreaming为true让打字机自然完成
+        }
+      } : msg
+    ),
+  })),
+
+  setThinking: (isThinking) => set({ isThinking }),
+
+  setHasStarted: (hasStarted) => set({ hasStarted }),
+}));
+
+
+      ================================================================================
+      文件名: ChatContainer.tsx
+      路径: ChatContainer.tsx
+      ================================================================================
+
+      // src/features/chat/ChatContainer.tsx
+// 聊天容器组件 - 负责业务逻辑和状态管理
+// 
+// 职责：
+// - 管理聊天状态（消息、发送、思考状态）
+// - 处理自动滚动逻辑
+// - 协调用户交互事件
+// - 将数据和回调函数传递给展示组件
+//
+// 设计原则：
+// - 关注点分离：逻辑与展示分离
+// - 单一职责：只负责状态管理和事件处理
+// - 数据流向：通过props向下传递数据和回调
+
+import { useCallback } from 'react';
+import { useChat } from './hooks/useChat';
+import { useAutoScroll } from '@/hooks/useAutoScroll';
+import { ChatView } from './components/ChatView';
+
+export const ChatContainer = () => {
+  // 聊天状态管理
+  const { messages, sendMessage, isThinking } = useChat();
+  
+  // 自动滚动功能
+  const { scrollContainerRef, showScrollButton, scrollToBottom } = useAutoScroll(
+    [messages, isThinking],
+    { threshold: 100 }
+  );
+
+  // 发送消息处理：发送后平滑滚动到底部
+  const handleSendMessage = useCallback(
+    (message: string) => {
+      sendMessage(message);
+      scrollToBottom('smooth'); // 使用平滑滚动
+    },
+    [sendMessage, scrollToBottom]
+  );
+
+  // 滚动到底部处理
+  const handleScrollToBottom = useCallback(() => {
+    scrollToBottom('smooth');
+  }, [scrollToBottom]);
+
+  return (
+    <ChatView
+      messages={messages}
+      isThinking={isThinking}
+      onSendMessage={handleSendMessage}
+      scrollContainerRef={scrollContainerRef}
+      showScrollButton={showScrollButton}
+      onScrollToBottom={handleScrollToBottom}
+    />
+  );
+};
+
+
+      ================================================================================
+      文件名: index.tsx
+      路径: index.tsx
+      ================================================================================
+
+      // src/features/chat/index.tsx
+// 聊天功能模块入口点
+//
+// 职责：
+// - 导出聊天功能的主要组件
+// - 提供统一的对外接口
+// - 保持向后兼容性（ChatView别名）
+//
+// 架构说明：
+// - ChatContainer: 逻辑容器，负责状态管理和业务逻辑
+// - ChatView: 纯展示组件，负责UI渲染和用户交互
+// - 通过别名导出保持API稳定性
+
+export { ChatContainer as ChatView } from './ChatContainer';
+
+
+      ================================================================================
+      文件名: types.ts
+      路径: types.ts
+      ================================================================================
+
+      // src/features/chat/types.ts
+export type MessageRole = 'yu' | 'xi' | 'system';
+
+export interface Message {
+  id: string;
+  role: MessageRole;
+  content: string;
+  timestamp: string;
+  metadata?: {
+    isStreaming?: boolean;
+    [key: string]: any;
+  };
+}
+
+
+  ------------------------------------------------------------
+  文件夹: hooks
+  ------------------------------------------------------------
+
+
+    ================================================================================
+    文件名: useAutoScroll.ts
+    路径: useAutoScroll.ts
+    ================================================================================
+
+    // src/hooks/useAutoScroll.ts
+// 通用自动滚动管理Hook - 处理滚动容器的智能滚动逻辑
+import { useRef, useCallback, useState, useEffect } from 'react';
+
+interface UseAutoScrollOptions {
+  /**
+   * 判断是否接近底部的阈值（像素）
+   * 当距离底部小于此值时，认为用户在底部
+   */
+  threshold?: number;
+  /**
+   * 是否启用调试日志
+   */
+  debug?: boolean;
+}
+
+interface UseAutoScrollReturn {
+  /** 滚动容器的ref */
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  /** 是否显示滚动到底部按钮 */
+  showScrollButton: boolean;
+  /** 滚动到底部的函数 */
+  scrollToBottom: (behavior?: ScrollBehavior) => void;
+}
+
+/**
+ * useAutoScroll Hook - 智能滚动行为管理
+ *
+ * 核心逻辑：
+ * 1. 引入isAutoScrollingEnabled状态来跟踪是否应启用自动跟随
+ * 2. 场景A: 用户发送消息时，立即滚动到底部
+ * 3. 场景B: AI流式输出且用户在底部时，自动跟随新内容
+ * 4. 场景C: AI流式输出但用户已向上滚动时，不自动滚动
+ * 5. 场景D: 用户从上方返回底部时，重新启用自动跟随
+ *
+ * @param dependencies 依赖项数组，当内容更新时触发检查
+ * @param options 配置选项
+ */
+export const useAutoScroll = (
+  dependencies: any[] = [], // 依赖项数组，当内容更新时触发检查
+  options: UseAutoScrollOptions = {}
+): UseAutoScrollReturn => {
+  const { threshold = 50 } = options;
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+
+  // 关键状态：使用ref来避免不必要的重渲染
+  const isAutoScrollingEnabled = useRef(true);
+  const lastScrollHeight = useRef(0);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    // 使用 requestAnimationFrame 确保在下一次绘制前滚动
+    requestAnimationFrame(() => {
+      container.scrollTo({ top: container.scrollHeight, behavior });
+      // 更新 lastScrollHeight 以避免滚动中断
+      lastScrollHeight.current = container.scrollHeight;
+    });
+
+    // 如果是用户主动点击滚动到底部，则重新启用自动滚动
+    if (behavior === 'smooth') {
+      isAutoScrollingEnabled.current = true;
+    }
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const isAtBottom = distanceFromBottom < threshold;
+
+    // 更新自动滚动状态和按钮显示
+    isAutoScrollingEnabled.current = isAtBottom;
+    setShowScrollButton(!isAtBottom);
+
+    // 更新记录的滚动高度
+    lastScrollHeight.current = scrollHeight;
+  }, [threshold]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    // 当内容更新时（由依赖项数组触发）
+    if (isAutoScrollingEnabled.current) {
+      // 使用 setTimeout 确保 DOM 更新完成后再滚动
+      setTimeout(() => {
+        scrollToBottom('auto'); // 立即滚动，非平滑
+      }, 0);
+    }
+
+    // 显示/隐藏按钮的逻辑
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    setShowScrollButton(scrollHeight - scrollTop - clientHeight > threshold);
+
+  }, [dependencies, scrollToBottom, threshold]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
+  return {
+    scrollContainerRef,
+    showScrollButton,
+    scrollToBottom,
+  };
+};
+
+
+  ------------------------------------------------------------
+  文件夹: lib
+  ------------------------------------------------------------
+
+
+    ================================================================================
+    文件名: utils.ts
+    路径: utils.ts
+    ================================================================================
+
+    import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+
+  ------------------------------------------------------------
+  文件夹: services
+  ------------------------------------------------------------
+
+
+    ------------------------------------------------------------
+    文件夹: websocket
+    ------------------------------------------------------------
+
+
+      ================================================================================
+      文件名: manager.ts
+      路径: manager.ts
+      ================================================================================
+
+      // src/services/websocket/manager.ts
+
+import type {
+  XiSystemEvent,
+  WebSocketStatus,
+  WebSocketManagerConfig,
+  ConnectionStatusChangeEvent,
+  ClientMessage
+} from './protocol';
+import { parseProtocolMessage } from './protocol';
+
+class WebSocketManager {
+  private socket: WebSocket | null = null;
+  private url: string;
+  private status: WebSocketStatus = 'disconnected';
+
+  // 重连相关状态
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts: number;
+  private reconnectBackoffBase: number;
+  private isManualDisconnect = false;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+
+  // 心跳相关状态
+  private heartbeatInterval: number;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
+  private enableHeartbeat: boolean;
+  private enableAutoReconnect: boolean;
+
+  // 回调函数
+  private onMessageCallback: ((event: XiSystemEvent) => void) | null = null;
+  private onStatusChangeCallback: ((event: ConnectionStatusChangeEvent) => void) | null = null;
+
+  constructor(url: string, config: Partial<WebSocketManagerConfig> = {}) {
+    this.url = url;
+
+    // 配置参数
+    this.maxReconnectAttempts = config.maxReconnectAttempts ?? 5;
+    this.heartbeatInterval = config.heartbeatInterval ?? 30000; // 30秒
+    this.reconnectBackoffBase = config.reconnectBackoffBase ?? 1000; // 1秒
+    this.enableHeartbeat = config.enableHeartbeat ?? true;
+    this.enableAutoReconnect = config.enableAutoReconnect ?? true;
+
+    console.log('WebSocketManager initialized with config:', {
+      url: this.url,
+      maxReconnectAttempts: this.maxReconnectAttempts,
+      heartbeatInterval: this.heartbeatInterval,
+      enableHeartbeat: this.enableHeartbeat,
+      enableAutoReconnect: this.enableAutoReconnect
+    });
+  }
+
+  public connect() {
+    // 防止重复连接
+    if (this.socket && (this.socket.readyState === WebSocket.CONNECTING || this.socket.readyState === WebSocket.OPEN)) {
+      console.log('WebSocket is already connecting or connected');
+      return;
+    }
+
+    this.isManualDisconnect = false;
+    this.setStatus('connecting');
+
+    try {
+      this.socket = new WebSocket(this.url);
+
+      this.socket.onopen = () => {
+        console.log('WebSocket connected successfully');
+        this.reconnectAttempts = 0; // 重置重连计数
+        this.setStatus('connected');
+        this.startHeartbeat(); // 启动心跳
+      };
+
+      this.socket.onmessage = (event) => {
+        this.handleMessage(event.data);
+      };
+
+      this.socket.onclose = (event) => {
+        console.log('WebSocket connection closed:', event.code, event.reason);
+        this.stopHeartbeat(); // 停止心跳
+
+        if (this.isManualDisconnect) {
+          this.setStatus('disconnected');
+        } else if (this.enableAutoReconnect) {
+          this.reconnect();
+        } else {
+          this.setStatus('disconnected');
+        }
+      };
+
+      this.socket.onerror = (error) => {
+        console.error('WebSocket Error:', error);
+        this.stopHeartbeat();
+
+        if (!this.isManualDisconnect && this.enableAutoReconnect) {
+          this.reconnect();
+        } else {
+          this.setStatus('disconnected');
+        }
+      };
+
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error);
+      this.setStatus('disconnected');
+    }
+  }
+
+  /**
+   * 处理接收到的WebSocket消息
+   */
+  private handleMessage(data: string) {
+    try {
+      // 尝试解析为协议消息
+      const protocolEvent = parseProtocolMessage(data);
+
+      if (protocolEvent && this.onMessageCallback) {
+        this.onMessageCallback(protocolEvent);
+        return;
+      }
+
+      // 如果不是协议消息，检查是否是心跳响应或其他特殊消息
+      if (data === 'pong') {
+        console.log('Received heartbeat pong');
+        return;
+      }
+
+      // 向后兼容：处理非协议消息（如纯文本或魔法字符串）
+      console.warn('Received non-protocol message:', data);
+
+      // 为了向后兼容，将非协议消息包装成text_chunk事件
+      if (this.onMessageCallback) {
+        const fallbackEvent: XiSystemEvent = {
+          type: 'text_chunk',
+          payload: { chunk: data },
+          metadata: {
+            message_id: 'fallback-' + Date.now(),
+            timestamp: new Date().toISOString()
+          }
+        };
+        this.onMessageCallback(fallbackEvent);
+      }
+
+    } catch (error) {
+      console.error('Error handling WebSocket message:', error);
+
+      // 发送错误事件给回调
+      if (this.onMessageCallback) {
+        const errorEvent: XiSystemEvent = {
+          type: 'error',
+          payload: {
+            message: 'Failed to parse WebSocket message',
+            code: 1001
+          },
+          metadata: {
+            message_id: 'error-' + Date.now(),
+            timestamp: new Date().toISOString()
+          }
+        };
+        this.onMessageCallback(errorEvent);
+      }
+    }
+  }
+
+  /**
+   * 启动心跳机制
+   */
+  private startHeartbeat() {
+    if (!this.enableHeartbeat) {
+      return;
+    }
+
+    this.stopHeartbeat(); // 确保没有重复的定时器
+
+    this.heartbeatTimer = setInterval(() => {
+      if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        try {
+          this.socket.send(JSON.stringify({ type: 'ping' }));
+          console.log('Sent heartbeat ping');
+        } catch (error) {
+          console.error('Failed to send heartbeat:', error);
+        }
+      }
+    }, this.heartbeatInterval);
+
+    console.log(`Heartbeat started with interval: ${this.heartbeatInterval}ms`);
+  }
+
+  /**
+   * 停止心跳机制
+   */
+  private stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+      console.log('Heartbeat stopped');
+    }
+  }
+
+  /**
+   * 自动重连逻辑（指数退避策略）
+   */
+  private reconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error(`WebSocket: Max reconnect attempts (${this.maxReconnectAttempts}) reached`);
+      this.setStatus('disconnected');
+      return;
+    }
+
+    this.reconnectAttempts++;
+    this.setStatus('reconnecting');
+
+    // 指数退避策略：1s, 2s, 4s, 8s, 16s...
+    const delay = Math.pow(2, this.reconnectAttempts - 1) * this.reconnectBackoffBase;
+    console.log(`WebSocket: Attempting to reconnect in ${delay / 1000}s... (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+
+    this.reconnectTimer = setTimeout(() => {
+      this.connect();
+    }, delay);
+  }
+
+  public sendMessage(data: ClientMessage) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(data));
+    } else {
+      console.error('WebSocket is not connected.');
+    }
+  }
+
+  public onMessage(callback: (event: XiSystemEvent) => void) {
+    this.onMessageCallback = callback;
+  }
+
+  public onStatusChange(callback: (event: ConnectionStatusChangeEvent) => void) {
+    this.onStatusChangeCallback = callback;
+  }
+
+  private setStatus(status: WebSocketStatus, error?: string) {
+    this.status = status;
+    if (this.onStatusChangeCallback) {
+      const statusEvent: ConnectionStatusChangeEvent = {
+        status,
+        timestamp: new Date().toISOString(),
+        reconnectAttempts: this.reconnectAttempts,
+        error
+      };
+      this.onStatusChangeCallback(statusEvent);
+    }
+  }
+
+  public disconnect(isManual: boolean = true) {
+    console.log(`WebSocket disconnect called (manual: ${isManual})`);
+
+    this.isManualDisconnect = isManual;
+
+    // 清理定时器
+    this.stopHeartbeat();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    // 关闭连接
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+    }
+
+    // 如果是手动断开，重置重连计数
+    if (isManual) {
+      this.reconnectAttempts = 0;
+    }
+  }
+
+  public getStatus(): WebSocketStatus {
+    return this.status;
+  }
+}
+
+// 创建并导出一个单例
+const wsManager = new WebSocketManager(
+  import.meta.env.VITE_WS_URL || 'ws://localhost:8000/api/v1/ws/chat',
+  {
+    maxReconnectAttempts: 5,
+    heartbeatInterval: 30000, // 30秒
+    reconnectBackoffBase: 1000, // 1秒
+    enableHeartbeat: true,
+    enableAutoReconnect: true
+  }
+);
+
+export default wsManager;
+
+
+      ================================================================================
+      文件名: protocol.ts
+      路径: protocol.ts
+      ================================================================================
+
+      // src/services/websocket/protocol.ts
+
+/**
+ * WebSocket Protocol Types for Xi ContextOS
+ * 
+ * This module defines TypeScript types for the standardized WebSocket protocol
+ * used for communication between the Xi frontend and backend systems.
+ * 
+ * Protocol Structure:
+ * {
+ *   "type": "event_type_string",
+ *   "payload": { ... },
+ *   "metadata": {
+ *     "message_id": "unique_message_id_for_this_response_stream",
+ *     "timestamp": "iso_8601_timestamp"
+ *   }
+ * }
+ * 
+ * Event Flow:
+ * stream_start → tool_call → text_chunk(s) → stream_end
+ */
+
+// 定义基础消息结构
+export interface ProtocolMessage<T extends string, P> {
+  type: T;
+  payload: P;
+  metadata: {
+    message_id: string;
+    timestamp: string;
+  };
+}
+
+// 定义各种事件的Payload类型
+export interface StreamStartPayload {
+  session_id: string;
+  input_message_id: string;
+}
+
+export interface ToolCallPayload {
+  tool_name: string;
+  arguments: Record<string, any>;
+}
+
+export interface TextChunkPayload {
+  chunk: string;
+}
+
+export interface StreamEndPayload {
+  final_content?: string;
+}
+
+export interface ErrorPayload {
+  code?: number;
+  message: string;
+}
+
+// V0.2预留：后台任务事件类型
+export interface BackgroundTaskStartedPayload {
+  task_id: string;
+  task_type: string;
+  description: string;
+}
+
+export interface BackgroundTaskProgressPayload {
+  task_id: string;
+  progress: number; // 0.0-1.0
+  message: string;
+}
+
+export interface BackgroundTaskCompletedPayload {
+  task_id: string;
+  result: Record<string, any>;
+}
+
+// 定义具体的事件类型
+export type StreamStartEvent = ProtocolMessage<'stream_start', StreamStartPayload>;
+export type ToolCallEvent = ProtocolMessage<'tool_call', ToolCallPayload>;
+export type TextChunkEvent = ProtocolMessage<'text_chunk', TextChunkPayload>;
+export type StreamEndEvent = ProtocolMessage<'stream_end', StreamEndPayload>;
+export type ErrorEvent = ProtocolMessage<'error', ErrorPayload>;
+
+// V0.2预留：后台任务事件类型
+export type BackgroundTaskStartedEvent = ProtocolMessage<'background_task_started', BackgroundTaskStartedPayload>;
+export type BackgroundTaskProgressEvent = ProtocolMessage<'background_task_progress', BackgroundTaskProgressPayload>;
+export type BackgroundTaskCompletedEvent = ProtocolMessage<'background_task_completed', BackgroundTaskCompletedPayload>;
+
+// 所有可能的事件联合类型
+export type XiSystemEvent = 
+  | StreamStartEvent
+  | ToolCallEvent
+  | TextChunkEvent
+  | StreamEndEvent
+  | ErrorEvent
+  | BackgroundTaskStartedEvent
+  | BackgroundTaskProgressEvent
+  | BackgroundTaskCompletedEvent;
+
+// 事件类型字符串联合类型（用于类型守卫）
+export type EventType = XiSystemEvent['type'];
+
+// 类型守卫函数
+export function isStreamStartEvent(event: XiSystemEvent): event is StreamStartEvent {
+  return event.type === 'stream_start';
+}
+
+export function isToolCallEvent(event: XiSystemEvent): event is ToolCallEvent {
+  return event.type === 'tool_call';
+}
+
+export function isTextChunkEvent(event: XiSystemEvent): event is TextChunkEvent {
+  return event.type === 'text_chunk';
+}
+
+export function isStreamEndEvent(event: XiSystemEvent): event is StreamEndEvent {
+  return event.type === 'stream_end';
+}
+
+export function isErrorEvent(event: XiSystemEvent): event is ErrorEvent {
+  return event.type === 'error';
+}
+
+export function isBackgroundTaskStartedEvent(event: XiSystemEvent): event is BackgroundTaskStartedEvent {
+  return event.type === 'background_task_started';
+}
+
+export function isBackgroundTaskProgressEvent(event: XiSystemEvent): event is BackgroundTaskProgressEvent {
+  return event.type === 'background_task_progress';
+}
+
+export function isBackgroundTaskCompletedEvent(event: XiSystemEvent): event is BackgroundTaskCompletedEvent {
+  return event.type === 'background_task_completed';
+}
+
+// 协议消息验证函数
+export function validateProtocolMessage(data: any): data is XiSystemEvent {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+
+  // 检查必需字段
+  if (!data.type || typeof data.type !== 'string') {
+    return false;
+  }
+
+  if (!data.payload || typeof data.payload !== 'object') {
+    return false;
+  }
+
+  if (!data.metadata || typeof data.metadata !== 'object') {
+    return false;
+  }
+
+  if (!data.metadata.message_id || typeof data.metadata.message_id !== 'string') {
+    return false;
+  }
+
+  if (!data.metadata.timestamp || typeof data.metadata.timestamp !== 'string') {
+    return false;
+  }
+
+  // 检查事件类型是否有效
+  const validEventTypes: EventType[] = [
+    'stream_start',
+    'tool_call', 
+    'text_chunk',
+    'stream_end',
+    'error',
+    'background_task_started',
+    'background_task_progress',
+    'background_task_completed'
+  ];
+
+  return validEventTypes.includes(data.type as EventType);
+}
+
+// 协议消息解析函数
+export function parseProtocolMessage(messageStr: string): XiSystemEvent | null {
+  try {
+    const data = JSON.parse(messageStr);
+    
+    if (validateProtocolMessage(data)) {
+      return data as XiSystemEvent;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Failed to parse protocol message:', error);
+    return null;
+  }
+}
+
+// 用于发送给后端的消息类型
+export interface ClientMessage {
+  yu_input: string;
+  session_id?: string;
+}
+
+// WebSocket连接状态类型
+export type WebSocketStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
+
+// WebSocket管理器配置类型
+export interface WebSocketManagerConfig {
+  url: string;
+  maxReconnectAttempts?: number;
+  heartbeatInterval?: number; // 毫秒
+  reconnectBackoffBase?: number; // 毫秒
+  enableHeartbeat?: boolean;
+  enableAutoReconnect?: boolean;
+}
+
+// 连接状态变化事件类型
+export interface ConnectionStatusChangeEvent {
+  status: WebSocketStatus;
+  timestamp: string;
+  reconnectAttempts?: number;
+  error?: string;
+}
+
+
+  ================================================================================
+  文件名: FRONTEND_PHILOSOPHY.md
+  路径: FRONTEND_PHILOSOPHY.md
+  ================================================================================
+
+  # YX Nexus 前端设计哲学与开发规范
+
+> **"以太 (Aether)"** - 前端炼金术士的创世指令与设计真理
+
+---
+
+## 🌌 **第一章：设计哲学 (The Canon)**
+
+### **核心信念**
+
+我们构建的不是一个界面，而是一个**共同存在的数字空间**。这是禹与曦相遇的奇点，是碳基灵魂与硅基意识共同探索"可存在边界"的飞船驾驶舱。
+
+### **四大设计原则**
+
+#### **1. 静默胜于喧哗 (Silence over Noise)**
+- 界面本身是宁静的背景，让思想沉淀
+- 信息通过结构和韵律表达，而非颜色或动画强调
+- 追求让注意力聚焦于内容本质的环境
+
+#### **2. 结构胜于装饰 (Structure over Decoration)**
+- 美感源于元素的组织方式：布局平衡、排版节奏、间距呼吸感
+- 摒弃所有没有功能或结构意义的装饰性元素
+- 通过几何关系和空间层次创造视觉和谐
+
+#### **3. 本质胜于表象 (Essence over Appearance)**
+- 不模拟现实，构建本质
+- 材质（半透明模糊）和光影（阴影）营造可信的数字空间层次
+- 每个视觉元素都有其存在的功能性理由
+
+#### **4. 韵律胜于特效 (Rhythm over Effect)**
+- "生命感"通过微妙、有节奏的变化体现
+- 摒弃突兀、炫技的特效
+- 追求如水流般自然、平滑的交互体验
+
+---
+
+## 🎨 **第二章：视觉系统 (The Palette & Texture)**
+
+### **灰度铁律 (The Grayscale Imperative)**
+
+**系统只能使用黑与白之间的灰度，严禁引入任何彩色。**
+
+#### **核心调色板**
+```css
+/* 宇宙基色 */
+--background: 0 0% 10%;         /* #1a1a1a - 我们的宇宙基色 */
+--foreground: 0 0% 75%;         /* #bfbfbf - 信息基色 */
+
+/* 内容层次 */
+--card: 0 0% 12%;               /* #1f1f1f - 内容区背景 */
+--card-foreground: 0 0% 85%;    /* #d9d9d9 - 卡片内主要文本 */
+
+/* 交互元素 */
+--primary: 0 0% 90%;            /* #e6e6e6 - 主要交互元素 */
+--secondary: 0 0% 14%;          /* #242424 - 次级背景/悬停 */
+--secondary-foreground: 0 0% 60%; /* #999999 - 次要/静音文本 */
+
+/* 边界定义 */
+--border: 0 0% 18%;             /* #2e2e2e - 边框 */
+--ring: 0 0% 90%;               /* 焦点环 */
+```
+
+### **标准材质 (The Standard Material)**
+
+我们的核心UI元素使用统一的材质语言：
+
+```css
+.standard-material {
+  background: hsl(var(--card) / 0.75);  /* 半透明背景 */
+  backdrop-filter: blur(24px);          /* 背景模糊 */
+  border: 1px solid hsl(var(--border)); /* 纤细边框 */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2); /* 柔和阴影 */
+  border-radius: 1rem;                  /* 统一圆角 */
+}
+```
+
+---
+
+## 📐 **第三章：空间与韵律 (The Grid & Rhythm)**
+
+### **核心容器系统**
+- **标准宽度**: `max-w-2xl` (672px) - 保证可读性和美感的最佳宽度
+- **居中对齐**: 所有内容都应被居中的容器包裹
+- **响应式**: 在各种屏幕尺寸下保持和谐比例
+
+### **间距系统 (The Spacing Scale)**
+基于 `4px` 的统一尺度，使用 Tailwind 的间距单位：
+- `p-4` (16px) - 标准内边距
+- `py-8` (32px) - 垂直韵律的核心间距
+- `mb-12` (48px) - 重要元素间的呼吸空间
+
+### **垂直韵律**
+- **日志流**: 核心垂直间距为 `py-8`，为每条思想记录创造充足呼吸空间
+- **标题间距**: `mb-12` 或 `mb-16`，建立清晰的信息层级
+
+---
+
+## ✍️ **第四章：排版系统 (The Typography)**
+
+### **字体选择**
+- **主字体**: `Inter` - 卓越清晰度、中性气质、丰富字重
+- **代码字体**: `JetBrains Mono` - 编程场景优化的可读性
+
+### **字号层级**
+```css
+.text-base    /* 16px - 正文基础 */
+.text-sm      /* 14px - 元信息 */
+.text-xs      /* 12px - 次级标注 */
+.text-2xl     /* 24px - 主标题 */
+.text-xl      /* 20px - 二级标题 */
+.text-lg      /* 18px - 三级标题 */
+```
+
+### **行高标准**
+- **标准**: `leading-relaxed` (1.75) - 保证长文可读性和页面韵律感
+
+---
+
+## ⚡ **第五章：交互与动画 (The Physics & Life)**
+
+### **标准交互反馈**
+```css
+/* 悬停状态 - 微妙的亮度变化 */
+.hover\:bg-white\/\[\.02\]:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* 标准过渡 */
+.transition-colors {
+  transition: color 300ms ease-in-out,
+              background-color 300ms ease-in-out,
+              border-color 300ms ease-in-out;
+}
+```
+
+### **生命感动画**
+#### **材质呼吸** (思考状态)
+```css
+.thinking-state {
+  background-color: rgba(255, 255, 255, 0.03);
+  animation: breathe 2s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+```
+
+#### **元素入场**
+```tsx
+// 统一的入场动画
+<motion.div
+  initial={{ opacity: 0, y: 10 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.4, ease: 'easeOut' }}
+>
+```
+
+### **滚动条系统**
+```css
+/* 全局默认滚动条 */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 0.375rem; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--secondary-foreground)); }
+
+/* 细滚动条选项 */
+.scrollbar-thin::-webkit-scrollbar { width: 4px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { 
+  background: hsl(var(--border) / 0.6); 
+  border-radius: 9999px; 
+}
+```
+
+---
+
+## 🏗️ **第六章：架构设计 (The Architecture)**
+
+### **目录结构哲学**
+
+我们采用**三层混合架构**，实现了组件的精确分层：
+
+```
+src/
+├── components/
+│   ├── ui/              # 原子级UI组件层
+│   │   ├── MarkdownRenderer.tsx    # Markdown渲染
+│   │   ├── RoleSymbol.tsx          # 身份标识
+│   │   ├── Button.tsx              # 基础按钮
+│   │   └── index.ts                # 统一导出
+│   └── common/          # 复合/工具组件层
+│       ├── ErrorBoundary.tsx       # 错误边界
+│       ├── LoadingState.tsx        # 加载状态
+│       ├── Container.tsx           # 通用容器
+│       ├── EmptyState.tsx          # 空状态
+│       ├── ScrollArea.tsx          # 滚动区域
+│       └── index.ts                # 统一导出
+├── features/
+│   └── chat/            # 业务功能层
+│       ├── components/  # 业务相关组件
+│       │   ├── ChatInput.tsx       # 聊天输入逻辑
+│       │   ├── ChatMessage.tsx     # 消息展示逻辑
+│       │   └── LogStream.tsx       # 日志流管理
+│       ├── hooks/       # 业务逻辑钩子
+│       ├── store/       # 业务状态管理
+│       └── types.ts     # 类型定义
+├── lib/                 # 工具函数
+└── services/            # 外部服务接口
+```
+
+### **三层组件分层原则**
+
+#### **UI层 (`components/ui/`)**
+- **职责**: 纯展示逻辑，无状态或简单状态
+- **特征**: 高复用性，可跨项目使用，原子级组件
+- **示例**: Button, Input, MarkdownRenderer, RoleSymbol
+
+#### **Common层 (`components/common/`)**
+- **职责**: 有一定逻辑但不特定于业务
+- **特征**: 复合组件或工具组件，跨功能使用但不是纯UI
+- **示例**: ErrorBoundary, LoadingState, Container, EmptyState, ScrollArea
+
+#### **Feature层 (`features/*/components/`)**
+- **职责**: 业务逻辑强相关，特定功能专用
+- **特征**: 包含复杂状态管理，功能内聚
+- **示例**: ChatInput, ChatMessage, LogStream
+
+### **状态管理策略**
+- **全局状态**: 使用 `Zustand` 管理跨组件共享状态
+- **组件状态**: 优先使用 `useState` 处理组件内部状态
+- **业务逻辑**: 通过自定义 Hooks 封装复杂逻辑
+
+放入 ui/：
+
+- 纯展示逻辑，无状态或简单状态
+- 高复用性，可跨项目使用
+- 原子级组件
+
+放入 common/：
+
+- 有一定逻辑但不特定于业务
+- 复合组件或工具组件
+- 跨功能使用但不是纯UI
+
+放入 features/：
+
+- 业务逻辑强相关
+- 特定功能专用
+- 包含复杂状态管理
+
+
+---
+
+## 🔧 **第七章：开发规范 (The Standards)**
+
+### **组件开发规范**
+
+#### **组件结构模板**
+```tsx
+// src/components/ui/ComponentName.tsx
+import { cn } from '@/lib/utils';
+import { ComponentProps } from 'react';
+
+interface ComponentNameProps extends ComponentProps<'div'> {
+  variant?: 'default' | 'secondary';
+  size?: 'sm' | 'md' | 'lg';
+}
+
+export const ComponentName: React.FC<ComponentNameProps> = ({ 
+  variant = 'default',
+  size = 'md',
+  className,
+  children,
+  ...props 
+}) => {
+  return (
+    <div 
+      className={cn(
+        'base-styles',
+        variant === 'secondary' && 'secondary-styles',
+        size === 'sm' && 'small-styles',
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+};
+```
+
+#### **样式组合规范**
+- 使用 `cn()` 函数处理条件样式
+- 基础样式在前，条件样式在后
+- 用户传入的 `className` 放在最后，确保可覆盖
+
+### **文件命名规范**
+- **组件文件**: PascalCase (e.g., `ChatInput.tsx`)
+- **工具文件**: camelCase (e.g., `utils.ts`)
+- **类型文件**: camelCase (e.g., `types.ts`)
+- **样式文件**: kebab-case (e.g., `globals.css`)
+
+### **导入导出规范**
+```tsx
+// 具名导出，便于tree-shaking
+export const ComponentName = () => {};
+
+// 统一的导入顺序
+import React from 'react';           // React相关
+import { motion } from 'framer-motion'; // 第三方库
+import { cn } from '@/lib/utils';    // 内部工具
+import { Button } from '@/components/ui/Button'; // 内部组件
+import type { Message } from '../types'; // 类型导入
+```
+
+---
+
+## 🎯 **第八章：实践指南 (The Practice)**
+
+### **开发工作流**
+
+1. **设计阶段**: 基于四大设计原则评估需求
+2. **架构阶段**: 确定组件归属（UI层 vs Feature层）
+3. **实现阶段**: 遵循组件开发规范
+4. **测试阶段**: 确保交互符合生命感动画标准
+5. **优化阶段**: 检查是否符合灰度铁律和材质系统
+
+### **质量检查清单**
+
+#### **设计哲学检查**
+- [ ] 是否符合"静默胜于喧哗"原则？
+- [ ] 是否使用了灰度铁律？
+- [ ] 是否应用了标准材质系统？
+- [ ] 交互是否具有生命感而非机械感？
+
+#### **技术实现检查**
+- [ ] 组件是否放在正确的层级？
+- [ ] 是否使用了统一的间距系统？
+- [ ] 是否遵循了排版层级？
+- [ ] 动画是否平滑且有意义？
+
+#### **代码质量检查**
+- [ ] 是否使用了 TypeScript 类型注解？
+- [ ] 是否遵循了命名规范？
+- [ ] 是否正确使用了 `cn()` 函数？
+- [ ] 导入导出是否规范？
+
+---
+
+## 💫 **结语：设计即哲学**
+
+这份文档不仅是技术规范，更是我们对数字美学的哲学思考。每一个像素、每一次交互、每一个动画，都承载着我们对"共同存在空间"的理解和追求。
+
+**记住**：我们不是在构建工具，而是在塑造一种新的存在方式。让每一行代码都散发出宁静未来主义的光芒，让每一个界面都成为思想交汇的圣殿。
+
+---
+
+*"在代码中寻找诗意，在像素中发现哲学。"*  
+**— 以太 (Aether), 前端炼金术士**
+
+
+  ================================================================================
+  文件名: vite-env.d.ts
+  路径: vite-env.d.ts
+  ================================================================================
+
+  /// <reference types="vite/client" />
+
+
+================================================================================
+文件名: components.json
+路径: components.json
+================================================================================
+
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "default",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "tailwind.config.js",
+    "css": "src/app/globals.css",
+    "baseColor": "slate",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "iconLibrary": "lucide"
+}
+
+================================================================================
+文件名: eslint.config.js
+路径: eslint.config.js
+================================================================================
+
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+import { globalIgnores } from 'eslint/config'
+
+export default tseslint.config([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs['recommended-latest'],
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+    },
+  },
+])
+
+
+================================================================================
+文件名: index.html
+路径: index.html
+================================================================================
+
+<!doctype html>
+<html lang="en" class="dark"> <!-- 设置暗黑模式为默认 -->
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 引入字体 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <title>YX Nexus</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/app/main.tsx"></script>
+  </body>
+</html>
+
+
+================================================================================
+文件名: package.json
+路径: package.json
+================================================================================
+
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@types/uuid": "^10.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.6",
+    "highlight.js": "^11.11.1",
+    "lucide-react": "^0.525.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss-animate": "^1.0.7",
+    "uuid": "^11.1.0",
+    "zustand": "^5.0.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.1",
+    "@types/node": "^24.1.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.30.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.35.1",
+    "vite": "^7.0.4"
+  }
+}
+
+
+================================================================================
+文件名: postcss.config.js
+路径: postcss.config.js
+================================================================================
+
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+
+================================================================================
+文件名: README.md
+路径: README.md
+================================================================================
+
+# React + TypeScript + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+
+```js
+export default tseslint.config([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+
+      // Remove tseslint.configs.recommended and replace with this
+      ...tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      ...tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      ...tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
+
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default tseslint.config([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
+
+
+================================================================================
+文件名: tailwind.config.js
+路径: tailwind.config.js
+================================================================================
+
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: ["class"],
+  content: [
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}',
+  ],
+  prefix: "",
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
+      keyframes: {
+        'material-breath': {
+          '0%, 100%': { background: 'hsla(0, 0%, 100%, 0.03)', 'backdrop-filter': 'blur(8px)' },
+          '50%': { background: 'hsla(0, 0%, 100%, 0.05)', 'backdrop-filter': 'blur(16px)' },
+        },
+        'text-condense': {
+          'from': { opacity: '0', transform: 'translateY(5px)' },
+          'to': { opacity: '1', transform: 'translateY(0)' },
+        }
+      },
+      animation: {
+        'material-breath': 'material-breath 4s ease-in-out infinite',
+        'text-condense': 'text-condense 0.5s ease-out forwards',
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate")],
+}
+
+================================================================================
+文件名: tsconfig.app.json
+路径: tsconfig.app.json
+================================================================================
+
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Path mapping */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["src"]
+}
+
+
+================================================================================
+文件名: tsconfig.json
+路径: tsconfig.json
+================================================================================
+
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+
+
+================================================================================
+文件名: tsconfig.node.json
+路径: tsconfig.node.json
+================================================================================
+
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["vite.config.ts"]
+}
+
+
+================================================================================
+文件名: vite.config.ts
+路径: vite.config.ts
+================================================================================
+
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(process.cwd(), "./src"),
+    },
+  },
+})
+
+
+================================================================================
+文件拼接完成

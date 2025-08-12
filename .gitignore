@@ -1,0 +1,27 @@
+# 虚拟环境
+.venv/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# IDE & OS specific
+.idea/
+.vscode/
+*.DS_Store
+
+# 环境变量文件 (极其重要，绝不能提交)
+.env
+
+# 日志文件
+logs/
+
+# Aura (前端) build/dist 目录
+aura/dist/
+aura/build/
+
+# Node.js 依赖
+aura/node_modules/
+
+# AI rules
+.augment/
