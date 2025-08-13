@@ -17,6 +17,8 @@ from nexus.services.llm.service import LLMService
 from nexus.services.tool_executor import ToolExecutorService
 from nexus.services.context import ContextService
 from nexus.services.orchestrator import OrchestratorService
+from nexus.tools.registry import ToolRegistry
+from nexus.tools.definition.web import WEB_SEARCH_TOOL, web_search
 
 
 def _setup_logging() -> None:
@@ -41,10 +43,17 @@ async def main() -> None:
     bus = NexusBus()
     logger.info("NexusBus instantiated")
 
-    # 3) Instantiate services and interfaces with the bus and config
+    # 3) Initialize and configure tool registry
+    tool_registry = ToolRegistry()
+
+    # Register web_search tool
+    tool_registry.register(WEB_SEARCH_TOOL, web_search)
+    logger.info("Web search tool registered")
+
+    # 4) Instantiate services and interfaces with the bus and config
     database_service = DatabaseService(bus)
     llm_service = LLMService(bus, config_service)
-    tool_executor_service = ToolExecutorService(bus)
+    tool_executor_service = ToolExecutorService(bus, tool_registry)
     context_service = ContextService(bus)
     orchestrator_service = OrchestratorService(bus)
     websocket_interface = WebsocketInterface(bus)
@@ -58,26 +67,26 @@ async def main() -> None:
         websocket_interface,
     ]
 
-    # 3) Wire subscriptions
+    # 5) Wire subscriptions
     for svc in services:
         subscribe = getattr(svc, "subscribe_to_bus", None)
         if callable(subscribe):
             subscribe()
             logger.info("%s subscribed to bus", svc.__class__.__name__)
 
-    # 4) Get server configuration from config service
+    # 6) Get server configuration from config service
     server_host = config_service.get("server.host", "127.0.0.1")
     server_port = config_service.get_int("server.port", 8765)
 
-    # 5) Get FastAPI app from WebSocket interface
+    # 7) Get FastAPI app from WebSocket interface
     app = await websocket_interface.run_forever(host=server_host, port=server_port)
 
-    # 6) Long-running tasks (bus listeners)
+    # 8) Long-running tasks (bus listeners)
     bus_task = asyncio.create_task(bus.run_forever(), name="nexusbus.run_forever")
 
     logger.info(f"NEXUS engine configured with FastAPI app at {server_host}:{server_port}")
 
-    # 7) Import uvicorn and run the FastAPI app
+    # 9) Import uvicorn and run the FastAPI app
     import uvicorn
 
     # Create a task for the uvicorn server

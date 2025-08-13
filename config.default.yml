@@ -4,7 +4,7 @@ system:
 
 server:
   host: "127.0.0.1"
-  port: 8765
+  port: 8000
 
 llm:
   provider: "google" # 默认使用 google
@@ -12,7 +12,7 @@ llm:
     google:
       # ${VAR_NAME} 会自动从 .env 文件中读取
       api_key: "${GEMINI_API_KEY}"
-      base_url: "https://generativelanguage.googleapis.com/v1beta/models"
+      base_url: "https://generativelanguage.googleapis.com/v1beta"
       model: "gemini-2.5-flash"
       timeout: 60
 

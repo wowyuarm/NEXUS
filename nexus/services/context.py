@@ -90,10 +90,10 @@ class ContextService:
     def _load_system_prompt(self) -> str:
         """Load system prompt from prompts/xi/persona.md file."""
         try:
-            # Get the path relative to the project root
+            # Get the path relative to the nexus directory
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            project_root = os.path.dirname(os.path.dirname(current_dir))
-            persona_path = os.path.join(project_root, "prompts", "xi", "persona.md")
+            nexus_dir = os.path.dirname(current_dir)
+            persona_path = os.path.join(nexus_dir, "prompts", "xi", "persona.md")
 
             with open(persona_path, "r", encoding="utf-8") as f:
                 content = f.read()

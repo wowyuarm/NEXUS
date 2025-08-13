@@ -25,3 +25,6 @@ aura/node_modules/
 
 # AI rules
 .augment/
+
+# 自用脚本
+scripts/
