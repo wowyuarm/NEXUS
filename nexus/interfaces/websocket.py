@@ -11,7 +11,7 @@ import uuid
 from typing import Dict
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from nexus.core.bus import NexusBus
-from nexus.core.models import Message, Role
+from nexus.core.models import Message, Role, Run, RunStatus
 from nexus.core.topics import Topics
 
 logger = logging.getLogger(__name__)
@@ -49,11 +49,15 @@ class WebsocketInterface:
                 logger.warning(f"No WebSocket connection found for session_id={session_id}")
                 return
 
+            # Extract payload from standardized UI event format
+            # Expected format: {"event": "...", "run_id": "...", "payload": {...}}
+            payload = content.get("payload", {})
+
             # Send the event to the frontend
             await websocket.send_text(json.dumps({
                 "type": "response",
                 "run_id": run_id,
-                "content": content.get("payload", {}).get("content", ""),
+                "content": payload.get("chunk", ""),
                 "timestamp": message.timestamp.isoformat()
             }))
 
@@ -74,6 +78,14 @@ class WebsocketInterface:
             FastAPI application instance
         """
         app = FastAPI(title="NEXUS WebSocket API")
+
+        @app.get("/")
+        async def health_check():
+            return {"status": "ok", "service": "NEXUS WebSocket API"}
+
+        @app.get("/health")
+        async def health():
+            return {"status": "healthy", "connections": len(self.connections)}
 
         @app.websocket("/ws/{session_id}")
         async def websocket_endpoint(websocket: WebSocket, session_id: str):
@@ -101,7 +113,7 @@ class WebsocketInterface:
                         # Create a new run for this user input
                         run_id = f"run_{uuid.uuid4().hex}"
 
-                        # Create message for the new run
+                        # Create the initial user message
                         user_message = Message(
                             run_id=run_id,
                             session_id=session_id,
@@ -109,8 +121,24 @@ class WebsocketInterface:
                             content=user_input
                         )
 
-                        # Publish to start the conversation flow
-                        await self.bus.publish(Topics.RUNS_NEW, user_message)
+                        # Create Run object and add the initial message to its history
+                        run = Run(
+                            id=run_id,
+                            session_id=session_id,
+                            status=RunStatus.PENDING
+                        )
+                        run.history.append(user_message)
+
+                        # Create envelope message containing the Run object
+                        envelope_message = Message(
+                            run_id=run_id,
+                            session_id=session_id,
+                            role=Role.SYSTEM,
+                            content=run
+                        )
+
+                        # Publish the envelope message to start the conversation flow
+                        await self.bus.publish(Topics.RUNS_NEW, envelope_message)
                         logger.info(f"Published new run for session_id={session_id}, run_id={run_id}")
 
                     except json.JSONDecodeError as e:

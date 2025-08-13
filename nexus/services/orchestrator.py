@@ -33,33 +33,29 @@ class OrchestratorService:
         Handle new run requests.
 
         Args:
-            message: Message containing Run object or run data
+            message: Message containing Run object
         """
         try:
             logger.info(f"Handling new run for run_id={message.run_id}")
 
-            # Create or extract Run object
-            if isinstance(message.content, Run):
-                run = message.content
-            else:
-                # Create new Run from message data
-                run = Run(
-                    id=message.run_id,
-                    session_id=message.session_id,
-                    status=RunStatus.BUILDING_CONTEXT
-                )
-                # Add the initial message to history
-                run.history.append(message)
+            # Extract Run object directly from message content
+            run = message.content
+            if not isinstance(run, Run):
+                logger.error(f"Expected Run object in message content, got {type(run)}")
+                return
+
+            # Update run status to building context
+            run.status = RunStatus.BUILDING_CONTEXT
 
             # Store the run
             self.active_runs[run.id] = run
 
-            # Extract current input for context building
+            # Extract current input from the first message in run history
             current_input = ""
-            if isinstance(message.content, str):
-                current_input = message.content
-            elif isinstance(message.content, dict):
-                current_input = message.content.get("content", "")
+            if run.history:
+                first_message = run.history[0]
+                if isinstance(first_message.content, str):
+                    current_input = first_message.content
 
             # Request context building
             context_request = Message(
@@ -151,17 +147,16 @@ class OrchestratorService:
                 # No tool calls, complete the run
                 run.status = RunStatus.COMPLETED
 
-                # Create UI event message
+                # Create standardized UI event message
                 ui_event = Message(
                     run_id=run_id,
                     session_id=run.session_id,
                     role=Role.AI,
                     content={
-                        "event": "response",
+                        "event": "text_chunk",
                         "run_id": run_id,
                         "payload": {
-                            "content": llm_content,
-                            "type": "final_response"
+                            "chunk": llm_content
                         }
                     }
                 )
