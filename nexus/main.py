@@ -11,6 +11,7 @@ from typing import List
 
 from nexus.core.bus import NexusBus
 from nexus.interfaces.websocket import WebsocketInterface
+from nexus.services.config import ConfigService
 from nexus.services.database.service import DatabaseService
 from nexus.services.llm.service import LLMService
 from nexus.services.tool_executor import ToolExecutorService
@@ -31,13 +32,18 @@ async def main() -> None:
     _setup_logging()
     logger = logging.getLogger("nexus.main")
 
-    # 1) Instantiate the bus
+    # 1) Initialize configuration service first
+    config_service = ConfigService()
+    config_service.initialize()
+    logger.info("ConfigService initialized")
+
+    # 2) Instantiate the bus
     bus = NexusBus()
     logger.info("NexusBus instantiated")
 
-    # 2) Instantiate services and interfaces with the bus
+    # 3) Instantiate services and interfaces with the bus and config
     database_service = DatabaseService(bus)
-    llm_service = LLMService(bus)
+    llm_service = LLMService(bus, config_service)
     tool_executor_service = ToolExecutorService(bus)
     context_service = ContextService(bus)
     orchestrator_service = OrchestratorService(bus)
@@ -59,26 +65,37 @@ async def main() -> None:
             subscribe()
             logger.info("%s subscribed to bus", svc.__class__.__name__)
 
-    # 4) Long-running tasks (bus listeners + interfaces)
-    tasks = [
-        asyncio.create_task(bus.run_forever(), name="nexusbus.run_forever"),
-        asyncio.create_task(
-            websocket_interface.run_forever(host="127.0.0.1", port=8765),
-            name="websocket_interface.run_forever",
-        ),
-    ]
+    # 4) Get server configuration from config service
+    server_host = config_service.get("server.host", "127.0.0.1")
+    server_port = config_service.get_int("server.port", 8765)
 
-    logger.info("NEXUS engine running with %d background tasks", len(tasks))
+    # 5) Get FastAPI app from WebSocket interface
+    app = await websocket_interface.run_forever(host=server_host, port=server_port)
 
-    # 5) Run indefinitely until cancelled
+    # 6) Long-running tasks (bus listeners)
+    bus_task = asyncio.create_task(bus.run_forever(), name="nexusbus.run_forever")
+
+    logger.info(f"NEXUS engine configured with FastAPI app at {server_host}:{server_port}")
+
+    # 7) Import uvicorn and run the FastAPI app
+    import uvicorn
+
+    # Create a task for the uvicorn server
+    config = uvicorn.Config(app, host=server_host, port=server_port, log_level="info")
+    server = uvicorn.Server(config)
+
+    # Run bus and server concurrently
     try:
-        await asyncio.gather(*tasks)
+        await asyncio.gather(
+            bus_task,
+            server.serve()
+        )
     except asyncio.CancelledError:
         logger.info("Shutdown requested; cancelling tasks...")
-        for t in tasks:
-            t.cancel()
+        bus_task.cancel()
+        await server.shutdown()
         # Best-effort wait for cancellations
-        await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.gather(bus_task, return_exceptions=True)
         logger.info("All tasks cancelled. Exiting.")
 
 

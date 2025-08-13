@@ -2,6 +2,10 @@ system:
   log_level: "INFO"
   max_tool_iterations: 5
 
+server:
+  host: "127.0.0.1"
+  port: 8765
+
 llm:
   provider: "google" # 默认使用 google
   providers:
