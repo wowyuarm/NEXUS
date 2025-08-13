@@ -54,8 +54,8 @@ async def main() -> None:
     database_service = DatabaseService(bus)
     llm_service = LLMService(bus, config_service)
     tool_executor_service = ToolExecutorService(bus, tool_registry)
-    context_service = ContextService(bus)
-    orchestrator_service = OrchestratorService(bus)
+    context_service = ContextService(bus, tool_registry)
+    orchestrator_service = OrchestratorService(bus, config_service)
     websocket_interface = WebsocketInterface(bus)
 
     services: List[object] = [

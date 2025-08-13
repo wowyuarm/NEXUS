@@ -45,35 +45,63 @@ class GoogleLLMProvider(LLMProvider):
 
         Args:
             messages: List of message dictionaries with 'role' and 'content' keys
-            **kwargs: Additional parameters (model, temperature, etc.)
+            **kwargs: Additional parameters (model, temperature, tools, etc.)
 
         Returns:
-            Dictionary containing 'content' (str) and 'tool_calls' (None for now)
+            Dictionary containing 'content' (str) and 'tool_calls' (List or None)
         """
         try:
             # Default model and parameters
             model = kwargs.get("model", self.default_model)
             temperature = kwargs.get("temperature", 0.7)
             max_tokens = kwargs.get("max_tokens", 4096)
+            tools = kwargs.get("tools", [])
 
-            logger.info(f"Requesting chat completion with model={model}, messages_count={len(messages)}")
+            logger.info(f"Requesting chat completion with model={model}, messages_count={len(messages)}, tools_count={len(tools)}")
+
+            # Prepare API call parameters
+            api_params = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens
+            }
+
+            # Add tools if provided
+            if tools:
+                api_params["tools"] = tools
 
             # Make the API call
-            response = await self.client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens
-            )
+            response = await self.client.chat.completions.create(**api_params)
 
-            # Extract content from response
-            content = response.choices[0].message.content if response.choices else None
+            # Extract content and tool calls from response
+            message = response.choices[0].message if response.choices else None
+            content = message.content if message else None
 
-            logger.info(f"Chat completion successful, content_length={len(content) if content else 0}")
+            # Extract tool calls safely
+            tool_calls = None
+            if message and hasattr(message, 'tool_calls'):
+                tool_calls = message.tool_calls
+
+            # Convert tool_calls to the expected format if present
+            formatted_tool_calls = None
+            if tool_calls:
+                formatted_tool_calls = []
+                for tool_call in tool_calls:
+                    formatted_tool_calls.append({
+                        "id": tool_call.id,
+                        "type": tool_call.type,
+                        "function": {
+                            "name": tool_call.function.name,
+                            "arguments": tool_call.function.arguments
+                        }
+                    })
+
+            logger.info(f"Chat completion successful, content_length={len(content) if content else 0}, tool_calls_count={len(formatted_tool_calls) if formatted_tool_calls else 0}")
 
             return {
                 "content": content,
-                "tool_calls": None  # No tool calls in this simplified implementation
+                "tool_calls": formatted_tool_calls
             }
 
         except Exception as e:

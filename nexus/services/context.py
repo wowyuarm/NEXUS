@@ -3,6 +3,9 @@ Context service for NEXUS.
 
 Responsible for building conversational context prior to LLM calls. It subscribes
 for context build requests and publishes the build outputs when ready.
+
+Enhanced with tool registry integration to provide available tool definitions
+to the LLM alongside the conversational context.
 """
 
 import logging
@@ -10,13 +13,15 @@ import os
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
+from nexus.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
 
 class ContextService:
-    def __init__(self, bus: NexusBus):
+    def __init__(self, bus: NexusBus, tool_registry: ToolRegistry):
         self.bus = bus
+        self.tool_registry = tool_registry
         logger.info("ContextService initialized")
 
     def subscribe_to_bus(self) -> None:
@@ -58,6 +63,9 @@ class ContextService:
                 }
             ]
 
+            # Get all available tool definitions
+            tools = self.tool_registry.get_all_tool_definitions()
+
             # Create response message
             response_message = Message(
                 run_id=run_id,
@@ -65,7 +73,8 @@ class ContextService:
                 role=Role.SYSTEM,
                 content={
                     "status": "success",
-                    "messages": messages
+                    "messages": messages,
+                    "tools": tools
                 }
             )
 
@@ -82,7 +91,8 @@ class ContextService:
                 role=Role.SYSTEM,
                 content={
                     "status": "error",
-                    "messages": []
+                    "messages": [],
+                    "tools": []
                 }
             )
             await self.bus.publish(Topics.CONTEXT_BUILD_RESPONSE, error_message)

@@ -52,22 +52,23 @@ class LLMService:
         Handle LLM completion requests.
 
         Args:
-            message: Message containing 'messages' list and 'run_id'
+            message: Message containing 'messages' list, 'tools' list and 'run_id'
         """
         try:
             logger.info(f"Handling LLM request for run_id={message.run_id}")
 
-            # Extract messages and run_id from the message content
+            # Extract messages, tools and run_id from the message content
             content = message.content
             messages = content.get("messages", [])
+            tools = content.get("tools", [])
             run_id = message.run_id
 
             if not messages:
                 logger.error(f"No messages found in LLM request for run_id={run_id}")
                 return
 
-            # Call the LLM provider
-            result = await self.provider.chat_completion(messages)
+            # Call the LLM provider with tools
+            result = await self.provider.chat_completion(messages, tools=tools)
 
             # Create result message
             result_message = Message(

@@ -106,6 +106,11 @@ class ToolExecutorService:
 
             logger.info(f"Executing tool '{tool_name}' with args: {tool_args} for run_id={run_id}")
 
+            # Ensure tool_args is a dictionary
+            if not isinstance(tool_args, dict):
+                logger.error(f"Tool args must be a dictionary, got {type(tool_args)}: {tool_args}")
+                raise ValueError(f"Tool args must be a dictionary, got {type(tool_args)}")
+
             # Get tool function from registry
             tool_function = self.tool_registry.get_tool_function(tool_name)
             if tool_function is None:
