@@ -13,6 +13,10 @@ from nexus.core.topics import Topics
 
 logger = logging.getLogger(__name__)
 
+# Constants for UI event standardization
+UI_EVENT_TEXT_CHUNK = "text_chunk"
+CONTEXT_STATUS_SUCCESS = "success"
+
 
 class OrchestratorService:
     def __init__(self, bus: NexusBus):
@@ -20,6 +24,27 @@ class OrchestratorService:
         # Track active runs by run_id
         self.active_runs: Dict[str, Run] = {}
         logger.info("OrchestratorService initialized")
+
+    def _extract_user_input_from_run(self, run: Run) -> str:
+        """Extract user input from the first message in run history."""
+        if run.history and isinstance(run.history[0].content, str):
+            return run.history[0].content
+        return ""
+
+    def _create_standardized_ui_event(self, run_id: str, session_id: str, content: str) -> Message:
+        """Create a standardized UI event message."""
+        return Message(
+            run_id=run_id,
+            session_id=session_id,
+            role=Role.AI,
+            content={
+                "event": UI_EVENT_TEXT_CHUNK,
+                "run_id": run_id,
+                "payload": {
+                    "chunk": content
+                }
+            }
+        )
 
     def subscribe_to_bus(self) -> None:
         """Subscribe to orchestration topics."""
@@ -51,11 +76,7 @@ class OrchestratorService:
             self.active_runs[run.id] = run
 
             # Extract current input from the first message in run history
-            current_input = ""
-            if run.history:
-                first_message = run.history[0]
-                if isinstance(first_message.content, str):
-                    current_input = first_message.content
+            current_input = self._extract_user_input_from_run(run)
 
             # Request context building
             context_request = Message(
@@ -91,7 +112,7 @@ class OrchestratorService:
                 return
 
             content = message.content
-            if content.get("status") != "success":
+            if content.get("status") != CONTEXT_STATUS_SUCCESS:
                 logger.error(f"Context build failed for run_id={run_id}")
                 run.status = RunStatus.FAILED
                 return
@@ -148,17 +169,10 @@ class OrchestratorService:
                 run.status = RunStatus.COMPLETED
 
                 # Create standardized UI event message
-                ui_event = Message(
+                ui_event = self._create_standardized_ui_event(
                     run_id=run_id,
                     session_id=run.session_id,
-                    role=Role.AI,
-                    content={
-                        "event": "text_chunk",
-                        "run_id": run_id,
-                        "payload": {
-                            "chunk": llm_content
-                        }
-                    }
+                    content=llm_content
                 )
 
                 # Publish UI event

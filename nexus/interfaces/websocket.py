@@ -16,6 +16,12 @@ from nexus.core.topics import Topics
 
 logger = logging.getLogger(__name__)
 
+# Constants for standardized response formats
+RESPONSE_TYPE_SUCCESS = "response"
+RESPONSE_TYPE_ERROR = "error"
+ERROR_MSG_INVALID_JSON = "Invalid JSON format"
+ERROR_MSG_PROCESSING = "Error processing message"
+
 
 class WebsocketInterface:
     def __init__(self, bus: NexusBus):
@@ -23,6 +29,26 @@ class WebsocketInterface:
         # Store active WebSocket connections by session_id
         self.connections: Dict[str, WebSocket] = {}
         logger.info("WebsocketInterface initialized")
+
+    def _generate_run_id(self) -> str:
+        """Generate a unique run identifier."""
+        return f"run_{uuid.uuid4().hex}"
+
+    def _create_error_response(self, error_message: str) -> str:
+        """Create standardized error response JSON."""
+        return json.dumps({
+            "type": RESPONSE_TYPE_ERROR,
+            "message": error_message
+        })
+
+    def _create_success_response(self, run_id: str, content: str, timestamp: str) -> str:
+        """Create standardized success response JSON."""
+        return json.dumps({
+            "type": RESPONSE_TYPE_SUCCESS,
+            "run_id": run_id,
+            "content": content,
+            "timestamp": timestamp
+        })
 
     def subscribe_to_bus(self) -> None:
         """Subscribe to UI events for sending messages to frontend."""
@@ -54,12 +80,12 @@ class WebsocketInterface:
             payload = content.get("payload", {})
 
             # Send the event to the frontend
-            await websocket.send_text(json.dumps({
-                "type": "response",
-                "run_id": run_id,
-                "content": payload.get("chunk", ""),
-                "timestamp": message.timestamp.isoformat()
-            }))
+            response_json = self._create_success_response(
+                run_id=run_id,
+                content=payload.get("chunk", ""),
+                timestamp=message.timestamp.isoformat()
+            )
+            await websocket.send_text(response_json)
 
             logger.info(f"Sent UI event to session_id={session_id}")
 
@@ -111,7 +137,7 @@ class WebsocketInterface:
                             continue
 
                         # Create a new run for this user input
-                        run_id = f"run_{uuid.uuid4().hex}"
+                        run_id = self._generate_run_id()
 
                         # Create the initial user message
                         user_message = Message(
@@ -143,16 +169,10 @@ class WebsocketInterface:
 
                     except json.JSONDecodeError as e:
                         logger.error(f"Invalid JSON received from session_id={session_id}: {e}")
-                        await websocket.send_text(json.dumps({
-                            "type": "error",
-                            "message": "Invalid JSON format"
-                        }))
+                        await websocket.send_text(self._create_error_response(ERROR_MSG_INVALID_JSON))
                     except Exception as e:
                         logger.error(f"Error processing message from session_id={session_id}: {e}")
-                        await websocket.send_text(json.dumps({
-                            "type": "error",
-                            "message": "Error processing message"
-                        }))
+                        await websocket.send_text(self._create_error_response(ERROR_MSG_PROCESSING))
 
             except WebSocketDisconnect:
                 logger.info(f"WebSocket disconnected for session_id={session_id}")
