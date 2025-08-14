@@ -4,7 +4,7 @@ system:
 
 server:
   host: "127.0.0.1"
-  port: 8000
+  port: 8765
 
 llm:
   provider: "google" # 默认使用 google

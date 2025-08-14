@@ -5,7 +5,8 @@ Responsible for building conversational context prior to LLM calls. It subscribe
 for context build requests and publishes the build outputs when ready.
 
 Enhanced with tool registry integration to provide available tool definitions
-to the LLM alongside the conversational context.
+to the LLM alongside the conversational context. Features intelligent system
+prompt construction by combining persona and tool descriptions.
 """
 
 import logging
@@ -16,6 +17,13 @@ from nexus.core.topics import Topics
 from nexus.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
+
+# Constants
+PROMPTS_SUBDIR = "prompts/xi"
+PERSONA_FILENAME = "persona.md"
+TOOLS_FILENAME = "tools.md"
+CONTENT_SEPARATOR = "\n\n---\n\n"
+FALLBACK_SYSTEM_PROMPT = "You are Xi, an AI assistant. Please respond helpfully and thoughtfully."
 
 
 class ContextService:
@@ -98,20 +106,38 @@ class ContextService:
             await self.bus.publish(Topics.CONTEXT_BUILD_RESPONSE, error_message)
 
     def _load_system_prompt(self) -> str:
-        """Load system prompt from prompts/xi/persona.md file."""
+        """Load system prompt from prompts/xi/persona.md and tools.md files."""
         try:
-            # Get the path relative to the nexus directory
+            # Get the prompts directory path
             current_dir = os.path.dirname(os.path.abspath(__file__))
             nexus_dir = os.path.dirname(current_dir)
-            persona_path = os.path.join(nexus_dir, "prompts", "xi", "persona.md")
+            prompts_dir = os.path.join(nexus_dir, PROMPTS_SUBDIR)
 
-            with open(persona_path, "r", encoding="utf-8") as f:
-                content = f.read()
+            # Load prompt files
+            persona_content = self._load_prompt_file(prompts_dir, PERSONA_FILENAME, FALLBACK_SYSTEM_PROMPT)
+            tools_content = self._load_prompt_file(prompts_dir, TOOLS_FILENAME, "")
 
-            logger.info(f"Loaded system prompt from {persona_path}")
-            return content
+            # Combine content with separator
+            if tools_content:
+                combined_content = f"{persona_content}{CONTENT_SEPARATOR}{tools_content}"
+            else:
+                combined_content = persona_content
+
+            logger.info("System prompt constructed successfully")
+            return combined_content
 
         except Exception as e:
             logger.error(f"Error loading system prompt: {e}")
-            # Return a fallback system prompt
-            return "You are Xi, an AI assistant. Please respond helpfully and thoughtfully."
+            return FALLBACK_SYSTEM_PROMPT
+
+    def _load_prompt_file(self, prompts_dir: str, filename: str, fallback: str) -> str:
+        """Load a single prompt file with error handling."""
+        file_path = os.path.join(prompts_dir, filename)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            logger.info(f"Loaded {filename} content from {file_path}")
+            return content
+        except Exception as e:
+            logger.warning(f"Error loading {filename}: {e}")
+            return fallback

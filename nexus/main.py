@@ -18,7 +18,6 @@ from nexus.services.tool_executor import ToolExecutorService
 from nexus.services.context import ContextService
 from nexus.services.orchestrator import OrchestratorService
 from nexus.tools.registry import ToolRegistry
-from nexus.tools.definition.web import WEB_SEARCH_TOOL, web_search
 
 
 def _setup_logging() -> None:
@@ -46,9 +45,9 @@ async def main() -> None:
     # 3) Initialize and configure tool registry
     tool_registry = ToolRegistry()
 
-    # Register web_search tool
-    tool_registry.register(WEB_SEARCH_TOOL, web_search)
-    logger.info("Web search tool registered")
+    # Auto-discover and register all tools
+    tool_registry.discover_and_register('nexus.tools.definition')
+    logger.info("Tools auto-discovery and registration completed")
 
     # 4) Instantiate services and interfaces with the bus and config
     database_service = DatabaseService(bus)

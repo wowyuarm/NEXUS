@@ -86,3 +86,4 @@ class Run(BaseModel):
     history: List[Message] = Field(default_factory=list)
     iteration_count: int = Field(default=0)
     tools: List[Dict[str, Any]] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)

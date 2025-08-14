@@ -3,10 +3,13 @@ Tool registry for NEXUS.
 
 Manages the registration and retrieval of tools available to the system.
 Provides a centralized registry for tool definitions and their corresponding
-function implementations.
+function implementations. Features automatic tool discovery and registration
+from specified module paths.
 """
 
 import logging
+import importlib
+import pkgutil
 from typing import Dict, List, Callable, Optional, Any
 
 logger = logging.getLogger(__name__)
@@ -144,3 +147,79 @@ class ToolRegistry:
         del self._functions[name]
         logger.info(f"Tool '{name}' unregistered successfully")
         return True
+
+    def discover_and_register(self, discovery_path: str) -> None:
+        """
+        Automatically discover and register tools from a given module path.
+
+        Args:
+            discovery_path: Module path to search for tools (e.g., 'nexus.tools.definition')
+        """
+        try:
+            logger.info(f"Starting tool discovery in path: {discovery_path}")
+
+            package = importlib.import_module(discovery_path)
+            if not hasattr(package, '__path__'):
+                logger.warning(f"Package {discovery_path} has no __path__ attribute")
+                return
+
+            # Discover and register tools from each module
+            for _, modname, ispkg in pkgutil.iter_modules(package.__path__):
+                if not ispkg:  # Skip sub-packages
+                    full_module_name = f"{discovery_path}.{modname}"
+                    self._process_module_for_tools(full_module_name)
+
+            logger.info(f"Tool discovery completed. Total registered tools: {len(self._tools)}")
+
+        except Exception as e:
+            logger.error(f"Error during tool discovery in {discovery_path}: {e}")
+            raise
+
+    def _process_module_for_tools(self, module_name: str) -> None:
+        """Process a single module to discover and register tools."""
+        logger.debug(f"Examining module: {module_name}")
+
+        try:
+            module = importlib.import_module(module_name)
+            tool_definitions = self._extract_tool_definitions(module)
+
+            for tool_def_name, tool_definition in tool_definitions.items():
+                self._register_tool_from_definition(module, module_name, tool_def_name, tool_definition)
+
+        except Exception as e:
+            logger.error(f"Error importing module {module_name}: {e}")
+
+    def _extract_tool_definitions(self, module) -> Dict[str, Dict]:
+        """Extract tool definitions from a module."""
+        tool_definitions = {}
+        for attr_name in dir(module):
+            if attr_name.endswith('_TOOL') and not attr_name.startswith('_'):
+                attr_value = getattr(module, attr_name)
+                if isinstance(attr_value, dict):
+                    tool_definitions[attr_name] = attr_value
+                    logger.debug(f"Found tool definition: {attr_name}")
+        return tool_definitions
+
+    def _register_tool_from_definition(self, module, module_name: str, tool_def_name: str, tool_definition: Dict) -> None:
+        """Register a tool from its definition and corresponding function."""
+        try:
+            # Validate tool definition structure
+            if "function" not in tool_definition or "name" not in tool_definition["function"]:
+                logger.warning(f"Invalid tool definition {tool_def_name}: missing function.name")
+                return
+
+            function_name = tool_definition["function"]["name"]
+
+            # Find and validate the function
+            if hasattr(module, function_name):
+                tool_function = getattr(module, function_name)
+                if callable(tool_function):
+                    self.register(tool_definition, tool_function)
+                    logger.info(f"Auto-registered tool: {function_name} from {module_name}")
+                else:
+                    logger.warning(f"Found {function_name} in {module_name} but it's not callable")
+            else:
+                logger.warning(f"Tool function {function_name} not found in {module_name}")
+
+        except Exception as e:
+            logger.error(f"Error processing tool definition {tool_def_name} in {module_name}: {e}")

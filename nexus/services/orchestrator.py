@@ -7,10 +7,11 @@ and implements the complete Agentic Loop with tool calling capabilities.
 
 Key responsibilities:
 - Run lifecycle management and state transitions
-- Tool call detection and orchestration
+- Tool call detection and orchestration with multi-tool synchronization
 - Safety valve enforcement (max iterations)
 - Real-time UI event broadcasting
 - History management for multi-turn tool interactions
+- Synchronization of multiple concurrent tool executions
 """
 
 import logging
@@ -250,6 +251,10 @@ class OrchestratorService:
                     del self.active_runs[run_id]
                     return
 
+                # Record pending tool calls count for synchronization
+                run.metadata['pending_tool_calls'] = len(tool_calls)
+                logger.info(f"Set pending_tool_calls to {len(tool_calls)} for run_id={run_id}")
+
                 # Update run status and increment iteration count
                 run.status = RunStatus.AWAITING_TOOL_RESULT
                 run.iteration_count += 1
@@ -345,6 +350,7 @@ class OrchestratorService:
             tool_name = content.get("tool_name", "unknown")
             tool_result = content.get("result", "")
             tool_status = content.get("status", "unknown")
+            call_id = content.get("call_id", "")
 
             # Record tool result: add the tool message to history
             tool_message = Message(
@@ -352,7 +358,7 @@ class OrchestratorService:
                 session_id=run.session_id,
                 role=Role.TOOL,
                 content=tool_result,
-                metadata={"tool_name": tool_name, "status": tool_status}
+                metadata={"tool_name": tool_name, "status": tool_status, "call_id": call_id}
             )
             run.history.append(tool_message)
 
@@ -373,6 +379,21 @@ class OrchestratorService:
             )
             await self.bus.publish(Topics.UI_EVENTS, ui_event)
             logger.info(f"Published tool completion UI event for {tool_name} in run_id={run_id}")
+
+            # Synchronization logic: decrement pending tool calls count
+            current_pending_count = run.metadata.get('pending_tool_calls', 0)
+            if current_pending_count > 0:
+                run.metadata['pending_tool_calls'] = current_pending_count - 1
+                remaining_tool_calls = run.metadata['pending_tool_calls']
+                logger.info(f"Decremented pending_tool_calls to {remaining_tool_calls} for run_id={run_id}")
+
+                # Only proceed to call LLM when all tools have completed
+                if remaining_tool_calls > 0:
+                    logger.info(f"Waiting for {remaining_tool_calls} more tool results for run_id={run_id}")
+                    return
+
+            # All tools completed, proceed with LLM call
+            logger.info(f"All tools completed for run_id={run_id}, calling LLM")
 
             # Convert run history to messages format for LLM
             messages = self._convert_history_to_llm_messages(run)
