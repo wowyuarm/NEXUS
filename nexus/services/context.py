@@ -25,11 +25,23 @@ TOOLS_FILENAME = "tools.md"
 CONTENT_SEPARATOR = "\n\n---\n\n"
 FALLBACK_SYSTEM_PROMPT = "You are Xi, an AI assistant. Please respond helpfully and thoughtfully."
 
+# Conversation history and role mapping constants
+DEFAULT_HISTORY_LIMIT = 20  # Default number of recent messages to include in context
+CONFIG_HISTORY_SIZE_KEY = "memory.history_context_size"
+NEXUS_ROLE_HUMAN = "human"
+NEXUS_ROLE_AI = "ai"
+NEXUS_ROLE_TOOL = "tool"
+LLM_ROLE_USER = "user"
+LLM_ROLE_ASSISTANT = "assistant"
+LLM_ROLE_SYSTEM = "system"
+
 
 class ContextService:
-    def __init__(self, bus: NexusBus, tool_registry: ToolRegistry):
+    def __init__(self, bus: NexusBus, tool_registry: ToolRegistry, config_service=None, persistence_service=None):
         self.bus = bus
         self.tool_registry = tool_registry
+        self.config_service = config_service
+        self.persistence_service = persistence_service
         logger.info("ContextService initialized")
 
     def subscribe_to_bus(self) -> None:
@@ -59,17 +71,12 @@ class ContextService:
             # Load system prompt from persona.md
             system_prompt = self._load_system_prompt()
 
-            # Create simplified messages list
-            messages = [
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "user",
-                    "content": current_input
-                }
-            ]
+            # Build messages list with history
+            messages = await self._build_messages_with_history(
+                message.session_id,
+                system_prompt,
+                current_input
+            )
 
             # Get all available tool definitions
             tools = self.tool_registry.get_all_tool_definitions()
@@ -141,3 +148,73 @@ class ContextService:
         except Exception as e:
             logger.warning(f"Error loading {filename}: {e}")
             return fallback
+
+    async def _build_messages_with_history(self, session_id: str, system_prompt: str, current_input: str) -> list:
+        """Build messages list with conversation history from database.
+
+        Args:
+            session_id: The session ID to load history for
+            system_prompt: The system prompt to include
+            current_input: The current user input
+
+        Returns:
+            List of message dictionaries for LLM context
+        """
+        messages = [
+            {
+                "role": "system",
+                "content": system_prompt
+            }
+        ]
+
+        # Load recent conversation history if persistence service is available
+        # This provides short-term memory by including recent messages in the context
+        if self.persistence_service:
+            try:
+                # Get history context size from config
+                history_limit = DEFAULT_HISTORY_LIMIT
+                if self.config_service:
+                    history_limit = self.config_service.get_int(CONFIG_HISTORY_SIZE_KEY, DEFAULT_HISTORY_LIMIT)
+
+                # Retrieve historical messages
+                history_messages = await self.persistence_service.get_history(session_id, history_limit)
+
+                # Convert database messages to LLM format and add to context
+                for msg_data in reversed(history_messages):  # Reverse to get chronological order
+                    role = msg_data.get("role", "").lower()
+                    content = msg_data.get("content", "")
+
+                    # Map NEXUS roles to LLM roles
+                    if role == NEXUS_ROLE_HUMAN:
+                        llm_role = LLM_ROLE_USER
+                    elif role == NEXUS_ROLE_AI:
+                        llm_role = LLM_ROLE_ASSISTANT
+                    elif role == NEXUS_ROLE_TOOL:
+                        # Tool results can be included as system messages or skipped
+                        # For now, we'll include them as system messages with context
+                        tool_name = msg_data.get("metadata", {}).get("tool_name", "unknown")
+                        llm_role = LLM_ROLE_SYSTEM
+                        content = f"Tool '{tool_name}' result: {content}"
+                    else:
+                        continue  # Skip unknown roles
+
+                    # Handle None content and only add non-empty messages
+                    if content and str(content).strip():
+                        messages.append({
+                            "role": llm_role,
+                            "content": str(content)
+                        })
+
+                logger.info(f"Added {len(history_messages)} historical messages to context for session {session_id}")
+
+            except Exception as e:
+                logger.error(f"Failed to load conversation history for session {session_id}: {e}")
+                # Continue without history if loading fails
+
+        # Add the current user input
+        messages.append({
+            "role": "user",
+            "content": current_input
+        })
+
+        return messages

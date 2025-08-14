@@ -17,6 +17,7 @@ from nexus.services.llm.service import LLMService
 from nexus.services.tool_executor import ToolExecutorService
 from nexus.services.context import ContextService
 from nexus.services.orchestrator import OrchestratorService
+from nexus.services.persistence import PersistenceService
 from nexus.tools.registry import ToolRegistry
 
 
@@ -49,16 +50,29 @@ async def main() -> None:
     tool_registry.discover_and_register('nexus.tools.definition')
     logger.info("Tools auto-discovery and registration completed")
 
-    # 4) Instantiate services and interfaces with the bus and config
-    database_service = DatabaseService(bus)
+    # 4) Instantiate services and interfaces with proper dependency injection
+    # Order matters: dependencies must be created before dependents
+
+    # Core infrastructure services first
+    database_service = DatabaseService(bus, config_service)
+
+    # Persistence service depends on database service
+    persistence_service = PersistenceService(database_service)
+
+    # Other services
     llm_service = LLMService(bus, config_service)
     tool_executor_service = ToolExecutorService(bus, tool_registry)
-    context_service = ContextService(bus, tool_registry)
+
+    # Context service now depends on config and persistence services
+    context_service = ContextService(bus, tool_registry, config_service, persistence_service)
+
+    # Orchestrator and interface services
     orchestrator_service = OrchestratorService(bus, config_service)
     websocket_interface = WebsocketInterface(bus)
 
     services: List[object] = [
         database_service,
+        persistence_service,
         llm_service,
         tool_executor_service,
         context_service,
