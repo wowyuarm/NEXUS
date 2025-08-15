@@ -197,17 +197,7 @@ class WebSocketManager {
         this.emitter.emit('message', parsed as NexusToAuraEvent);
         return;
       }
-      // fallback for legacy/simple responses: { type: 'response', run_id, content }
-      if (parsed && parsed.type === 'response' && typeof parsed.run_id === 'string') {
-        const fallback = {
-          event: 'text_chunk',
-          run_id: parsed.run_id,
-          payload: { chunk: String(parsed.content ?? '') },
-        } as NexusToAuraEvent;
-        this.emitter.emit('text_chunk', fallback);
-        this.emitter.emit('message', fallback);
-        return;
-      }
+
     } catch {
       // ignore non-JSON messages and heartbeat pongs
     }
