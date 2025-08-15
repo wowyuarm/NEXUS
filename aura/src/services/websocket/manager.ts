@@ -8,7 +8,7 @@ import type { NexusToAuraEvent } from './protocol';
 export type WebSocketStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
 
 // Minimal event emitter implementation to avoid extra deps
-type Handler<T = any> = (payload: T) => void;
+type Handler = (payload: unknown) => void;
 class Emitter {
   private map = new Map<string, Set<Handler>>();
 
@@ -21,7 +21,7 @@ class Emitter {
     this.map.get(event)?.delete(handler);
   }
 
-  emit<T = any>(event: string, payload: T) {
+  emit(event: string, payload: unknown) {
     this.map.get(event)?.forEach((h) => h(payload));
   }
 
@@ -89,7 +89,7 @@ class WebSocketManager {
     const existing = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
     if (existing) return existing;
     const sid = `sess_${uuidv4()}`;
-    try { localStorage.setItem(key, sid); } catch {}
+    try { localStorage.setItem(key, sid); } catch { /* noop */ }
     return sid;
   }
 
@@ -148,7 +148,7 @@ class WebSocketManager {
       this.reconnectTimer = null;
     }
     if (this.socket) {
-      try { this.socket.close(); } catch {}
+      try { this.socket.close(); } catch { /* noop */ }
       this.socket = null;
     }
     if (isManual) this.reconnectAttempts = 0;
@@ -165,7 +165,7 @@ class WebSocketManager {
     this.stopHeartbeat();
     this.heartbeatTimer = window.setInterval(() => {
       if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-        try { this.socket.send('ping'); } catch {}
+        try { this.socket.send('ping'); } catch { /* noop */ }
       }
     }, this.heartbeatInterval);
   }
@@ -190,7 +190,7 @@ class WebSocketManager {
 
   private handleMessage(data: string) {
     try {
-      const parsed = JSON.parse(data);
+      const parsed: Partial<NexusToAuraEvent> = JSON.parse(data);
       // preferred protocol: { event, run_id, payload }
       if (parsed && typeof parsed.event === 'string' && typeof parsed.run_id === 'string') {
         this.emitter.emit(parsed.event, parsed as NexusToAuraEvent);
@@ -205,7 +205,7 @@ class WebSocketManager {
 }
 
 // Export a singleton instance
-const base = (import.meta as any).env?.VITE_WS_BASE_URL || 'ws://localhost:8765/ws';
+const base = (import.meta as unknown as { env?: { VITE_WS_BASE_URL?: string } })?.env?.VITE_WS_BASE_URL || 'ws://localhost:8765/ws';
 const websocketManager = new WebSocketManager(base, {
   maxReconnectAttempts: 5,
   heartbeatIntervalMs: 30_000,

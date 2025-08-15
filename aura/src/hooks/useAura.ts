@@ -3,8 +3,9 @@
 
 import { useEffect, useMemo } from 'react';
 import websocketManager from '../services/websocket/manager';
-import type { NexusToAuraEvent } from '../services/websocket/protocol';
+import type { RunStartedEvent, TextChunkEvent, ToolCallStartedEvent, ToolCallFinishedEvent, RunFinishedEvent, ErrorEvent } from '../services/websocket/protocol';
 import { useAuraStore } from '../features/chat/store/auraStore';
+import type { WebSocketStatus } from '../services/websocket/manager';
 
 export function useAura() {
   const messages = useAuraStore((s) => s.messages);
@@ -18,14 +19,14 @@ export function useAura() {
     }
 
     const setConn = useAuraStore.getState().setConnectionStatus;
-    const onStatus = (status: any) => setConn(status);
+    const onStatus = (status: unknown) => setConn(status as WebSocketStatus);
 
-    const onRunStarted = (e: NexusToAuraEvent) => useAuraStore.getState().handleRunStarted(e as any);
-    const onTextChunk = (e: NexusToAuraEvent) => useAuraStore.getState().handleTextChunk(e as any);
-    const onToolStart = (e: NexusToAuraEvent) => useAuraStore.getState().handleToolCallStarted(e as any);
-    const onToolFinish = (e: NexusToAuraEvent) => useAuraStore.getState().handleToolCallFinished(e as any);
-    const onRunFinished = (e: NexusToAuraEvent) => useAuraStore.getState().handleRunFinished(e as any);
-    const onError = (e: NexusToAuraEvent) => useAuraStore.getState().handleError(e as any);
+    const onRunStarted = (e: unknown) => useAuraStore.getState().handleRunStarted(e as RunStartedEvent);
+    const onTextChunk = (e: unknown) => useAuraStore.getState().handleTextChunk(e as TextChunkEvent);
+    const onToolStart = (e: unknown) => useAuraStore.getState().handleToolCallStarted(e as ToolCallStartedEvent);
+    const onToolFinish = (e: unknown) => useAuraStore.getState().handleToolCallFinished(e as ToolCallFinishedEvent);
+    const onRunFinished = (e: unknown) => useAuraStore.getState().handleRunFinished(e as RunFinishedEvent);
+    const onError = (e: unknown) => useAuraStore.getState().handleError(e as ErrorEvent);
 
     websocketManager.emitter.on('status', onStatus);
     websocketManager.emitter.on('run_started', onRunStarted);

@@ -12,7 +12,7 @@ export interface NexusEvent<T extends string, P> {
 
 // --- Event Payloads ---
 
-export interface RunStartedPayload {}
+export type RunStartedPayload = Record<string, never>;
 
 export interface TextChunkPayload {
   chunk: string;
@@ -20,13 +20,13 @@ export interface TextChunkPayload {
 
 export interface ToolCallStartedPayload {
   tool_name: string;
-  args: Record<string, any>;
+  args: Record<string, unknown>;
 }
 
 export interface ToolCallFinishedPayload {
   tool_name: string;
   status: 'success' | 'error';
-  result: any;
+  result: unknown;
 }
 
 export interface RunFinishedPayload {

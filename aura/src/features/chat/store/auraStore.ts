@@ -22,9 +22,9 @@ export interface Message {
 export interface ToolCall {
   id: string;
   toolName: string;
-  args: Record<string, any>;
+  args: Record<string, unknown>;
   status: 'pending' | 'success' | 'error';
-  result?: any;
+  result?: unknown;
 }
 
 interface CurrentRunState {
