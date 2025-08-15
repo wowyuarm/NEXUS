@@ -2,23 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Global style foundation for AURA.
+  - Grayscale-only palette via CSS variables on :root
+  - Liquid Glass material (card) rendered by tailwind classes + variables
+  - Typography rhythm driven by Tailwind utilities with a few custom utilities
+*/
+
 @layer base {
   :root, .dark {
-    /* 灰度中庸调色板 (Grayscale Moderation Palette) */
-    --background: 0 0% 10%;         /* #1a1a1a - 核心背景 */
-    --foreground: 0 0% 75%;         /* #bfbfbf - 主文本 */
+    /* Grayscale Moderation Palette */
+    --background: 0 0% 10%;         /* #1a1a1a - core background */
+    --foreground: 0 0% 75%;         /* #bfbfbf - primary text */
 
-    --card: 0 0% 12%;               /* #1f1f1f - 内容区/输入框背景 */
-    --card-foreground: 0 0% 85%;    /* #d9d9d9 - 卡片内主要文本 */
+    --card: 0 0% 12%;               /* #1f1f1f - content/input background */
+    --card-foreground: 0 0% 85%;    /* #d9d9d9 - text inside cards */
 
     --popover: 0 0% 8%;
     --popover-foreground: 0 0% 85%;
 
-    --primary: 0 0% 90%;            /* #e6e6e6 - 主要交互元素 */
+    --primary: 0 0% 90%;            /* #e6e6e6 - primary interactive */
     --primary-foreground: 0 0% 10%;
 
-    --secondary: 0 0% 14%;          /* #242424 - 用于次级背景/悬停 */
-    --secondary-foreground: 0 0% 60%; /* #999999 - 次要/静音文本 */
+    --secondary: 0 0% 14%;          /* #242424 - secondary bg/hover */
+    --secondary-foreground: 0 0% 60%; /* #999999 - secondary/quiet text */
 
     --muted: 0 0% 14%;
     --muted-foreground: 0 0% 60%;
@@ -26,9 +33,9 @@
     --accent: 0 0% 14%;
     --accent-foreground: 0 0% 90%;
 
-    --border: 0 0% 18%;             /* #2e2e2e - 边框 */
+    --border: 0 0% 18%;             /* #2e2e2e - borders */
     --input: 0 0% 18%;
-    --ring: 0 0% 90%;               /* 焦点环 */
+    --ring: 0 0% 90%;               /* focus ring */
 
     --radius: 0.75rem;
   }
@@ -43,35 +50,35 @@
 }
 
 @layer utilities {
-  /* 精细化、统一的Prose样式 - 遵循灰度中庸设计哲学 */
+  /* Refined, grayscale-only prose defaults */
   .prose {
     @apply text-foreground max-w-none;
     line-height: 1.75;
   }
 
-  /* 基础间距 - 排除列表，让自定义组件控制 */
+  /* Vertical rhythm (exclude lists; components decide their own) */
   .prose p, .prose blockquote, .prose pre {
     @apply my-4;
   }
   .prose :first-child { @apply mt-0; }
   .prose :last-child { @apply mb-0; }
 
-  /* 行内代码样式 - 与组件保持一致 */
+  /* Inline code: align with component look */
   .prose code:not(pre code) {
     @apply inline px-1.5 py-0.5 text-base font-mono bg-muted/40 text-foreground rounded-sm break-words;
   }
 
-  /* 列表样式 - 使用CSS处理嵌套 */
+  /* List reset; use CSS for nested indentation */
   .prose ul, .prose ol {
     @apply list-none pl-0 my-0;
   }
 
-  /* 嵌套列表特殊样式 */
+  /* Nested list fine-tuning */
   .prose ul ul, .prose ol ol, .prose ul ol, .prose ol ul {
     @apply mt-1.5 mb-0 pl-4;
   }
 
-  /* 链接样式 */
+  /* Links */
   .prose a {
     @apply text-foreground underline decoration-secondary-foreground/30 decoration-1 underline-offset-2;
     @apply transition-all duration-300 ease-in-out;
@@ -80,29 +87,13 @@
     @apply text-primary decoration-secondary-foreground/50;
   }
 
-  /* 强调文本 */
-  .prose strong {
-    @apply font-semibold text-foreground;
-  }
+  /* Emphasis */
+  .prose strong { @apply font-semibold text-foreground; }
+  .prose em { @apply italic text-foreground; }
 
-  .prose em {
-    @apply italic text-foreground;
-  }
-
-  /* 滚动条样式 */
-  ::-webkit-scrollbar {
-    width: 8px;  /* 竖向滚动条宽度 */
-    height: 8px; /* 横向滚动条高度 */
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: hsl(var(--border) / 0.6);
-    border-radius: 9999px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--border));
-  }
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--border) / 0.6); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--border)); }
 }
-
