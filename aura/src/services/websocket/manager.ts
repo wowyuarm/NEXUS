@@ -1,123 +1,83 @@
-// aura/src/services/websocket/manager.ts
-// A pure WebSocket communication layer for AURA. It manages connection,
-// heartbeat, auto-reconnect, and broadcasts parsed events via an internal emitter.
+// src/services/websocket/manager.ts
 
-import { v4 as uuidv4 } from 'uuid';
-import type { NexusToAuraEvent } from './protocol';
-
-export type WebSocketStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
-
-// Minimal event emitter implementation to avoid extra deps
-type Handler = (payload: unknown) => void;
-class Emitter {
-  private map = new Map<string, Set<Handler>>();
-
-  on(event: string, handler: Handler) {
-    if (!this.map.has(event)) this.map.set(event, new Set());
-    this.map.get(event)!.add(handler);
-  }
-
-  off(event: string, handler: Handler) {
-    this.map.get(event)?.delete(handler);
-  }
-
-  emit(event: string, payload: unknown) {
-    this.map.get(event)?.forEach((h) => h(payload));
-  }
-
-  clearAll() {
-    this.map.clear();
-  }
-}
-
-export interface WebSocketManagerConfig {
-  maxReconnectAttempts?: number; // default 5
-  heartbeatIntervalMs?: number; // default 30_000
-  reconnectBackoffBaseMs?: number; // default 1_000
-  enableHeartbeat?: boolean; // default true
-  enableAutoReconnect?: boolean; // default true
-}
-
-export interface AuraToNexusMessage {
-  content: string;
-}
+import type {
+  XiSystemEvent,
+  WebSocketStatus,
+  WebSocketManagerConfig,
+  ConnectionStatusChangeEvent,
+  ClientMessage
+} from './protocol';
+import { parseProtocolMessage } from './protocol';
 
 class WebSocketManager {
-  public readonly emitter = new Emitter();
-
   private socket: WebSocket | null = null;
-  private baseUrl: string; // e.g., ws://localhost:8765/ws
-  private sessionId: string | null = null;
+  private url: string;
   private status: WebSocketStatus = 'disconnected';
 
-  // reconnect/heartbeat
+  // 重连相关状态
   private reconnectAttempts = 0;
   private maxReconnectAttempts: number;
   private reconnectBackoffBase: number;
   private isManualDisconnect = false;
-  private reconnectTimer: number | null = null;
+  private reconnectTimer: NodeJS.Timeout | null = null;
 
+  // 心跳相关状态
   private heartbeatInterval: number;
-  private heartbeatTimer: number | null = null;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
   private enableHeartbeat: boolean;
   private enableAutoReconnect: boolean;
 
-  constructor(baseUrl: string, config: WebSocketManagerConfig = {}) {
-    this.baseUrl = baseUrl.replace(/\/$/, '');
+  // 回调函数
+  private onMessageCallback: ((event: XiSystemEvent) => void) | null = null;
+  private onStatusChangeCallback: ((event: ConnectionStatusChangeEvent) => void) | null = null;
+
+  constructor(url: string, config: Partial<WebSocketManagerConfig> = {}) {
+    this.url = url;
+
+    // 配置参数
     this.maxReconnectAttempts = config.maxReconnectAttempts ?? 5;
-    this.heartbeatInterval = config.heartbeatIntervalMs ?? 30_000;
-    this.reconnectBackoffBase = config.reconnectBackoffBaseMs ?? 1_000;
+    this.heartbeatInterval = config.heartbeatInterval ?? 30000; // 30秒
+    this.reconnectBackoffBase = config.reconnectBackoffBase ?? 1000; // 1秒
     this.enableHeartbeat = config.enableHeartbeat ?? true;
     this.enableAutoReconnect = config.enableAutoReconnect ?? true;
+
+    console.log('WebSocketManager initialized with config:', {
+      url: this.url,
+      maxReconnectAttempts: this.maxReconnectAttempts,
+      heartbeatInterval: this.heartbeatInterval,
+      enableHeartbeat: this.enableHeartbeat,
+      enableAutoReconnect: this.enableAutoReconnect
+    });
   }
 
-  getStatus(): WebSocketStatus {
-    return this.status;
-  }
-
-  getSessionId(): string | null {
-    return this.sessionId;
-  }
-
-  private setStatus(next: WebSocketStatus) {
-    this.status = next;
-    this.emitter.emit('status', next);
-  }
-
-  private loadOrCreateSessionId(): string {
-    const key = 'aura_session_id';
-    const existing = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
-    if (existing) return existing;
-    const sid = `sess_${uuidv4()}`;
-    try { localStorage.setItem(key, sid); } catch { /* noop */ }
-    return sid;
-  }
-
-  connect(sessionId?: string) {
-    // prevent duplicate connects
+  public connect() {
+    // 防止重复连接
     if (this.socket && (this.socket.readyState === WebSocket.CONNECTING || this.socket.readyState === WebSocket.OPEN)) {
+      console.log('WebSocket is already connecting or connected');
       return;
     }
 
     this.isManualDisconnect = false;
-    this.sessionId = sessionId ?? this.loadOrCreateSessionId();
-    const url = `${this.baseUrl}/${this.sessionId}`;
-
     this.setStatus('connecting');
 
     try {
-      this.socket = new WebSocket(url);
+      this.socket = new WebSocket(this.url);
 
       this.socket.onopen = () => {
-        this.reconnectAttempts = 0;
+        console.log('WebSocket connected successfully');
+        this.reconnectAttempts = 0; // 重置重连计数
         this.setStatus('connected');
-        this.startHeartbeat();
+        this.startHeartbeat(); // 启动心跳
       };
 
-      this.socket.onmessage = (ev) => this.handleMessage(ev.data);
+      this.socket.onmessage = (event) => {
+        this.handleMessage(event.data);
+      };
 
-      this.socket.onclose = () => {
-        this.stopHeartbeat();
+      this.socket.onclose = (event) => {
+        console.log('WebSocket connection closed:', event.code, event.reason);
+        this.stopHeartbeat(); // 停止心跳
+
         if (this.isManualDisconnect) {
           this.setStatus('disconnected');
         } else if (this.enableAutoReconnect) {
@@ -127,91 +87,204 @@ class WebSocketManager {
         }
       };
 
-      this.socket.onerror = () => {
+      this.socket.onerror = (error) => {
+        console.error('WebSocket Error:', error);
         this.stopHeartbeat();
+
         if (!this.isManualDisconnect && this.enableAutoReconnect) {
           this.reconnect();
         } else {
           this.setStatus('disconnected');
         }
       };
-    } catch {
+
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error);
       this.setStatus('disconnected');
     }
   }
 
-  disconnect(isManual = true) {
+  /**
+   * 处理接收到的WebSocket消息
+   */
+  private handleMessage(data: string) {
+    try {
+      // 首先检查是否是心跳响应或其他特殊消息
+      if (data === 'pong') {
+        console.log('Received heartbeat pong');
+        return;
+      }
+
+      // 尝试解析为协议消息
+      const protocolEvent = parseProtocolMessage(data);
+
+      if (protocolEvent && this.onMessageCallback) {
+        this.onMessageCallback(protocolEvent);
+        return;
+      }
+
+      // 向后兼容：处理非协议消息（如纯文本或魔法字符串）
+      console.warn('Received non-protocol message:', data);
+
+      // 为了向后兼容，将非协议消息包装成text_chunk事件
+      if (this.onMessageCallback) {
+        const fallbackEvent: XiSystemEvent = {
+          type: 'text_chunk',
+          payload: { chunk: data },
+          metadata: {
+            message_id: 'fallback-' + Date.now(),
+            timestamp: new Date().toISOString()
+          }
+        };
+        this.onMessageCallback(fallbackEvent);
+      }
+
+    } catch (error) {
+      console.error('Error handling WebSocket message:', error);
+
+      // 发送错误事件给回调
+      if (this.onMessageCallback) {
+        const errorEvent: XiSystemEvent = {
+          type: 'error',
+          payload: {
+            message: 'Failed to parse WebSocket message',
+            code: 1001
+          },
+          metadata: {
+            message_id: 'error-' + Date.now(),
+            timestamp: new Date().toISOString()
+          }
+        };
+        this.onMessageCallback(errorEvent);
+      }
+    }
+  }
+
+  /**
+   * 启动心跳机制
+   */
+  private startHeartbeat() {
+    if (!this.enableHeartbeat) {
+      return;
+    }
+
+    this.stopHeartbeat(); // 确保没有重复的定时器
+
+    this.heartbeatTimer = setInterval(() => {
+      if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        try {
+          this.socket.send(JSON.stringify({ type: 'ping' }));
+          console.log('Sent heartbeat ping');
+        } catch (error) {
+          console.error('Failed to send heartbeat:', error);
+        }
+      }
+    }, this.heartbeatInterval);
+
+    console.log(`Heartbeat started with interval: ${this.heartbeatInterval}ms`);
+  }
+
+  /**
+   * 停止心跳机制
+   */
+  private stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+      console.log('Heartbeat stopped');
+    }
+  }
+
+  /**
+   * 自动重连逻辑（指数退避策略）
+   */
+  private reconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error(`WebSocket: Max reconnect attempts (${this.maxReconnectAttempts}) reached`);
+      this.setStatus('disconnected');
+      return;
+    }
+
+    this.reconnectAttempts++;
+    this.setStatus('reconnecting');
+
+    // 指数退避策略：1s, 2s, 4s, 8s, 16s...
+    const delay = Math.pow(2, this.reconnectAttempts - 1) * this.reconnectBackoffBase;
+    console.log(`WebSocket: Attempting to reconnect in ${delay / 1000}s... (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+
+    this.reconnectTimer = setTimeout(() => {
+      this.connect();
+    }, delay);
+  }
+
+  public sendMessage(data: ClientMessage) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(data));
+    } else {
+      console.error('WebSocket is not connected.');
+    }
+  }
+
+  public onMessage(callback: (event: XiSystemEvent) => void) {
+    this.onMessageCallback = callback;
+  }
+
+  public onStatusChange(callback: (event: ConnectionStatusChangeEvent) => void) {
+    this.onStatusChangeCallback = callback;
+  }
+
+  private setStatus(status: WebSocketStatus, error?: string) {
+    this.status = status;
+    if (this.onStatusChangeCallback) {
+      const statusEvent: ConnectionStatusChangeEvent = {
+        status,
+        timestamp: new Date().toISOString(),
+        reconnectAttempts: this.reconnectAttempts,
+        error
+      };
+      this.onStatusChangeCallback(statusEvent);
+    }
+  }
+
+  public disconnect(isManual: boolean = true) {
+    console.log(`WebSocket disconnect called (manual: ${isManual})`);
+
     this.isManualDisconnect = isManual;
+
+    // 清理定时器
     this.stopHeartbeat();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+
+    // 关闭连接
     if (this.socket) {
-      try { this.socket.close(); } catch { /* noop */ }
+      this.socket.close();
       this.socket = null;
     }
-    if (isManual) this.reconnectAttempts = 0;
-  }
 
-  sendMessage(msg: AuraToNexusMessage) {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(msg));
+    // 如果是手动断开，重置重连计数
+    if (isManual) {
+      this.reconnectAttempts = 0;
     }
   }
 
-  private startHeartbeat() {
-    if (!this.enableHeartbeat) return;
-    this.stopHeartbeat();
-    this.heartbeatTimer = window.setInterval(() => {
-      if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-        try { this.socket.send('ping'); } catch { /* noop */ }
-      }
-    }, this.heartbeatInterval);
-  }
-
-  private stopHeartbeat() {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
-  }
-
-  private reconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      this.setStatus('disconnected');
-      return;
-    }
-    this.reconnectAttempts += 1;
-    this.setStatus('reconnecting');
-    const delay = Math.pow(2, this.reconnectAttempts - 1) * this.reconnectBackoffBase;
-    this.reconnectTimer = window.setTimeout(() => this.connect(this.sessionId ?? undefined), delay);
-  }
-
-  private handleMessage(data: string) {
-    try {
-      const parsed: Partial<NexusToAuraEvent> = JSON.parse(data);
-      // preferred protocol: { event, run_id, payload }
-      if (parsed && typeof parsed.event === 'string' && typeof parsed.run_id === 'string') {
-        this.emitter.emit(parsed.event, parsed as NexusToAuraEvent);
-        this.emitter.emit('message', parsed as NexusToAuraEvent);
-        return;
-      }
-
-    } catch {
-      // ignore non-JSON messages and heartbeat pongs
-    }
+  public getStatus(): WebSocketStatus {
+    return this.status;
   }
 }
 
-// Export a singleton instance
-const base = (import.meta as unknown as { env?: { VITE_WS_BASE_URL?: string } })?.env?.VITE_WS_BASE_URL || 'ws://localhost:8765/ws';
-const websocketManager = new WebSocketManager(base, {
-  maxReconnectAttempts: 5,
-  heartbeatIntervalMs: 30_000,
-  reconnectBackoffBaseMs: 1_000,
-  enableHeartbeat: true,
-  enableAutoReconnect: true,
-});
+// 创建并导出一个单例
+const wsManager = new WebSocketManager(
+  import.meta.env.VITE_WS_URL || 'ws://localhost:8000/api/v1/ws/chat',
+  {
+    maxReconnectAttempts: 5,
+    heartbeatInterval: 30000, // 30秒
+    reconnectBackoffBase: 1000, // 1秒
+    enableHeartbeat: true,
+    enableAutoReconnect: true
+  }
+);
 
-export default websocketManager;
+export default wsManager;
