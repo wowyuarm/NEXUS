@@ -1,5 +1,5 @@
 // src/features/chat/types.ts
-export type MessageRole = 'yu' | 'xi' | 'system';
+export type MessageRole = 'HUMAN' | 'AI' | 'SYSTEM' | 'TOOL';
 
 export interface Message {
   id: string;

@@ -27,7 +27,7 @@ import type {
 
 export interface Message {
   id: string;
-  role: 'user' | 'ai' | 'system';
+  role: 'HUMAN' | 'AI' | 'SYSTEM' | 'TOOL';
   content: string;
   timestamp: Date;
   runId?: string;
@@ -176,7 +176,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     set((state) => {
       // Find or create the AI message for this run
       const existingMessageIndex = state.messages.findIndex(
-        msg => msg.runId === currentRun.runId && msg.role === 'ai' && msg.isStreaming
+        msg => msg.runId === currentRun.runId && msg.role === 'AI' && msg.isStreaming
       );
 
       let updatedMessages: Message[];
@@ -192,7 +192,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
         // Create new AI message
         const aiMessage: Message = {
           id: uuidv4(),
-          role: 'ai',
+          role: 'AI',
           content: payload.chunk,
           timestamp: new Date(),
           runId: currentRun.runId || undefined,
@@ -293,7 +293,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     // Add user message to history immediately
     const userMessage: Message = {
       id: uuidv4(),
-      role: 'user',
+      role: 'HUMAN',
       content,
       timestamp: new Date()
     };

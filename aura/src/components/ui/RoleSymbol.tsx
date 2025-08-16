@@ -12,10 +12,10 @@ interface RoleSymbolProps {
 // 角色符号映射 - 独立一列显示，尺寸增大
 export const RoleSymbol: React.FC<RoleSymbolProps> = ({ role, isThinking = false }) => {
   const symbols = {
-    HUMAN: '▲', 
-    AI: '●', 
-    SYSTEM: '■', 
-    TOOL: '◆'     
+    HUMAN: '▲',
+    AI: '●',
+    SYSTEM: '■',
+    TOOL: '◆'
   };
 
   return (

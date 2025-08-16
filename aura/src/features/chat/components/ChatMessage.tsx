@@ -18,7 +18,7 @@ interface ChatMessageProps {
 
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLastMessage, isThinking }) => {
-  const isXiThinking = message.role === 'xi' && isLastMessage && isThinking;
+  const isXiThinking = message.role === 'AI' && isLastMessage && isThinking;
   const isStreaming = message.metadata?.isStreaming ?? false;
 
   // 使用流式渲染引擎

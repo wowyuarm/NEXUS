@@ -13,13 +13,13 @@
 // - 数据流向：通过props向下传递数据和回调
 
 import { useCallback } from 'react';
-import { useChat } from './hooks/useChat';
+import { useAura } from './hooks/useAura';
 import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { ChatView } from './components/ChatView';
 
 export const ChatContainer = () => {
   // 聊天状态管理
-  const { messages, sendMessage, isThinking } = useChat();
+  const { messages, sendMessage, isThinking } = useAura();
 
   // 自动滚动功能
   const { scrollContainerRef, showScrollButton, scrollToBottom } = useAutoScroll(
