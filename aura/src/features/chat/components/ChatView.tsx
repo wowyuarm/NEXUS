@@ -16,13 +16,15 @@
 import React, { useMemo } from 'react';
 import { motion, cubicBezier } from 'framer-motion';
 import type { Message } from '../types';
+import type { RunStatus, ToolCall } from '../store/auraStore';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 
 interface ChatViewProps {
   messages: Message[];
-  isThinking: boolean;
+  currentRunStatus: RunStatus;
+  activeToolCalls: ToolCall[];
   onSendMessage: (message: string) => void;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
   showScrollButton: boolean;
@@ -31,7 +33,8 @@ interface ChatViewProps {
 
 export const ChatView: React.FC<ChatViewProps> = ({
   messages,
-  isThinking,
+  currentRunStatus,
+  activeToolCalls,
   onSendMessage,
   scrollContainerRef,
   showScrollButton,
@@ -85,7 +88,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   key={message.id}
                   message={message}
                   isLastMessage={index === messages.length - 1}
-                  isThinking={isThinking}
+                  currentRunStatus={currentRunStatus}
+                  activeToolCalls={activeToolCalls}
                 />
               ))}
             </div>
@@ -110,7 +114,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           <div className="w-full max-w-2xl">
             <ChatInput
               onSendMessage={onSendMessage}
-              disabled={isThinking}
+              disabled={currentRunStatus !== 'idle'}
             />
           </div>
         </motion.div>

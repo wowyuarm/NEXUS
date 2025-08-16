@@ -1,16 +1,18 @@
-// src/features/chat/ChatContainer.tsx
-// 聊天容器组件 - 负责业务逻辑和状态管理
-// 
-// 职责：
-// - 管理聊天状态（消息、发送、思考状态）
-// - 处理自动滚动逻辑
-// - 协调用户交互事件
-// - 将数据和回调函数传递给展示组件
-//
-// 设计原则：
-// - 关注点分离：逻辑与展示分离
-// - 单一职责：只负责状态管理和事件处理
-// - 数据流向：通过props向下传递数据和回调
+/**
+ * ChatContainer Component - Business Logic and State Management
+ *
+ * This container component orchestrates the complete chat experience by:
+ * - Managing chat state through the useAura hook
+ * - Handling auto-scroll logic for message flow
+ * - Coordinating user interaction events
+ * - Passing data and callbacks to presentation components
+ *
+ * Architecture:
+ * - Separation of concerns: logic vs presentation
+ * - Single responsibility: state management and event handling
+ * - Data flow: passes data and callbacks down via props
+ * - Integration with AURA state management system
+ */
 
 import { useCallback } from 'react';
 import { useAura } from './hooks/useAura';
@@ -18,28 +20,32 @@ import { useAutoScroll } from '@/hooks/useAutoScroll';
 import { ChatView } from './components/ChatView';
 
 export const ChatContainer = () => {
-  // 聊天状态管理
-  const { messages, sendMessage, isThinking } = useAura();
+  // Complete AURA state management
+  const {
+    messages,
+    currentRun,
+    sendMessage
+  } = useAura();
 
-  // 自动滚动功能
+  // Auto-scroll functionality - depends on messages and current run state
   const { scrollContainerRef, showScrollButton, scrollToBottom } = useAutoScroll(
-    [messages, isThinking],
+    [messages, currentRun.status, currentRun.activeToolCalls],
     { threshold: 100 }
   );
 
-  // 发送消息处理：发送后平滑滚动到底部
+  // Message sending handler: send and smooth scroll to bottom
   const handleSendMessage = useCallback(
     (message: string) => {
       sendMessage(message);
-      // 使用 setTimeout 确保消息添加到DOM后再滚动
+      // Use setTimeout to ensure message is added to DOM before scrolling
       setTimeout(() => {
-        scrollToBottom('smooth'); // 使用平滑滚动
-      }, 50); // 给足够的时间让DOM更新
+        scrollToBottom('smooth'); // Use smooth scrolling
+      }, 50); // Give enough time for DOM update
     },
     [sendMessage, scrollToBottom]
   );
 
-  // 滚动到底部处理
+  // Scroll to bottom handler
   const handleScrollToBottom = useCallback(() => {
     scrollToBottom('smooth');
   }, [scrollToBottom]);
@@ -47,7 +53,8 @@ export const ChatContainer = () => {
   return (
     <ChatView
       messages={messages}
-      isThinking={isThinking}
+      currentRunStatus={currentRun.status}
+      activeToolCalls={currentRun.activeToolCalls}
       onSendMessage={handleSendMessage}
       scrollContainerRef={scrollContainerRef}
       showScrollButton={showScrollButton}

@@ -1,28 +1,91 @@
-// src/features/chat/components/ChatMessage.tsx
-// 消息组件 - 集成流式渲染引擎，实现数据与渲染分离
+/**
+ * ChatMessage Component - Intelligent AI State Presenter
+ *
+ * This component serves as a smart message renderer that dynamically displays
+ * different content based on the current AI run status. It handles:
+ * - Historical messages (static rendering)
+ * - Active AI thinking state (breathing animation)
+ * - Tool execution state (tool call cards)
+ * - Text streaming state (typewriter effect)
+ *
+ * Architecture:
+ * - Conditional rendering based on message role and run status
+ * - Integration with ToolCallCard for tool visualization
+ * - Maintains backward compatibility for historical messages
+ */
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { Timestamp } from '@/components/ui/Timestamp';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
 import { useTypewriter } from '../hooks/useTypewriter';
+import { ToolCallCard } from './ToolCallCard';
 import type { Message } from '../types';
+import type { RunStatus, ToolCall } from '../store/auraStore';
 
 interface ChatMessageProps {
   message: Message;
   isLastMessage: boolean;
-  isThinking: boolean;
+  currentRunStatus: RunStatus;
+  activeToolCalls: ToolCall[];
 }
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLastMessage, isThinking }) => {
-  const isXiThinking = message.role === 'AI' && isLastMessage && isThinking;
-  const isStreaming = message.metadata?.isStreaming ?? false;
+export const ChatMessage: React.FC<ChatMessageProps> = ({
+  message,
+  isLastMessage,
+  currentRunStatus,
+  activeToolCalls
+}) => {
+  // Determine if this is the active AI message that should show dynamic states
+  const isActiveAIMessage = message.role === 'AI' && isLastMessage;
 
-  // 使用流式渲染引擎
+  // For active AI messages, determine what to render based on run status
+  const shouldShowThinking = isActiveAIMessage && currentRunStatus === 'thinking';
+  const shouldShowToolCalls = isActiveAIMessage && currentRunStatus === 'tool_running';
+  const shouldShowStreaming = isActiveAIMessage && currentRunStatus === 'streaming_text';
+
+  // For historical messages or non-AI messages, use static rendering
+  const shouldUseStaticRendering = !isActiveAIMessage;
+
+  // Determine if we should use typewriter effect
+  const isStreaming = shouldShowStreaming || (message.metadata?.isStreaming ?? false);
+
+  // Use typewriter engine only for streaming content
   const { displayedContent } = useTypewriter({
     targetContent: message.content,
-    isStreamingMessage: isStreaming,
+    isStreamingMessage: isStreaming && !shouldUseStaticRendering,
   });
+
+  // Render content based on current state
+  const renderContent = () => {
+    // Active AI message states
+    if (isActiveAIMessage) {
+      // Thinking state: show breathing animation (handled by RoleSymbol)
+      if (shouldShowThinking) {
+        return null; // No content, just the breathing symbol
+      }
+
+      // Tool running state: show tool call cards
+      if (shouldShowToolCalls) {
+        return (
+          <div className="space-y-2">
+            {activeToolCalls.map((toolCall) => (
+              <ToolCallCard key={toolCall.id} toolCall={toolCall} />
+            ))}
+          </div>
+        );
+      }
+
+      // Streaming text state: show typewriter effect
+      if (shouldShowStreaming) {
+        return <MarkdownRenderer content={displayedContent} />;
+      }
+    }
+
+    // Default: static rendering for historical messages
+    return <MarkdownRenderer content={shouldUseStaticRendering ? message.content : displayedContent} />;
+  };
 
   return (
     <motion.div
@@ -32,12 +95,15 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLastMessage
       className="group relative py-6 flex items-start gap-4"
       data-message-id={message.id}
     >
-      {/* 左侧：角色符号独立一列 */}
-      <RoleSymbol role={message.role} isThinking={isXiThinking} />
+      {/* Left: Role symbol with thinking animation */}
+      <RoleSymbol
+        role={message.role}
+        isThinking={shouldShowThinking}
+      />
 
-      {/* 右侧：消息内容区域 */}
+      {/* Right: Message content area */}
       <div className="flex-1 min-w-0 relative">
-        {/* 时间戳 - 悬停显示，右上角 */}
+        {/* Timestamp - hover to show, top right */}
         <div className="absolute top-0 right-0">
           <Timestamp
             date={new Date(message.timestamp)}
@@ -46,9 +112,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLastMessage
           />
         </div>
 
-        {/* 消息内容 - 使用流式渲染引擎输出 */}
-        <div className="pr-16"> {/* 右边距为时间戳留出空间 */}
-          <MarkdownRenderer content={displayedContent} />
+        {/* Message content - dynamic rendering based on state */}
+        <div className="pr-16"> {/* Right margin for timestamp */}
+          {renderContent()}
         </div>
       </div>
     </motion.div>
