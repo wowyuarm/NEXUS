@@ -2,16 +2,17 @@
 // 通用自动滚动管理Hook - 处理滚动容器的智能滚动逻辑
 import { useRef, useCallback, useState, useEffect } from 'react';
 
+// 常量定义
+const SMOOTH_SCROLL_DURATION = 800; // 平滑滚动持续时间（毫秒）
+const SCROLL_THROTTLE_DELAY = 16; // 滚动节流延迟（约60fps）
+const HEIGHT_CHECK_INTERVAL = 50; // 高度检查间隔（毫秒）
+
 interface UseAutoScrollOptions {
   /**
    * 判断是否接近底部的阈值（像素）
    * 当距离底部小于此值时，认为用户在底部
    */
   threshold?: number;
-  /**
-   * 是否启用调试日志
-   */
-  debug?: boolean;
 }
 
 interface UseAutoScrollReturn {
@@ -37,7 +38,7 @@ interface UseAutoScrollReturn {
  * @param options 配置选项
  */
 export const useAutoScroll = (
-  dependencies: any[] = [], // 依赖项数组，当内容更新时触发检查
+  dependencies: unknown[] = [], // 依赖项数组，当内容更新时触发检查
   options: UseAutoScrollOptions = {}
 ): UseAutoScrollReturn => {
   const { threshold = 50 } = options;
@@ -62,10 +63,10 @@ export const useAutoScroll = (
       if (smoothScrollTimeout.current) {
         clearTimeout(smoothScrollTimeout.current);
       }
-      // 设置超时来重置平滑滚动标记（平滑滚动通常需要几百毫秒）
+      // 设置超时来重置平滑滚动标记
       smoothScrollTimeout.current = setTimeout(() => {
         isSmoothScrolling.current = false;
-      }, 800); // 给足够的时间让平滑滚动完成
+      }, SMOOTH_SCROLL_DURATION);
     }
 
     // 使用 requestAnimationFrame 确保在下一次绘制前滚动
@@ -105,17 +106,15 @@ export const useAutoScroll = (
     if (isAutoScrollingEnabled.current) {
       // 如果有平滑滚动正在进行，跳过这次自动滚动
       if (isSmoothScrolling.current) {
-        console.log('跳过自动滚动，平滑滚动正在进行');
         return;
       }
 
       // 使用节流，避免过于频繁的滚动
-      const scrollDelay = 16; // 约60fps，减少滚动频率
       setTimeout(() => {
         if (isAutoScrollingEnabled.current && !isSmoothScrolling.current) {
           scrollToBottom('auto');
         }
-      }, scrollDelay);
+      }, SCROLL_THROTTLE_DELAY);
     }
 
     // 显示/隐藏按钮的逻辑
@@ -142,20 +141,13 @@ export const useAutoScroll = (
 
       // 如果高度增加且用户在底部，自动滚动
       if (currentHeight > lastScrollHeight.current && isAutoScrollingEnabled.current) {
-        console.log('高度变化检测到滚动需求:', {
-          currentHeight,
-          lastHeight: lastScrollHeight.current,
-          isAutoScrollingEnabled: isAutoScrollingEnabled.current,
-          isSmoothScrolling: isSmoothScrolling.current
-        });
-
         // 避免与平滑滚动冲突
         if (!isSmoothScrolling.current) {
           scrollToBottom('auto');
         }
         lastScrollHeight.current = currentHeight;
       }
-    }, 50); // 每50ms检查一次高度变化
+    }, HEIGHT_CHECK_INTERVAL);
 
     return () => {
       if (heightCheckInterval.current) {

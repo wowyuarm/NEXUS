@@ -5,9 +5,12 @@ export interface Message {
   id: string;
   role: MessageRole;
   content: string;
-  timestamp: string;
+  timestamp: Date | string;
+  runId?: string;
   metadata?: {
     isStreaming?: boolean;
-    [key: string]: any;
+    [key: string]: unknown;
   };
+  // 兼容store中的字段
+  isStreaming?: boolean;
 }

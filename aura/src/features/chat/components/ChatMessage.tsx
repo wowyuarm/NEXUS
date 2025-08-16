@@ -2,7 +2,6 @@
 // 消息组件 - 集成流式渲染引擎，实现数据与渲染分离
 import React from 'react';
 import { motion } from 'framer-motion';
-// import { cn } from '@/lib/utils'; // 暂时未使用
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { Timestamp } from '@/components/ui/Timestamp';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
@@ -14,8 +13,6 @@ interface ChatMessageProps {
   isLastMessage: boolean;
   isThinking: boolean;
 }
-
-
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isLastMessage, isThinking }) => {
   const isXiThinking = message.role === 'AI' && isLastMessage && isThinking;

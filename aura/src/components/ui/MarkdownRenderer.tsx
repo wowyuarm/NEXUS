@@ -270,7 +270,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         remarkPlugins={[remarkGfm]}
         components={{
           // 代码块组件
-          code: ({ node, inline, className, children, ...props }: any) => {
+          code: ((props: { inline?: boolean; className?: string; children?: React.ReactNode; [key: string]: unknown }) => {
+            const { inline, className, children } = props;
             const match = /language-(\w+)/.exec(className || '');
             const language = match ? match[1] : undefined;
 
@@ -290,7 +291,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                 {...props}
               />
             );
-          },
+          }) as React.ComponentType,
 
           // 自定义表格组件
           table: ({ children }) => (
@@ -382,7 +383,8 @@ ul: ({ children }) => (
   </ul>
 ),
 
-ol: ({ children, start }: any) => {
+ol: ((props: { children?: React.ReactNode; start?: number; [key: string]: unknown }) => {
+  const { children, start } = props;
   // 使用状态来跟踪计数器
   let counter = start || 1;
 
@@ -390,7 +392,7 @@ ol: ({ children, start }: any) => {
     <ol className="my-4 pl-0 list-none space-y-1.0">
       {React.Children.map(children, (child, index) => {
         if (React.isValidElement(child)) {
-          return React.cloneElement(child as React.ReactElement<any>, {
+          return React.cloneElement(child as React.ReactElement<{ [key: string]: unknown }>, {
             ...(child.props || {}),
             key: index,
             'data-list-number': counter++,
@@ -401,11 +403,12 @@ ol: ({ children, start }: any) => {
       })}
     </ol>
   );
-},
+}) as React.ComponentType,
 
-li: ({ children, ...props }: any) => {
+li: ((allProps: { children?: React.ReactNode; [key: string]: unknown }) => {
+  const { children, ...props } = allProps;
   const isOrdered = props['data-is-ordered'];
-  const listNumber = props['data-list-number'];
+  const listNumber = props['data-list-number'] as number;
 
   return (
     <li className="flex text-foreground leading-relaxed">
@@ -424,7 +427,7 @@ li: ({ children, ...props }: any) => {
       </div>
     </li>
   );
-},
+}) as React.ComponentType,
 
           // 链接组件 - 微妙的交互效果，符合灰度中庸哲学
           a: ({ href, children }) => (

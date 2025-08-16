@@ -7,11 +7,9 @@ import { Button, AutoResizeTextarea, type AutoResizeTextareaRef } from '@/compon
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   disabled?: boolean;
-  isInitialState?: boolean;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false, isInitialState: _isInitialState = false }) => {
-  // 注意：isInitialState 参数保留用于接口兼容性，但现在所有状态下都使用统一样式
+export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false }) => {
   const [message, setMessage] = useState('');
   const [isComposing, setIsComposing] = useState(false);
   const textareaRef = useRef<AutoResizeTextareaRef>(null);

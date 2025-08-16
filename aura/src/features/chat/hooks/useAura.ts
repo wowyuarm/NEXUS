@@ -15,6 +15,8 @@
 import { useEffect, useCallback, useMemo } from 'react';
 import { websocketManager } from '../../../services/websocket/manager';
 import { useAuraStore } from '../store/auraStore';
+import type { Message } from '../types';
+import type { CurrentRun } from '../store/auraStore';
 import type {
   RunStartedPayload,
   ToolCallStartedPayload,
@@ -29,8 +31,8 @@ import type {
 
 export interface UseAuraReturn {
   // State
-  messages: any[];
-  currentRun: any;
+  messages: Message[];
+  currentRun: CurrentRun;
   isConnected: boolean;
   isInputDisabled: boolean;
   lastError: string | null;

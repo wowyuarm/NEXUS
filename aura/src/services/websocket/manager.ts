@@ -21,29 +21,29 @@ import {
 
 // ===== Event Emitter Implementation =====
 
-type EventCallback<T = any> = (payload: T) => void;
+type EventCallback<T = unknown> = (payload: T) => void;
 
 class EventEmitter {
   private events: Map<string, EventCallback[]> = new Map();
 
-  on<T = any>(event: string, callback: EventCallback<T>): void {
+  on<T = unknown>(event: string, callback: EventCallback<T>): void {
     if (!this.events.has(event)) {
       this.events.set(event, []);
     }
-    this.events.get(event)!.push(callback);
+    this.events.get(event)!.push(callback as EventCallback);
   }
 
-  off<T = any>(event: string, callback: EventCallback<T>): void {
+  off<T = unknown>(event: string, callback: EventCallback<T>): void {
     const callbacks = this.events.get(event);
     if (callbacks) {
-      const index = callbacks.indexOf(callback);
+      const index = callbacks.indexOf(callback as EventCallback);
       if (index > -1) {
         callbacks.splice(index, 1);
       }
     }
   }
 
-  emit<T = any>(event: string, payload: T): void {
+  emit<T = unknown>(event: string, payload: T): void {
     const callbacks = this.events.get(event);
     if (callbacks) {
       callbacks.forEach(callback => {
@@ -169,11 +169,11 @@ export class WebSocketManager {
 
   // ===== Event Subscription API =====
 
-  on<T = any>(event: string, callback: EventCallback<T>): void {
+  on<T = unknown>(event: string, callback: EventCallback<T>): void {
     this.emitter.on(event, callback);
   }
 
-  off<T = any>(event: string, callback: EventCallback<T>): void {
+  off<T = unknown>(event: string, callback: EventCallback<T>): void {
     this.emitter.off(event, callback);
   }
 

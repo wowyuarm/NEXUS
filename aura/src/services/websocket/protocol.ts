@@ -17,7 +17,7 @@
 
 // ===== Base Event Structure =====
 
-export interface BaseNexusEvent<T extends string, P = any> {
+export interface BaseNexusEvent<T extends string, P = unknown> {
   event: T;
   run_id: string;
   payload: P;
@@ -32,7 +32,7 @@ export interface RunStartedPayload {
 
 export interface ToolCallStartedPayload {
   tool_name: string;
-  args: Record<string, any>;
+  args: Record<string, unknown>;
 }
 
 export interface ToolCallFinishedPayload {
@@ -106,18 +106,20 @@ export function isErrorEvent(event: NexusEvent): event is ErrorEvent {
 
 // ===== Protocol Validation =====
 
-export function validateNexusEvent(data: any): data is NexusEvent {
+export function validateNexusEvent(data: unknown): data is NexusEvent {
   if (!data || typeof data !== 'object') {
     return false;
   }
 
+  const obj = data as Record<string, unknown>;
+
   // Check required fields
-  if (typeof data.event !== 'string' || typeof data.run_id !== 'string') {
+  if (typeof obj.event !== 'string' || typeof obj.run_id !== 'string') {
     return false;
   }
 
   // Check if payload exists
-  if (!data.payload || typeof data.payload !== 'object') {
+  if (!obj.payload || typeof obj.payload !== 'object') {
     return false;
   }
 
@@ -131,7 +133,7 @@ export function validateNexusEvent(data: any): data is NexusEvent {
     'error'
   ];
 
-  return validEventTypes.includes(data.event as EventType);
+  return validEventTypes.includes(obj.event as EventType);
 }
 
 // ===== Protocol Message Parsing =====
@@ -175,11 +177,16 @@ export interface WebSocketResponse {
   timestamp: string;
 }
 
-export function isWebSocketResponse(data: any): data is WebSocketResponse {
-  return data && 
-         typeof data.type === 'string' && 
-         ['response', 'error'].includes(data.type) &&
-         typeof data.run_id === 'string' &&
-         typeof data.content === 'string' &&
-         typeof data.timestamp === 'string';
+export function isWebSocketResponse(data: unknown): data is WebSocketResponse {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+
+  const obj = data as Record<string, unknown>;
+
+  return typeof obj.type === 'string' &&
+         ['response', 'error'].includes(obj.type) &&
+         typeof obj.run_id === 'string' &&
+         typeof obj.content === 'string' &&
+         typeof obj.timestamp === 'string';
 }

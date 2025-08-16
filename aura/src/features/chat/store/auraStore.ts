@@ -14,6 +14,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { websocketManager } from '../../../services/websocket/manager';
+import type { Message } from '../types';
 import type {
   RunStartedPayload,
   ToolCallStartedPayload,
@@ -25,19 +26,10 @@ import type {
 
 // ===== Core Data Types =====
 
-export interface Message {
-  id: string;
-  role: 'HUMAN' | 'AI' | 'SYSTEM' | 'TOOL';
-  content: string;
-  timestamp: Date;
-  runId?: string;
-  isStreaming?: boolean;
-}
-
 export interface ToolCall {
   id: string;
   toolName: string;
-  args: Record<string, any>;
+  args: Record<string, unknown>;
   status: 'running' | 'completed' | 'error';
   result?: string;
   startTime: Date;

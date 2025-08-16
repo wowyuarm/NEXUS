@@ -111,7 +111,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <ChatInput
               onSendMessage={onSendMessage}
               disabled={isThinking}
-              isInitialState={!hasStarted}
             />
           </div>
         </motion.div>
