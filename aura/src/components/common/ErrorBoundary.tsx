@@ -1,5 +1,5 @@
 // src/components/common/ErrorBoundary.tsx 
-// React错误边界，优雅处理组件错误
+// React错误边界，处理组件错误
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface Props {

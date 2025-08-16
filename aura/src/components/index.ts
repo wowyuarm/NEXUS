@@ -9,4 +9,4 @@ export * from './common';
 
 // 使用示例：
 // import { MarkdownRenderer, RoleSymbol } from '@/components'; // UI组件
-// import { ErrorBoundary, LoadingState } from '@/components';     // Common组件
+// import { ErrorBoundary, StatusIndicator } from '@/components';     // Common组件

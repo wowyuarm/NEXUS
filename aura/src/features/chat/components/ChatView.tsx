@@ -19,7 +19,6 @@ import type { Message } from '../types';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
-import { ConnectionStatus } from '@/components/ui/ConnectionStatus';
 
 interface ChatViewProps {
   messages: Message[];
@@ -122,9 +121,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
           show={showScrollButton && hasStarted}
           onClick={onScrollToBottom}
         />
-
-        {/* WebSocket连接状态指示器 */}
-        <ConnectionStatus />
       </div>
     </div>
   );

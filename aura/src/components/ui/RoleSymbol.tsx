@@ -5,16 +5,17 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface RoleSymbolProps {
-  role: 'yu' | 'xi' | 'system';
+  role: 'HUMAN' | 'AI' | 'SYSTEM' | 'TOOL';
   isThinking?: boolean;
 }
 
 // 角色符号映射 - 独立一列显示，尺寸增大
 export const RoleSymbol: React.FC<RoleSymbolProps> = ({ role, isThinking = false }) => {
   const symbols = {
-    yu: '▲',
-    xi: '●',
-    system: '■'
+    HUMAN: '▲', 
+    AI: '●', 
+    SYSTEM: '■', 
+    TOOL: '◆'     
   };
 
   return (
