@@ -3,6 +3,10 @@ LLM service for NEXUS.
 
 This service handles LLM requests by coordinating with pluggable LLM providers.
 It subscribes to LLM request topics on the NexusBus and publishes results.
+
+The service reads universal LLM parameters (temperature, max_tokens, timeout) from configuration
+and applies them to all provider calls, ensuring consistent behavior across different
+LLM providers.
 """
 
 import logging
@@ -13,6 +17,11 @@ from nexus.services.config import ConfigService
 from .providers.google import GoogleLLMProvider
 
 logger = logging.getLogger(__name__)
+
+# Default LLM parameters
+DEFAULT_TEMPERATURE = 0.7
+DEFAULT_MAX_TOKENS = 4096
+DEFAULT_TIMEOUT = 30
 
 
 class LLMService:
@@ -32,13 +41,14 @@ class LLMService:
             api_key = self.config_service.get("llm.providers.google.api_key")
             base_url = self.config_service.get("llm.providers.google.base_url")
             model = self.config_service.get("llm.providers.google.model", "gemini-2.5-flash")
+            timeout = self.config_service.get_int("llm.timeout", DEFAULT_TIMEOUT)
 
             if not api_key:
                 raise ValueError("Google API key not found in configuration")
             if not base_url:
                 raise ValueError("Google base URL not found in configuration")
 
-            return GoogleLLMProvider(api_key=api_key, base_url=base_url, model=model)
+            return GoogleLLMProvider(api_key=api_key, base_url=base_url, model=model, timeout=timeout)
         else:
             raise ValueError(f"Unsupported LLM provider: {provider_name}")
 
@@ -50,6 +60,10 @@ class LLMService:
     async def handle_llm_request(self, message: Message) -> None:
         """
         Handle LLM completion requests.
+
+        Extracts messages and tools from the request, applies universal LLM parameters
+        (temperature, max_tokens, timeout) from configuration, and forwards the request to the
+        configured LLM provider.
 
         Args:
             message: Message containing 'messages' list, 'tools' list and 'run_id'
@@ -67,8 +81,17 @@ class LLMService:
                 logger.error(f"No messages found in LLM request for run_id={run_id}")
                 return
 
-            # Call the LLM provider with tools
-            result = await self.provider.chat_completion(messages, tools=tools)
+            # Get universal LLM parameters from configuration
+            temperature = self.config_service.get_float("llm.temperature", DEFAULT_TEMPERATURE)
+            max_tokens = self.config_service.get_int("llm.max_tokens", DEFAULT_MAX_TOKENS)
+
+            # Call the LLM provider with tools and parameters
+            result = await self.provider.chat_completion(
+                messages,
+                tools=tools,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
 
             # Create result message
             result_message = Message(

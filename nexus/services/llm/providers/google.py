@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class GoogleLLMProvider(LLMProvider):
     """Google Gemini LLM provider using OpenAI library."""
 
-    def __init__(self, api_key: str, base_url: str, model: str = "gemini-2.5-flash"):
+    def __init__(self, api_key: str, base_url: str, model: str = "gemini-2.5-flash", timeout: int = 30):
         """
         Initialize the Google LLM provider.
 
@@ -24,6 +24,7 @@ class GoogleLLMProvider(LLMProvider):
             api_key: Google API key
             base_url: Base URL for the API
             model: Default model to use
+            timeout: Request timeout in seconds
         """
         if not api_key:
             raise ValueError("API key is required for GoogleLLMProvider")
@@ -31,13 +32,15 @@ class GoogleLLMProvider(LLMProvider):
         self.api_key = api_key
         self.base_url = base_url
         self.default_model = model
+        self.timeout = timeout
 
         # Initialize OpenAI client for Google Gemini
         self.client = AsyncOpenAI(
             api_key=self.api_key,
-            base_url=f"{self.base_url}/openai/"
+            base_url=f"{self.base_url}/openai/",
+            timeout=self.timeout
         )
-        logger.info(f"GoogleLLMProvider initialized with model={self.default_model}")
+        logger.info(f"GoogleLLMProvider initialized with model={self.default_model}, timeout={self.timeout}s")
 
     async def chat_completion(self, messages: List[Dict[str, Any]], **kwargs) -> Dict[str, Any]:
         """
