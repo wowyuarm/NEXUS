@@ -156,37 +156,21 @@ export function parseNexusEvent(messageStr: string): NexusEvent | null {
 // ===== Client Message Types =====
 
 export interface ClientMessage {
-  yu_input: string;
-  session_id?: string;
+  type: 'user_message';
+  payload: {
+    content: string;
+    session_id: string;
+  };
 }
 
-export function createClientMessage(input: string, sessionId?: string): ClientMessage {
-  const message: ClientMessage = { yu_input: input };
-  if (sessionId) {
-    message.session_id = sessionId;
-  }
-  return message;
+export function createClientMessage(input: string, sessionId: string): ClientMessage {
+  return {
+    type: 'user_message',
+    payload: {
+      content: input,
+      session_id: sessionId
+    }
+  };
 }
 
-// ===== WebSocket Response Types (from NEXUS backend) =====
 
-export interface WebSocketResponse {
-  type: 'response' | 'error';
-  run_id: string;
-  content: string;
-  timestamp: string;
-}
-
-export function isWebSocketResponse(data: unknown): data is WebSocketResponse {
-  if (!data || typeof data !== 'object') {
-    return false;
-  }
-
-  const obj = data as Record<string, unknown>;
-
-  return typeof obj.type === 'string' &&
-         ['response', 'error'].includes(obj.type) &&
-         typeof obj.run_id === 'string' &&
-         typeof obj.content === 'string' &&
-         typeof obj.timestamp === 'string';
-}

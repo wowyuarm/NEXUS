@@ -23,8 +23,7 @@ import type {
   ToolCallFinishedPayload,
   TextChunkPayload,
   RunFinishedPayload,
-  ErrorPayload,
-  WebSocketResponse
+  ErrorPayload
 } from '../../../services/websocket/protocol';
 
 // ===== Hook Return Type =====
@@ -111,10 +110,7 @@ export function useAura(): UseAuraReturn {
     handleDisconnected();
   }, [handleDisconnected]);
 
-  const onWebSocketResponse = useCallback((response: WebSocketResponse) => {
-    console.log('Received WebSocket response:', response);
-    // Handle legacy response format if needed
-  }, []);
+
 
   const onReconnectFailed = useCallback(() => {
     handleError({ message: 'Failed to reconnect to NEXUS after multiple attempts' });
@@ -132,7 +128,7 @@ export function useAura(): UseAuraReturn {
     websocketManager.on('error', onError);
     websocketManager.on('connected', onConnected);
     websocketManager.on('disconnected', onDisconnected);
-    websocketManager.on('websocket_response', onWebSocketResponse);
+
     websocketManager.on('reconnect_failed', onReconnectFailed);
 
     // Cleanup subscriptions on unmount
@@ -145,7 +141,7 @@ export function useAura(): UseAuraReturn {
       websocketManager.off('error', onError);
       websocketManager.off('connected', onConnected);
       websocketManager.off('disconnected', onDisconnected);
-      websocketManager.off('websocket_response', onWebSocketResponse);
+
       websocketManager.off('reconnect_failed', onReconnectFailed);
     };
   }, [
@@ -157,7 +153,7 @@ export function useAura(): UseAuraReturn {
     onError,
     onConnected,
     onDisconnected,
-    onWebSocketResponse,
+
     onReconnectFailed
   ]);
 

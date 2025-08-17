@@ -89,7 +89,7 @@ async def main() -> None:
 
     # 6) Get server configuration from config service
     server_host = config_service.get("server.host", "127.0.0.1")
-    server_port = config_service.get_int("server.port", 8765)
+    server_port = config_service.get_int("server.port", 8000)
 
     # 7) Get FastAPI app from WebSocket interface
     app = await websocket_interface.run_forever(host=server_host, port=server_port)

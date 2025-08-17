@@ -15,8 +15,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import {
   parseNexusEvent,
-  createClientMessage,
-  isWebSocketResponse
+  createClientMessage
 } from './protocol';
 
 // ===== Event Emitter Implementation =====
@@ -68,7 +67,6 @@ class EventEmitter {
 // ===== WebSocket Manager =====
 
 export interface WebSocketManagerConfig {
-  url: string;
   heartbeatInterval?: number;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
@@ -76,21 +74,40 @@ export interface WebSocketManagerConfig {
 
 export class WebSocketManager {
   private ws: WebSocket | null = null;
-  private config: Required<WebSocketManagerConfig>;
+  private config: Required<Omit<WebSocketManagerConfig, 'url'>>;
   private emitter: EventEmitter = new EventEmitter();
-  private sessionId: string = uuidv4();
+  private sessionId: string;
+  private baseUrl: string;
   private isConnected: boolean = false;
   private reconnectAttempts: number = 0;
   private heartbeatTimer: number | null = null;
   private reconnectTimer: number | null = null;
 
-  constructor(config: WebSocketManagerConfig) {
+  constructor(config: WebSocketManagerConfig = {}) {
+    this.baseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/api/v1/ws';
+    this.sessionId = this._getSessionId();
     this.config = {
-      url: config.url,
       heartbeatInterval: config.heartbeatInterval ?? 30000, // 30 seconds
       reconnectInterval: config.reconnectInterval ?? 5000,   // 5 seconds
       maxReconnectAttempts: config.maxReconnectAttempts ?? 10
     };
+  }
+
+  // ===== Private Session Management =====
+
+  private _getSessionId(): string {
+    const STORAGE_KEY = 'nexus_session_id';
+
+    // Try to get existing session_id from localStorage
+    const existingSessionId = localStorage.getItem(STORAGE_KEY);
+    if (existingSessionId) {
+      return existingSessionId;
+    }
+
+    // Generate new session_id and store it
+    const newSessionId = uuidv4();
+    localStorage.setItem(STORAGE_KEY, newSessionId);
+    return newSessionId;
   }
 
   // ===== Public API =====
@@ -101,9 +118,13 @@ export class WebSocketManager {
       return;
     }
 
+    // Get persistent session_id and construct full WebSocket URL
+    this.sessionId = this._getSessionId();
+    const fullUrl = `${this.baseUrl}/${this.sessionId}`;
+
     return new Promise((resolve, reject) => {
       try {
-        this.ws = new WebSocket(this.config.url);
+        this.ws = new WebSocket(fullUrl);
         
         this.ws.onopen = () => {
           console.log('WebSocket connected to NEXUS');
@@ -189,13 +210,7 @@ export class WebSocketManager {
         return;
       }
 
-      // Try to parse as WebSocket response
-      const response = JSON.parse(data);
-      if (isWebSocketResponse(response)) {
-        console.log('Received WebSocket response:', response.type, response.run_id);
-        this.emitter.emit('websocket_response', response);
-        return;
-      }
+
 
       console.warn('Received unknown message format:', data);
     } catch (error) {
@@ -256,6 +271,4 @@ export class WebSocketManager {
 
 // ===== Singleton Instance =====
 
-export const websocketManager = new WebSocketManager({
-  url: 'ws://localhost:8000/ws'
-});
+export const websocketManager = new WebSocketManager();

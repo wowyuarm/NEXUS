@@ -17,10 +17,13 @@ from nexus.core.topics import Topics
 logger = logging.getLogger(__name__)
 
 # Constants for standardized response formats
-RESPONSE_TYPE_SUCCESS = "response"
 RESPONSE_TYPE_ERROR = "error"
 ERROR_MSG_INVALID_JSON = "Invalid JSON format"
 ERROR_MSG_PROCESSING = "Error processing message"
+
+# Constants for message types
+MESSAGE_TYPE_PING = "ping"
+MESSAGE_TYPE_USER_MESSAGE = "user_message"
 
 
 class WebsocketInterface:
@@ -41,14 +44,7 @@ class WebsocketInterface:
             "message": error_message
         })
 
-    def _create_success_response(self, run_id: str, content: str, timestamp: str) -> str:
-        """Create standardized success response JSON."""
-        return json.dumps({
-            "type": RESPONSE_TYPE_SUCCESS,
-            "run_id": run_id,
-            "content": content,
-            "timestamp": timestamp
-        })
+
 
     def subscribe_to_bus(self) -> None:
         """Subscribe to UI events for sending messages to frontend."""
@@ -58,6 +54,9 @@ class WebsocketInterface:
     async def handle_ui_event(self, message: Message) -> None:
         """
         Handle UI events and send them to the appropriate WebSocket connection.
+
+        Directly forwards the standardized UI event from Orchestrator to frontend
+        without any modification or re-packaging.
 
         Args:
             message: Message containing UI event data
@@ -75,19 +74,12 @@ class WebsocketInterface:
                 logger.warning(f"No WebSocket connection found for session_id={session_id}")
                 return
 
-            # Extract payload from standardized UI event format
-            # Expected format: {"event": "...", "run_id": "...", "payload": {...}}
-            payload = content.get("payload", {})
+            # Forward the standardized UI event directly to frontend
+            # message.content is the complete {"event": "...", "run_id": "...", "payload": {...}} dict
+            standardized_event_json = json.dumps(content)
+            await websocket.send_text(standardized_event_json)
 
-            # Send the event to the frontend
-            response_json = self._create_success_response(
-                run_id=run_id,
-                content=payload.get("chunk", ""),
-                timestamp=message.timestamp.isoformat()
-            )
-            await websocket.send_text(response_json)
-
-            logger.info(f"Sent UI event to session_id={session_id}")
+            logger.info(f"Forwarded UI event to session_id={session_id}")
 
         except Exception as e:
             logger.error(f"Error handling UI event: {e}")
@@ -113,7 +105,7 @@ class WebsocketInterface:
         async def health():
             return {"status": "healthy", "connections": len(self.connections)}
 
-        @app.websocket("/ws/{session_id}")
+        @app.websocket("/api/v1/ws/{session_id}")
         async def websocket_endpoint(websocket: WebSocket, session_id: str):
             await websocket.accept()
             logger.info(f"WebSocket connection established for session_id={session_id}")
@@ -130,10 +122,22 @@ class WebsocketInterface:
                     try:
                         # Parse the incoming message
                         message_data = json.loads(data)
-                        user_input = message_data.get("content", "")
+                        message_type = message_data.get("type", "")
 
-                        if not user_input.strip():
-                            logger.warning(f"Empty message received from session_id={session_id}")
+                        # Handle different message types
+                        if message_type == MESSAGE_TYPE_PING:
+                            logger.debug(f"Received ping from client session_id={session_id}")
+                            continue
+                        elif message_type == MESSAGE_TYPE_USER_MESSAGE:
+                            # Extract user input from payload
+                            payload = message_data.get("payload", {})
+                            user_input = payload.get("content", "")
+
+                            if not user_input.strip():
+                                logger.warning(f"Empty user message received from session_id={session_id}")
+                                continue
+                        else:
+                            logger.warning(f"Received unknown message type '{message_type}' from session_id={session_id}")
                             continue
 
                         # Create a new run for this user input
