@@ -34,7 +34,7 @@ export const Container: React.FC<ContainerProps> = ({
           'bg-card/75 backdrop-blur-xl',
           'border border-border',
           'shadow-lg shadow-black/20',
-          'rounded-2xl p-6'
+          'rounded-2xl p-4'
         ],
         className
       )}

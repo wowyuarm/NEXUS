@@ -75,7 +75,7 @@ export const AutoResizeTextarea = forwardRef<AutoResizeTextareaRef, AutoResizeTe
         className={cn(
           'w-full bg-transparent text-foreground placeholder:text-secondary-foreground',
           'text-base leading-relaxed resize-none border-none outline-none focus:ring-0',
-          'py-4 min-h-[70px]', // 统一的内边距和最小高度
+          'py-3 min-h-[60px]', // 优化的内边距和最小高度
           className
         )}
         {...props}

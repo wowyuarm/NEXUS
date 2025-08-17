@@ -54,7 +54,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = 
             disabled={disabled}
             maxHeightMultiplier={2}
             minRows={3}
-            className="px-4 pr-12"
+            className="px-4 pr-6"
           />
           <Button
             type="submit"

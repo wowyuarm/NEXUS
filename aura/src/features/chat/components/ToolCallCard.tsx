@@ -107,11 +107,11 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall }) => {
         'bg-card/75 backdrop-blur-xl',
         'border border-border',
         'shadow-lg shadow-black/20',
-        'rounded-2xl p-4',
-        
+        'rounded-2xl p-3',
+
         // Layout
         'mb-3 last:mb-0',
-        
+
         // Interactive
         'cursor-pointer transition-all duration-300',
         'hover:bg-card/85'

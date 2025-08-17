@@ -125,10 +125,10 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
         )}
 
         <pre className={cn(
-          'overflow-x-auto p-4',
+          'overflow-x-auto px-3 py-3',
           'text-sm leading-relaxed',
           'font-mono',
-          !filename && !language && 'pr-12' // 为复制按钮留出空间
+          !filename && !language && 'pr-10' // 为复制按钮留出空间
         )}>
           <code className="text-foreground">
             {showLineNumbers ? (
@@ -233,7 +233,7 @@ const TableRow: React.FC<TableRowProps> = ({ children, className }) => (
 // 表格头单元格
 const TableHead: React.FC<TableHeadProps> = ({ children, className }) => (
   <th className={cn(
-    'px-4 py-3 text-left',
+    'px-3 py-2 text-left',
     'text-sm font-semibold text-foreground',
     'border-r border-border/20 last:border-r-0',
     'whitespace-nowrap', // 防止标题换行
@@ -246,7 +246,7 @@ const TableHead: React.FC<TableHeadProps> = ({ children, className }) => (
 // 表格数据单元格
 const TableCell: React.FC<TableCellProps> = ({ children, className }) => (
   <td className={cn(
-    'px-4 py-3',
+    'px-3 py-2',
     'text-sm text-secondary-foreground',
     'border-r border-border/20 last:border-r-0',
     className
