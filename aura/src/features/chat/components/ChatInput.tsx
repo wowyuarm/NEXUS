@@ -32,7 +32,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = 
     }
   };
 
-  const canSend = message.trim().length > 0 && !disabled && !isComposing;
+  const canSend = message.trim().length > 0 && !disabled;
 
   return (
     <div className="w-full max-w-2xl mx-auto">

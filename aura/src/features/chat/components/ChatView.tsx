@@ -114,7 +114,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
           <div className="w-full max-w-2xl">
             <ChatInput
               onSendMessage={onSendMessage}
-              disabled={currentRunStatus !== 'idle'}
             />
           </div>
         </motion.div>
