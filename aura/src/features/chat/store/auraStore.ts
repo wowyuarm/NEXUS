@@ -108,16 +108,29 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     const runId = uuidv4(); // Generate client-side run ID
     const now = new Date();
 
-    set(() => ({
-      currentRun: {
-        runId,
-        status: 'thinking',
-        activeToolCalls: [],
-        startTime: now
-      },
-      isInputDisabled: true,
-      lastError: null
-    }));
+    set((state) => {
+      // Create a new empty AI message placeholder
+      const aiMessagePlaceholder: Message = {
+        id: uuidv4(),
+        role: 'AI',
+        content: '',
+        timestamp: now,
+        runId: runId,
+        isStreaming: true
+      };
+
+      return {
+        messages: [...state.messages, aiMessagePlaceholder],
+        currentRun: {
+          runId,
+          status: 'thinking',
+          activeToolCalls: [],
+          startTime: now
+        },
+        isInputDisabled: true,
+        lastError: null
+      };
+    });
 
     console.log('Run started:', { runId, payload });
   },
@@ -164,9 +177,9 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
 
   handleTextChunk: (payload: TextChunkPayload) => {
     const { currentRun } = get();
-    
+
     set((state) => {
-      // Find or create the AI message for this run
+      // Find the AI message placeholder created by handleRunStarted
       const existingMessageIndex = state.messages.findIndex(
         msg => msg.runId === currentRun.runId && msg.role === 'AI' && msg.isStreaming
       );
@@ -174,14 +187,14 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
       let updatedMessages: Message[];
 
       if (existingMessageIndex >= 0) {
-        // Update existing streaming message
+        // Update existing streaming message placeholder
         updatedMessages = state.messages.map((msg, index) =>
           index === existingMessageIndex
             ? { ...msg, content: msg.content + payload.chunk }
             : msg
         );
       } else {
-        // Create new AI message
+        // Fallback: create new AI message if placeholder not found
         const aiMessage: Message = {
           id: uuidv4(),
           role: 'AI',

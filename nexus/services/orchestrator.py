@@ -26,6 +26,10 @@ logger = logging.getLogger(__name__)
 
 # Constants for UI event standardization
 UI_EVENT_TEXT_CHUNK = "text_chunk"
+UI_EVENT_RUN_STARTED = "run_started"
+UI_EVENT_RUN_FINISHED = "run_finished"
+UI_EVENT_TOOL_CALL_STARTED = "tool_call_started"
+UI_EVENT_TOOL_CALL_FINISHED = "tool_call_finished"
 CONTEXT_STATUS_SUCCESS = "success"
 
 # Constants for LLM message roles
@@ -104,6 +108,30 @@ class OrchestratorService:
             }
         )
 
+    def _create_ui_event(self, run_id: str, session_id: str, event_type: str, payload: dict) -> Message:
+        """
+        Create a generic UI event message with specified event type and payload.
+
+        Args:
+            run_id: The run identifier
+            session_id: The session identifier
+            event_type: The UI event type (e.g., 'run_started', 'tool_call_finished')
+            payload: The event-specific payload data
+
+        Returns:
+            Message: A properly formatted UI event message
+        """
+        return Message(
+            run_id=run_id,
+            session_id=session_id,
+            role=Role.SYSTEM,
+            content={
+                "event": event_type,
+                "run_id": run_id,
+                "payload": payload
+            }
+        )
+
     def subscribe_to_bus(self) -> None:
         """Subscribe to orchestration topics."""
         self.bus.subscribe(Topics.RUNS_NEW, self.handle_new_run)
@@ -127,6 +155,19 @@ class OrchestratorService:
             if not isinstance(run, Run):
                 logger.error(f"Expected Run object in message content, got {type(run)}")
                 return
+
+            # Publish run_started UI event
+            run_started_event = self._create_ui_event(
+                run_id=run.id,
+                session_id=run.session_id,
+                event_type=UI_EVENT_RUN_STARTED,
+                payload={
+                    "session_id": run.session_id,
+                    "user_input": self._extract_user_input_from_run(run)
+                }
+            )
+            await self.bus.publish(Topics.UI_EVENTS, run_started_event)
+            logger.info(f"Published run_started UI event for run_id={run.id}")
 
             # Update run status to building context
             run.status = RunStatus.BUILDING_CONTEXT
@@ -247,6 +288,16 @@ class OrchestratorService:
                     )
                     await self.bus.publish(Topics.UI_EVENTS, error_event)
 
+                    # Publish run_finished UI event for timed out run
+                    run_finished_event = self._create_ui_event(
+                        run_id=run_id,
+                        session_id=run.session_id,
+                        event_type=UI_EVENT_RUN_FINISHED,
+                        payload={"status": "timed_out"}
+                    )
+                    await self.bus.publish(Topics.UI_EVENTS, run_finished_event)
+                    logger.info(f"Published run_finished UI event for timed out run_id={run_id}")
+
                     # Remove timed out run
                     del self.active_runs[run_id]
                     return
@@ -274,17 +325,13 @@ class OrchestratorService:
                     tool_name = tool_call.get("function", {}).get("name", "unknown")
                     tool_args = tool_call.get("function", {}).get("arguments", {})
 
-                    ui_event = Message(
+                    ui_event = self._create_ui_event(
                         run_id=run_id,
                         session_id=run.session_id,
-                        role=Role.SYSTEM,
-                        content={
-                            "event": "tool_call_started",
-                            "run_id": run_id,
-                            "payload": {
-                                "tool_name": tool_name,
-                                "args": tool_args
-                            }
+                        event_type=UI_EVENT_TOOL_CALL_STARTED,
+                        payload={
+                            "tool_name": tool_name,
+                            "args": tool_args
                         }
                     )
                     await self.bus.publish(Topics.UI_EVENTS, ui_event)
@@ -323,6 +370,16 @@ class OrchestratorService:
                 await self.bus.publish(Topics.UI_EVENTS, ui_event)
                 logger.info(f"Published UI event for run_id={run_id}")
 
+                # Publish run_finished UI event before cleanup
+                run_finished_event = self._create_ui_event(
+                    run_id=run_id,
+                    session_id=run.session_id,
+                    event_type=UI_EVENT_RUN_FINISHED,
+                    payload={"status": "completed"}
+                )
+                await self.bus.publish(Topics.UI_EVENTS, run_finished_event)
+                logger.info(f"Published run_finished UI event for run_id={run_id}")
+
                 # Remove completed run from active runs
                 del self.active_runs[run_id]
                 logger.info(f"Completed and removed run_id={run_id}")
@@ -352,6 +409,20 @@ class OrchestratorService:
             tool_status = content.get("status", "unknown")
             call_id = content.get("call_id", "")
 
+            # Publish tool_call_finished UI event
+            tool_finished_event = self._create_ui_event(
+                run_id=run_id,
+                session_id=run.session_id,
+                event_type=UI_EVENT_TOOL_CALL_FINISHED,
+                payload={
+                    "tool_name": tool_name,
+                    "status": "success" if tool_status == "success" else "error",
+                    "result": tool_result
+                }
+            )
+            await self.bus.publish(Topics.UI_EVENTS, tool_finished_event)
+            logger.info(f"Published tool_call_finished UI event for {tool_name} in run_id={run_id}")
+
             # Record tool result: add the tool message to history
             tool_message = Message(
                 run_id=run_id,
@@ -362,23 +433,7 @@ class OrchestratorService:
             )
             run.history.append(tool_message)
 
-            # Publish UI event for tool completion
-            ui_event = Message(
-                run_id=run_id,
-                session_id=run.session_id,
-                role=Role.SYSTEM,
-                content={
-                    "event": "tool_call_finished",
-                    "run_id": run_id,
-                    "payload": {
-                        "tool_name": tool_name,
-                        "status": tool_status,
-                        "result": tool_result
-                    }
-                }
-            )
-            await self.bus.publish(Topics.UI_EVENTS, ui_event)
-            logger.info(f"Published tool completion UI event for {tool_name} in run_id={run_id}")
+
 
             # Synchronization logic: decrement pending tool calls count
             current_pending_count = run.metadata.get('pending_tool_calls', 0)
