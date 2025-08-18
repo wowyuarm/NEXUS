@@ -124,7 +124,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
 
   // ===== WebSocket Event Handlers =====
 
-  handleRunStarted: (payload: RunStartedPayload) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+  handleRunStarted: (_payload: RunStartedPayload) => {
     // Note: payload contains session_id and user_input from backend,
     // but we generate client-side run ID for UI state management
     const runId = uuidv4(); // Generate client-side run ID
@@ -166,15 +166,19 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
       );
 
       if (streamingAIMessageIndex >= 0) {
-        // Add tool call to the existing streaming AI message
-        const messagesWithToolCall = state.messages.map((msg, index) =>
-          index === streamingAIMessageIndex
-            ? {
-                ...msg,
-                toolCalls: [...(msg.toolCalls || []), toolCall]
-              }
-            : msg
-        );
+        // Add tool call to the existing streaming AI message and record insertion index
+        const messagesWithToolCall = state.messages.map((msg, index) => {
+          if (index === streamingAIMessageIndex) {
+            const currentLength = msg.content.length;
+            return {
+              ...msg,
+              toolCalls: [...(msg.toolCalls || []), toolCall],
+              // Mark the position where the tool started, so UI can split text
+              toolInsertIndex: (msg as Message).toolInsertIndex ?? currentLength,
+            } as Message;
+          }
+          return msg;
+        });
 
         return {
           ...state,
@@ -186,12 +190,25 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
           }
         };
       } else {
-        // Fallback: keep the old behavior if no current AI message found
+        // No existing AI message found: create a new AI message placeholder to hold the tool call
+        // This ensures that subsequent text chunks will find this message and append to it
+        const aiMessage: Message = {
+          id: uuidv4(),
+          role: 'AI',
+          content: '', // Empty content initially, will be filled by text chunks
+          timestamp: new Date(),
+          runId: currentRun.runId || undefined,
+          isStreaming: true,
+          toolCalls: [toolCall], // Add the tool call to the new message
+          toolInsertIndex: 0,
+        };
+
         const runId = currentRun.runId || 'unknown';
         const existingToolCalls = state.toolCallHistory[runId] || [];
 
         return {
           ...state,
+          messages: [...state.messages, aiMessage], // Add the new AI message
           currentRun: {
             ...state.currentRun,
             status: 'tool_running',

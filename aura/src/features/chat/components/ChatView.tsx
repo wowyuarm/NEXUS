@@ -117,8 +117,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </motion.div>
               )}
 
-              {/* 独立的工具卡片 - 显示当前run的工具调用 */}
-              {hasActiveToolCalls && (
+              {/* 独立的工具卡片 - 仅在不存在活动AI消息时显示（避免重复渲染） */}
+              {hasActiveToolCalls && messages.every((m) => !(m.role === 'AI' && m.isStreaming)) && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}

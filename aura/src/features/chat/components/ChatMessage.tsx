@@ -80,18 +80,24 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
         return null; // This message should not be rendered at all during thinking
       }
 
-      // For streaming states, render both text content and tool calls
-      const hasContent = message.content && message.content.trim().length > 0;
+      // For streaming states, render text split around tool insertion point + tool calls
+      const fullContent = displayedContent;
+      const insertIndex = (message as Message).toolInsertIndex ?? fullContent.length;
+      const preText = fullContent.slice(0, insertIndex);
+      const postText = fullContent.slice(insertIndex);
+      const hasPre = preText.trim().length > 0;
+      const hasPost = postText.trim().length > 0;
 
       return (
         <div className="space-y-3">
-          {/* Text content - show if there's any content */}
-          {hasContent && (
-            <MarkdownRenderer content={displayedContent} />
-          )}
+          {/* Text before tool card */}
+          {hasPre && <MarkdownRenderer content={preText} />}
 
-          {/* Tool calls - reuse helper function */}
+          {/* Tool calls - render between pre and post text */}
           {renderToolCalls(message.toolCalls)}
+
+          {/* Text after tool card (continues streaming) */}
+          {hasPost && <MarkdownRenderer content={postText} />}
         </div>
       );
     }

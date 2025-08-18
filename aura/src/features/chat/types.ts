@@ -25,4 +25,6 @@ export interface Message {
   isStreaming?: boolean;
   // 工具调用信息 - 支持在同一消息内包含多个工具调用
   toolCalls?: ToolCall[];
+  // 当工具卡片需要插入到文本中间时，记录首次工具启动时的文本分割位置
+  toolInsertIndex?: number;
 }
