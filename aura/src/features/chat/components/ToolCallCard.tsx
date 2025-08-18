@@ -27,6 +27,9 @@ const ANIMATION_DURATIONS = {
   FADE_IN: 0.4
 } as const;
 
+// UX constants
+const EXPAND_SUPPRESS_MS = 450;
+
 // Status text mapping
 const STATUS_TEXT = {
   running: 'Executing...',
@@ -36,9 +39,10 @@ const STATUS_TEXT = {
 
 interface ToolCallCardProps {
   toolCall: ToolCall;
+  suppressAutoScroll?: (durationMs?: number) => void;
 }
 
-export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall }) => {
+export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAutoScroll }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Status icon rendering with unified structure
@@ -74,33 +78,21 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall }) => {
     );
   };
 
-  // Liquid glow animation for running state
-  const glowAnimation = toolCall.status === 'running' ? {
-    boxShadow: [
-      '0 0 0 0 rgba(255, 255, 255, 0.1)',
-      '0 0 0 8px rgba(255, 255, 255, 0.05)',
-      '0 0 0 0 rgba(255, 255, 255, 0.1)'
-    ]
-  } : {};
+  // Surface halo animation removed (design update):
+  // The previous box-shadow pulse created a visible ring around the entire card,
+  // which is no longer desired. We keep the fade-in/slide-in motion only.
 
-  const glowTransition = toolCall.status === 'running' ? {
-    duration: ANIMATION_DURATIONS.GLOW,
-    repeat: Infinity,
-    ease: 'easeInOut' as const
-  } : {};
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
-      animate={{ 
-        opacity: 1, 
-        y: 0,
-        ...glowAnimation
+      animate={{
+        opacity: 1,
+        y: 0
       }}
       transition={{
         opacity: { duration: ANIMATION_DURATIONS.FADE_IN, ease: 'easeOut' },
-        y: { duration: ANIMATION_DURATIONS.FADE_IN, ease: 'easeOut' },
-        boxShadow: glowTransition
+        y: { duration: ANIMATION_DURATIONS.FADE_IN, ease: 'easeOut' }
       }}
       className={cn(
         // Liquid Glass Material
@@ -112,18 +104,22 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall }) => {
         // Layout
         'mb-3 last:mb-0',
 
-        // Interactive
-        'cursor-pointer transition-all duration-300',
-        'hover:bg-card/85'
+        // Interactive (match ChatInput): subtle contrast ring via border color
+        'cursor-pointer transition-colors duration-200',
+        'hover:border-foreground/20'
       )}
-      onClick={() => setIsExpanded(!isExpanded)}
+      onClick={() => {
+        // 在展开/收起时临时抑制自动滚动，避免与展开引起的高度变化叠加触发
+        suppressAutoScroll?.(EXPAND_SUPPRESS_MS);
+        setIsExpanded(!isExpanded);
+      }}
     >
       {/* Header: Tool name and status */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {renderStatusIcon()}
           <div>
-            <div className="text-sm font-medium text-foreground">
+            <div className="text-xs font-medium text-foreground">
               {toolCall.toolName}
             </div>
             <div className="text-xs text-secondary-foreground">

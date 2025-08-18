@@ -22,7 +22,10 @@ interface UseAutoScrollReturn {
   showScrollButton: boolean;
   /** 滚动到底部的函数 */
   scrollToBottom: (behavior?: ScrollBehavior) => void;
+  /** 暂时抑制自动滚动（用于展开卡片等会导致高度瞬时变化的交互） */
+  suppressAutoScroll: (durationMs?: number) => void;
 }
+
 
 /**
  * useAutoScroll Hook - 智能滚动行为管理
@@ -52,6 +55,15 @@ export const useAutoScroll = (
   const isSmoothScrolling = useRef(false); // 跟踪是否有平滑滚动正在进行
   const smoothScrollTimeout = useRef<NodeJS.Timeout | null>(null);
   const heightCheckInterval = useRef<NodeJS.Timeout | null>(null); // 高度检查定时器
+  const suppressUntil = useRef<number>(0); // 抑制自动滚动的截止时间戳（ms）
+
+  const isSuppressed = () => Date.now() < suppressUntil.current;
+
+  const suppressAutoScroll = useCallback((durationMs: number = 400) => {
+    suppressUntil.current = Date.now() + durationMs;
+    // 在抑制期间，避免任何自动滚动
+    isAutoScrollingEnabled.current = false;
+  }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
     const container = scrollContainerRef.current;
@@ -103,7 +115,7 @@ export const useAutoScroll = (
     if (!container) return;
 
     // 当内容更新时（由依赖项数组触发）
-    if (isAutoScrollingEnabled.current) {
+    if (isAutoScrollingEnabled.current && !isSuppressed()) {
       // 如果有平滑滚动正在进行，跳过这次自动滚动
       if (isSmoothScrolling.current) {
         return;
@@ -111,7 +123,7 @@ export const useAutoScroll = (
 
       // 使用节流，避免过于频繁的滚动
       setTimeout(() => {
-        if (isAutoScrollingEnabled.current && !isSmoothScrolling.current) {
+        if (isAutoScrollingEnabled.current && !isSmoothScrolling.current && !isSuppressed()) {
           scrollToBottom('auto');
         }
       }, SCROLL_THROTTLE_DELAY);
@@ -140,7 +152,7 @@ export const useAutoScroll = (
       const currentHeight = container.scrollHeight;
 
       // 如果高度增加且用户在底部，自动滚动
-      if (currentHeight > lastScrollHeight.current && isAutoScrollingEnabled.current) {
+      if (currentHeight > lastScrollHeight.current && isAutoScrollingEnabled.current && !isSuppressed()) {
         // 避免与平滑滚动冲突
         if (!isSmoothScrolling.current) {
           scrollToBottom('auto');
@@ -173,5 +185,6 @@ export const useAutoScroll = (
     scrollContainerRef,
     showScrollButton,
     scrollToBottom,
+    suppressAutoScroll,
   };
 };

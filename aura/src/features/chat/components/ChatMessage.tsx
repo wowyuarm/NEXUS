@@ -30,12 +30,14 @@ interface ChatMessageProps {
   message: Message;
   isLastMessage: boolean;
   currentRunStatus: RunStatus;
+  suppressAutoScroll?: (durationMs?: number) => void;
 }
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({
   message,
   isLastMessage,
-  currentRunStatus
+  currentRunStatus,
+  suppressAutoScroll
 }) => {
   // Determine if this is the active AI message that should show dynamic states
   const isActiveAIMessage = message.role === 'AI' && isLastMessage;
@@ -64,7 +66,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     return (
       <div className="space-y-2">
         {toolCalls.map((toolCall) => (
-          <ToolCallCard key={toolCall.id} toolCall={toolCall} />
+          <ToolCallCard key={toolCall.id} toolCall={toolCall} suppressAutoScroll={suppressAutoScroll} />
         ))}
       </div>
     );

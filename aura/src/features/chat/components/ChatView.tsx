@@ -32,6 +32,7 @@ interface ChatViewProps {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
   showScrollButton: boolean;
   onScrollToBottom: () => void;
+  suppressAutoScroll?: (durationMs?: number) => void;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -43,6 +44,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   scrollContainerRef,
   showScrollButton,
   onScrollToBottom,
+  suppressAutoScroll,
 }) => {
   // Computed values for cleaner render logic
   const currentRunToolCalls = currentRunId ? toolCallHistory[currentRunId] || [] : [];
@@ -56,7 +58,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       initial: false as const, // 避免首次挂载时闪烁
       animate: hasStarted
         ? { y: 0, opacity: 1 }
-        : { y: 'calc(-50vh + 4rem)', opacity: 1 }, 
+        : { y: 'calc(-50vh + 4rem)', opacity: 1 },
       transition: {
         duration: 0.8,
         ease: cubicBezier(0.22, 1, 0.36, 1),
@@ -96,6 +98,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   message={message}
                   isLastMessage={index === messages.length - 1}
                   currentRunStatus={currentRunStatus}
+                  suppressAutoScroll={suppressAutoScroll}
                 />
               ))}
 

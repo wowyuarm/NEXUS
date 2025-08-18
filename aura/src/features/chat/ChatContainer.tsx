@@ -29,7 +29,7 @@ export const ChatContainer = () => {
   } = useAura();
 
   // Auto-scroll functionality - depends on messages and current run state
-  const { scrollContainerRef, showScrollButton, scrollToBottom } = useAutoScroll(
+  const { scrollContainerRef, showScrollButton, scrollToBottom, suppressAutoScroll } = useAutoScroll(
     [messages, currentRun.status, toolCallHistory],
     { threshold: 100 }
   );
@@ -61,6 +61,7 @@ export const ChatContainer = () => {
       scrollContainerRef={scrollContainerRef}
       showScrollButton={showScrollButton}
       onScrollToBottom={handleScrollToBottom}
+      suppressAutoScroll={suppressAutoScroll}
     />
   );
 };
