@@ -48,7 +48,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   const shouldUseStaticRendering = !isActiveAIMessage;
 
   // Determine if we should use typewriter effect
-  const isStreaming = shouldShowStreaming || (message.metadata?.isStreaming ?? false);
+  const isStreaming =
+    shouldShowStreaming || message.isStreaming || (message.metadata?.isStreaming ?? false);
 
   // Use typewriter engine only for streaming content
   const { displayedContent } = useTypewriter({

@@ -55,8 +55,8 @@ export const useTypewriter = ({
 
   // 核心打字机逻辑
   useEffect(() => {
-    // 非流式消息直接显示
-    if (!isStreamingMessage) {
+    // 非流式消息：仅在未开始打字（历史消息）时直接显示；如果已开始或有未完成的内容则继续打字至完成
+    if (!isStreamingMessage && currentIndexRef.current === 0) {
       setDisplayedContent(targetContent);
       setIsTyping(false);
       setIsFinished(true);
@@ -80,8 +80,8 @@ export const useTypewriter = ({
       return;
     }
 
-    // 启动或继续打字机定时器
-    if (!intervalIdRef.current && isStreamingMessage) {
+    // 启动或继续打字机定时器：当处于流式中，或虽已结束但尚未追平目标内容
+    if (!intervalIdRef.current && (isStreamingMessage || currentIndexRef.current < targetContentRef.current.length)) {
       intervalIdRef.current = window.setInterval(() => {
         const currentTarget = targetContentRef.current;
 
