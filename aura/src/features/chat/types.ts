@@ -23,4 +23,6 @@ export interface Message {
   };
   // 兼容store中的字段
   isStreaming?: boolean;
+  // 工具调用信息 - 支持在同一消息内包含多个工具调用
+  toolCalls?: ToolCall[];
 }

@@ -9,9 +9,11 @@ Key responsibilities:
 - Run lifecycle management and state transitions
 - Tool call detection and orchestration with multi-tool synchronization
 - Safety valve enforcement (max iterations)
-- Real-time UI event broadcasting
 - History management for multi-turn tool interactions
 - Synchronization of multiple concurrent tool executions
+
+Note: Real-time UI events (text_chunk, tool_call_started) are now published
+directly by LLMService during streaming for immediate user feedback.
 """
 
 import logging
@@ -320,22 +322,8 @@ class OrchestratorService:
                 )
                 run.history.append(ai_message)
 
-                # Note: LLMService already sent text_chunk events for llm_content during streaming
-                # Now publish UI events for each tool call
-                for tool_call in tool_calls:
-                    tool_name = tool_call.get("function", {}).get("name", "unknown")
-                    tool_args = tool_call.get("function", {}).get("arguments", {})
-
-                    ui_event = self._create_ui_event(
-                        run_id=run_id,
-                        session_id=run.session_id,
-                        event_type=UI_EVENT_TOOL_CALL_STARTED,
-                        payload={
-                            "tool_name": tool_name,
-                            "args": tool_args
-                        }
-                    )
-                    await self.bus.publish(Topics.UI_EVENTS, ui_event)
+                # Note: LLMService already sent text_chunk events AND tool_call_started events during streaming
+                # No need to publish tool_call_started events here - they were already sent in real-time
 
                 # Publish tool requests
                 for tool_call in tool_calls:

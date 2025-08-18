@@ -16,6 +16,7 @@ then sends the final result with any tool calls to the LLM_RESULTS topic.
 
 import logging
 import asyncio
+import json
 from typing import Dict
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message, Role
@@ -30,6 +31,7 @@ DEFAULT_TEMPERATURE = 0.7
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_TIMEOUT = 30
 STREAMING_CHUNK_DELAY = 0.05  # 50ms delay between chunks for realistic streaming
+TOOL_EVENT_ORDERING_DELAY = 0.1  # 100ms delay to ensure proper event ordering
 
 
 class LLMService:
@@ -164,9 +166,11 @@ class LLMService:
                     content_chunks.append(delta.content)
                     await self._publish_text_chunk(run_id, session_id, delta.content)
 
-                # Handle tool calls
+                # Handle tool calls - publish immediately when detected
                 if hasattr(delta, 'tool_calls') and delta.tool_calls:
                     tool_calls = delta.tool_calls
+                    # Publish tool_call_started events immediately for real-time UI updates
+                    await self._publish_tool_call_events(run_id, session_id, delta.tool_calls)
 
         return content_chunks, tool_calls
 
@@ -187,6 +191,44 @@ class LLMService:
 
         # Add delay for realistic streaming
         await asyncio.sleep(STREAMING_CHUNK_DELAY)
+
+    async def _publish_tool_call_events(self, run_id: str, session_id: str, tool_calls) -> None:
+        """Publish tool_call_started events immediately for real-time UI updates."""
+        for tool_call in tool_calls:
+            # Extract tool information from the tool call
+            function_info = tool_call.function if hasattr(tool_call, 'function') else {}
+            tool_name = function_info.name if hasattr(function_info, 'name') else "unknown"
+
+            # Parse arguments - they might be a string that needs to be parsed as JSON
+            tool_args = {}
+            if hasattr(function_info, 'arguments'):
+                try:
+                    if isinstance(function_info.arguments, str):
+                        tool_args = json.loads(function_info.arguments)
+                    else:
+                        tool_args = function_info.arguments
+                except (json.JSONDecodeError, AttributeError):
+                    tool_args = {"raw_arguments": str(function_info.arguments)}
+
+            # Create and publish tool_call_started event
+            tool_event = Message(
+                run_id=run_id,
+                session_id=session_id,
+                role=Role.SYSTEM,
+                content={
+                    "event": "tool_call_started",
+                    "run_id": run_id,
+                    "payload": {
+                        "tool_name": tool_name,
+                        "args": tool_args
+                    }
+                }
+            )
+            await self.bus.publish(Topics.UI_EVENTS, tool_event)
+            logger.info(f"Published tool_call_started event for run_id={run_id}, tool={tool_name}")
+
+        # Add a small delay to ensure proper event ordering
+        await asyncio.sleep(TOOL_EVENT_ORDERING_DELAY)
 
     async def _send_final_streaming_result(self, run_id: str, session_id: str, content_chunks: list, tool_calls) -> None:
         """Send the final streaming result with tool calls."""

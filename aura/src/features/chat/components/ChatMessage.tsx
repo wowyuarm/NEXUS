@@ -3,15 +3,17 @@
  *
  * This component serves as a smart message renderer that dynamically displays
  * different content based on the current AI run status. It handles:
- * - Historical messages (static rendering)
+ * - Historical messages (static rendering with text and tool calls)
  * - Active AI thinking state (breathing animation)
- * - Tool execution state (tool call cards)
+ * - Tool execution state (tool call cards within message bubble)
  * - Text streaming state (typewriter effect)
+ * - Composite content rendering (text + tool calls in single bubble)
  *
  * Architecture:
  * - Conditional rendering based on message role and run status
  * - Integration with ToolCallCard for tool visualization
- * - Maintains backward compatibility for historical messages
+ * - Unified rendering logic for both streaming and historical messages
+ * - DRY principle applied with extracted helper functions
  */
 
 import React from 'react';
@@ -19,6 +21,7 @@ import { motion } from 'framer-motion';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { Timestamp } from '@/components/ui/Timestamp';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
+import { ToolCallCard } from './ToolCallCard';
 import { useTypewriter } from '../hooks/useTypewriter';
 import type { Message } from '../types';
 import type { RunStatus } from '../store/auraStore';
@@ -53,6 +56,19 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     isStreamingMessage: isStreaming && !shouldUseStaticRendering,
   });
 
+  // Helper function to render tool calls - extracted to avoid duplication
+  const renderToolCalls = (toolCalls: typeof message.toolCalls) => {
+    if (!toolCalls || toolCalls.length === 0) return null;
+
+    return (
+      <div className="space-y-2">
+        {toolCalls.map((toolCall) => (
+          <ToolCallCard key={toolCall.id} toolCall={toolCall} />
+        ))}
+      </div>
+    );
+  };
+
   // Render content based on current state
   const renderContent = () => {
     // Active AI message states
@@ -63,7 +79,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
         return null; // This message should not be rendered at all during thinking
       }
 
-      // For streaming states, just render text content
+      // For streaming states, render both text content and tool calls
       const hasContent = message.content && message.content.trim().length > 0;
 
       return (
@@ -72,12 +88,23 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
           {hasContent && (
             <MarkdownRenderer content={displayedContent} />
           )}
+
+          {/* Tool calls - reuse helper function */}
+          {renderToolCalls(message.toolCalls)}
         </div>
       );
     }
 
     // Default: static rendering for historical messages
-    return <MarkdownRenderer content={message.content} />;
+    return (
+      <div className="space-y-3">
+        {/* Text content */}
+        <MarkdownRenderer content={message.content} />
+
+        {/* Tool calls - reuse helper function */}
+        {renderToolCalls(message.toolCalls)}
+      </div>
+    );
   };
 
   // Don't render anything during thinking state - ChatView handles the breathing animation

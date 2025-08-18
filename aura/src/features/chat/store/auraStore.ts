@@ -124,7 +124,9 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
 
   // ===== WebSocket Event Handlers =====
 
-  handleRunStarted: (payload: RunStartedPayload) => {
+  handleRunStarted: (payload: RunStartedPayload) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+    // Note: payload contains session_id and user_input from backend,
+    // but we generate client-side run ID for UI state management
     const runId = uuidv4(); // Generate client-side run ID
     const now = new Date();
 
@@ -158,33 +160,77 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     };
 
     set((state) => {
-      const runId = currentRun.runId || 'unknown';
-      const existingToolCalls = state.toolCallHistory[runId] || [];
+      // Find the current streaming AI message for this run
+      const streamingAIMessageIndex = state.messages.findIndex(
+        msg => msg.role === 'AI' && msg.runId === currentRun.runId && msg.isStreaming
+      );
 
-      return {
-        ...state,
-        currentRun: {
-          ...state.currentRun,
-          status: 'tool_running',
-          activeToolCalls: [...state.currentRun.activeToolCalls, toolCall]
-        },
-        toolCallHistory: {
-          ...state.toolCallHistory,
-          [runId]: [...existingToolCalls, toolCall]
-        }
-      };
+      if (streamingAIMessageIndex >= 0) {
+        // Add tool call to the existing streaming AI message
+        const messagesWithToolCall = state.messages.map((msg, index) =>
+          index === streamingAIMessageIndex
+            ? {
+                ...msg,
+                toolCalls: [...(msg.toolCalls || []), toolCall]
+              }
+            : msg
+        );
+
+        return {
+          ...state,
+          messages: messagesWithToolCall,
+          currentRun: {
+            ...state.currentRun,
+            status: 'tool_running',
+            activeToolCalls: [...state.currentRun.activeToolCalls, toolCall]
+          }
+        };
+      } else {
+        // Fallback: keep the old behavior if no current AI message found
+        const runId = currentRun.runId || 'unknown';
+        const existingToolCalls = state.toolCallHistory[runId] || [];
+
+        return {
+          ...state,
+          currentRun: {
+            ...state.currentRun,
+            status: 'tool_running',
+            activeToolCalls: [...state.currentRun.activeToolCalls, toolCall]
+          },
+          toolCallHistory: {
+            ...state.toolCallHistory,
+            [runId]: [...existingToolCalls, toolCall]
+          }
+        };
+      }
     });
-
-
   },
 
   handleToolCallFinished: (payload: ToolCallFinishedPayload) => {
     const { currentRun } = get();
 
     set((state) => {
-      const runId = currentRun.runId || 'unknown';
+      // Find the AI message for this run and update its tool calls
+      const aiMessageIndex = state.messages.findIndex(
+        msg => msg.role === 'AI' && msg.runId === currentRun.runId
+      );
 
-      // Update the tool call status in both activeToolCalls and toolCallHistory
+      let messagesWithUpdatedToolCalls = state.messages;
+      if (aiMessageIndex >= 0) {
+        messagesWithUpdatedToolCalls = state.messages.map((msg, index) =>
+          index === aiMessageIndex
+            ? {
+                ...msg,
+                toolCalls: (msg.toolCalls || []).map(tool =>
+                  updateToolCallStatus(tool, payload.tool_name, payload.status, payload.result)
+                )
+              }
+            : msg
+        );
+      }
+
+      // Also update activeToolCalls and toolCallHistory for backward compatibility
+      const runId = currentRun.runId || 'unknown';
       const updatedActiveToolCalls = state.currentRun.activeToolCalls.map(tool =>
         updateToolCallStatus(tool, payload.tool_name, payload.status, payload.result)
       );
@@ -195,6 +241,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
 
       return {
         ...state,
+        messages: messagesWithUpdatedToolCalls,
         currentRun: {
           ...state.currentRun,
           activeToolCalls: updatedActiveToolCalls
@@ -205,8 +252,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
         }
       };
     });
-
-
   },
 
   handleTextChunk: (payload: TextChunkPayload) => {
