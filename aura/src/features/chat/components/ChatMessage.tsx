@@ -20,29 +20,25 @@ import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { Timestamp } from '@/components/ui/Timestamp';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
 import { useTypewriter } from '../hooks/useTypewriter';
-import { ToolCallCard } from './ToolCallCard';
 import type { Message } from '../types';
-import type { RunStatus, ToolCall } from '../store/auraStore';
+import type { RunStatus } from '../store/auraStore';
 
 interface ChatMessageProps {
   message: Message;
   isLastMessage: boolean;
   currentRunStatus: RunStatus;
-  activeToolCalls: ToolCall[];
 }
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({
   message,
   isLastMessage,
-  currentRunStatus,
-  activeToolCalls
+  currentRunStatus
 }) => {
   // Determine if this is the active AI message that should show dynamic states
   const isActiveAIMessage = message.role === 'AI' && isLastMessage;
 
   // For active AI messages, determine what to render based on run status
   const shouldShowThinking = isActiveAIMessage && currentRunStatus === 'thinking';
-  const shouldShowToolCalls = isActiveAIMessage && currentRunStatus === 'tool_running';
   const shouldShowStreaming = isActiveAIMessage && currentRunStatus === 'streaming_text';
 
   // For historical messages or non-AI messages, use static rendering
@@ -61,31 +57,33 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   const renderContent = () => {
     // Active AI message states
     if (isActiveAIMessage) {
-      // Thinking state: show breathing animation (handled by RoleSymbol)
+      // Thinking state: this should not render any message bubble
+      // The thinking animation is handled by ChatView as an independent element
       if (shouldShowThinking) {
-        return null; // No content, just the breathing symbol
+        return null; // This message should not be rendered at all during thinking
       }
 
-      // Tool running state: show tool call cards
-      if (shouldShowToolCalls) {
-        return (
-          <div className="space-y-2">
-            {activeToolCalls.map((toolCall) => (
-              <ToolCallCard key={toolCall.id} toolCall={toolCall} />
-            ))}
-          </div>
-        );
-      }
+      // For streaming states, just render text content
+      const hasContent = message.content && message.content.trim().length > 0;
 
-      // Streaming text state: show typewriter effect
-      if (shouldShowStreaming) {
-        return <MarkdownRenderer content={displayedContent} />;
-      }
+      return (
+        <div className="space-y-3">
+          {/* Text content - show if there's any content */}
+          {hasContent && (
+            <MarkdownRenderer content={displayedContent} />
+          )}
+        </div>
+      );
     }
 
     // Default: static rendering for historical messages
-    return <MarkdownRenderer content={shouldUseStaticRendering ? message.content : displayedContent} />;
+    return <MarkdownRenderer content={message.content} />;
   };
+
+  // Don't render anything during thinking state - ChatView handles the breathing animation
+  if (shouldShowThinking) {
+    return null;
+  }
 
   return (
     <motion.div
@@ -95,10 +93,10 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       className="group relative py-6 flex items-start gap-4"
       data-message-id={message.id}
     >
-      {/* Left: Role symbol with thinking animation */}
+      {/* Left: Role symbol */}
       <RoleSymbol
         role={message.role}
-        isThinking={shouldShowThinking}
+        isThinking={false} // Never show thinking animation here
       />
 
       {/* Right: Message content area */}

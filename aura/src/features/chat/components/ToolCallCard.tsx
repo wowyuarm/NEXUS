@@ -15,7 +15,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ToolCall } from '../store/auraStore';
+import type { ToolCall } from '../types';
 
 // Animation constants
 const ANIMATION_DURATIONS = {

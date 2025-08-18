@@ -1,6 +1,16 @@
 // src/features/chat/types.ts
 export type MessageRole = 'HUMAN' | 'AI' | 'SYSTEM' | 'TOOL';
 
+export interface ToolCall {
+  id: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  status: 'running' | 'completed' | 'error';
+  result?: string;
+  startTime: Date;
+  endTime?: Date;
+}
+
 export interface Message {
   id: string;
   role: MessageRole;

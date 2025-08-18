@@ -320,7 +320,8 @@ class OrchestratorService:
                 )
                 run.history.append(ai_message)
 
-                # Publish UI events for each tool call
+                # Note: LLMService already sent text_chunk events for llm_content during streaming
+                # Now publish UI events for each tool call
                 for tool_call in tool_calls:
                     tool_name = tool_call.get("function", {}).get("name", "unknown")
                     tool_args = tool_call.get("function", {}).get("arguments", {})
@@ -359,18 +360,8 @@ class OrchestratorService:
                 # No tool calls, complete the run
                 run.status = RunStatus.COMPLETED
 
-                # Create standardized UI event message
-                ui_event = self._create_standardized_ui_event(
-                    run_id=run_id,
-                    session_id=run.session_id,
-                    content=llm_content
-                )
-
-                # Publish UI event
-                await self.bus.publish(Topics.UI_EVENTS, ui_event)
-                logger.info(f"Published UI event for run_id={run_id}")
-
-                # Publish run_finished UI event before cleanup
+                # Note: LLMService already sent text_chunk events for llm_content during streaming
+                # Just publish run_finished UI event
                 run_finished_event = self._create_ui_event(
                     run_id=run_id,
                     session_id=run.session_id,

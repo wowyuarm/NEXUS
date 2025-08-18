@@ -15,16 +15,19 @@
 
 import React, { useMemo } from 'react';
 import { motion, cubicBezier } from 'framer-motion';
-import type { Message } from '../types';
-import type { RunStatus, ToolCall } from '../store/auraStore';
+import type { Message, ToolCall } from '../types';
+import type { RunStatus } from '../store/auraStore';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
+import { RoleSymbol } from '@/components/ui/RoleSymbol';
+import { ToolCallCard } from './ToolCallCard';
 
 interface ChatViewProps {
   messages: Message[];
   currentRunStatus: RunStatus;
-  activeToolCalls: ToolCall[];
+  currentRunId: string | null;
+  toolCallHistory: Record<string, ToolCall[]>;
   onSendMessage: (message: string) => void;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
   showScrollButton: boolean;
@@ -34,12 +37,16 @@ interface ChatViewProps {
 export const ChatView: React.FC<ChatViewProps> = ({
   messages,
   currentRunStatus,
-  activeToolCalls,
+  currentRunId,
+  toolCallHistory,
   onSendMessage,
   scrollContainerRef,
   showScrollButton,
   onScrollToBottom,
 }) => {
+  // Computed values for cleaner render logic
+  const currentRunToolCalls = currentRunId ? toolCallHistory[currentRunId] || [] : [];
+  const hasActiveToolCalls = currentRunToolCalls.length > 0;
   // 是否已开始（是否已存在任意消息）
   const hasStarted = messages.length > 0;
 
@@ -89,9 +96,45 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   message={message}
                   isLastMessage={index === messages.length - 1}
                   currentRunStatus={currentRunStatus}
-                  activeToolCalls={activeToolCalls}
                 />
               ))}
+
+              {/* 独立的思考状态呼吸符号 - 仅在thinking状态时显示 */}
+              {currentRunStatus === 'thinking' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: 'easeOut' }}
+                  className="py-6 flex items-start gap-4"
+                >
+                  <RoleSymbol
+                    role="AI"
+                    isThinking={true}
+                  />
+                  <div className="flex-1 min-w-0">
+                    {/* 空内容区域，只显示呼吸符号 */}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* 独立的工具卡片 - 显示当前run的工具调用 */}
+              {hasActiveToolCalls && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: 'easeOut' }}
+                  className="py-6 flex items-start gap-4"
+                >
+                  <div className="w-8 flex-shrink-0">
+                    {/* 空白区域，与消息对齐 */}
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-2">
+                    {currentRunToolCalls.map((toolCall) => (
+                      <ToolCallCard key={toolCall.id} toolCall={toolCall} />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
             </div>
           </div>
         </motion.div>

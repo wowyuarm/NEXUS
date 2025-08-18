@@ -4,12 +4,19 @@ LLM service for NEXUS.
 This service handles LLM requests by coordinating with pluggable LLM providers.
 It subscribes to LLM request topics on the NexusBus and publishes results.
 
-The service reads universal LLM parameters (temperature, max_tokens, timeout) from configuration
-and applies them to all provider calls, ensuring consistent behavior across different
-LLM providers.
+Features:
+- Real-time streaming responses with configurable chunk delays
+- Universal LLM parameters (temperature, max_tokens, timeout) from configuration
+- Consistent behavior across different LLM providers
+- Automatic text chunk publishing for UI streaming effects
+
+The service publishes text chunks as UI events during streaming for real-time user feedback,
+then sends the final result with any tool calls to the LLM_RESULTS topic.
 """
 
 import logging
+import asyncio
+from typing import Dict
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
@@ -22,6 +29,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_TIMEOUT = 30
+STREAMING_CHUNK_DELAY = 0.05  # 50ms delay between chunks for realistic streaming
 
 
 class LLMService:
@@ -63,7 +71,7 @@ class LLMService:
 
         Extracts messages and tools from the request, applies universal LLM parameters
         (temperature, max_tokens, timeout) from configuration, and forwards the request to the
-        configured LLM provider.
+        configured LLM provider. Supports both streaming and non-streaming responses.
 
         Args:
             message: Message containing 'messages' list, 'tools' list and 'run_id'
@@ -85,28 +93,23 @@ class LLMService:
             temperature = self.config_service.get_float("llm.temperature", DEFAULT_TEMPERATURE)
             max_tokens = self.config_service.get_int("llm.max_tokens", DEFAULT_MAX_TOKENS)
 
+            # Enable streaming by default for better UX
+            stream = True
+
             # Call the LLM provider with tools and parameters
-            result = await self.provider.chat_completion(
-                messages,
-                tools=tools,
-                temperature=temperature,
-                max_tokens=max_tokens
-            )
-
-            # Create result message
-            result_message = Message(
-                run_id=run_id,
-                session_id=message.session_id,
-                role=Role.AI,
-                content={
-                    "content": result["content"],
-                    "tool_calls": result["tool_calls"]
-                }
-            )
-
-            # Publish the result
-            await self.bus.publish(Topics.LLM_RESULTS, result_message)
-            logger.info(f"Published LLM result for run_id={run_id}")
+            if stream:
+                # Handle streaming response in real-time
+                await self._handle_real_time_streaming(message, messages, tools, temperature, max_tokens)
+            else:
+                # Handle non-streaming response
+                result = await self.provider.chat_completion(
+                    messages,
+                    tools=tools,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=False
+                )
+                await self._handle_non_streaming_result(message, result)
 
         except Exception as e:
             logger.error(f"Error handling LLM request for run_id={message.run_id}: {e}")
@@ -121,3 +124,117 @@ class LLMService:
                 }
             )
             await self.bus.publish(Topics.LLM_RESULTS, error_message)
+
+    async def _handle_real_time_streaming(self, original_message: Message, messages, tools, temperature, max_tokens) -> None:
+        """Handle real-time streaming LLM response."""
+        run_id = original_message.run_id
+        session_id = original_message.session_id
+
+        # Get streaming response from provider
+        response = await self._create_streaming_response(messages, tools, temperature, max_tokens)
+
+        # Process streaming chunks and collect results
+        content_chunks, tool_calls = await self._process_streaming_chunks(response, run_id, session_id)
+
+        # Send final result
+        await self._send_final_streaming_result(run_id, session_id, content_chunks, tool_calls)
+
+    async def _create_streaming_response(self, messages, tools, temperature, max_tokens):
+        """Create streaming response from LLM provider."""
+        return await self.provider.client.chat.completions.create(
+            model=self.provider.default_model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            tools=tools if tools else None,
+            stream=True
+        )
+
+    async def _process_streaming_chunks(self, response, run_id: str, session_id: str):
+        """Process streaming chunks and publish them in real-time."""
+        content_chunks = []
+        tool_calls = None
+
+        async for chunk in response:
+            if chunk.choices:
+                delta = chunk.choices[0].delta
+
+                # Handle content chunks
+                if hasattr(delta, 'content') and delta.content:
+                    content_chunks.append(delta.content)
+                    await self._publish_text_chunk(run_id, session_id, delta.content)
+
+                # Handle tool calls
+                if hasattr(delta, 'tool_calls') and delta.tool_calls:
+                    tool_calls = delta.tool_calls
+
+        return content_chunks, tool_calls
+
+    async def _publish_text_chunk(self, run_id: str, session_id: str, chunk: str) -> None:
+        """Publish a single text chunk to the UI."""
+        chunk_event = Message(
+            run_id=run_id,
+            session_id=session_id,
+            role=Role.SYSTEM,
+            content={
+                "event": "text_chunk",
+                "run_id": run_id,
+                "payload": {"chunk": chunk}
+            }
+        )
+        await self.bus.publish(Topics.UI_EVENTS, chunk_event)
+        logger.info(f"Published text chunk for run_id={run_id}: '{chunk[:50]}...'")
+
+        # Add delay for realistic streaming
+        await asyncio.sleep(STREAMING_CHUNK_DELAY)
+
+    async def _send_final_streaming_result(self, run_id: str, session_id: str, content_chunks: list, tool_calls) -> None:
+        """Send the final streaming result with tool calls."""
+        full_content = ''.join(content_chunks) if content_chunks else None
+        formatted_tool_calls = self._format_tool_calls(tool_calls) if tool_calls else None
+
+        result_message = Message(
+            run_id=run_id,
+            session_id=session_id,
+            role=Role.AI,
+            content={
+                "content": full_content,
+                "tool_calls": formatted_tool_calls
+            }
+        )
+        await self.bus.publish(Topics.LLM_RESULTS, result_message)
+        logger.info(f"Published real-time streaming LLM result for run_id={run_id}")
+
+    def _format_tool_calls(self, tool_calls) -> list:
+        """Format tool calls to expected structure."""
+        formatted_tool_calls = []
+        for tool_call in tool_calls:
+            formatted_tool_calls.append({
+                "id": tool_call.id,
+                "type": tool_call.type,
+                "function": {
+                    "name": tool_call.function.name,
+                    "arguments": tool_call.function.arguments
+                }
+            })
+        return formatted_tool_calls
+
+    async def _handle_non_streaming_result(self, original_message: Message, result: Dict) -> None:
+        """Handle non-streaming LLM result."""
+        run_id = original_message.run_id
+        session_id = original_message.session_id
+
+        # Create result message
+        result_message = Message(
+            run_id=run_id,
+            session_id=session_id,
+            role=Role.AI,
+            content={
+                "content": result["content"],
+                "tool_calls": result["tool_calls"]
+            }
+        )
+
+        # Publish the result
+        await self.bus.publish(Topics.LLM_RESULTS, result_message)
+        logger.info(f"Published LLM result for run_id={run_id}")

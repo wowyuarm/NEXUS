@@ -1,20 +1,26 @@
 /**
  * AURA Zustand Store - The Single Source of Truth
- * 
+ *
  * This store precisely mirrors the NEXUS backend state and provides
  * atomic actions for updating the UI state based on WebSocket events.
- * 
+ *
  * Architecture:
  * - State reflects NEXUS Run lifecycle and status
  * - Actions correspond 1:1 with NEXUS UI events
- * - Maintains message history and active tool calls
+ * - Maintains message history and persistent tool call history
+ * - Tool calls are organized by runId for proper UI rendering
  * - Provides clean interface for UI components
+ *
+ * Key Features:
+ * - Real-time streaming text chunk handling
+ * - Persistent tool call history that survives run completion
+ * - Atomic state updates for consistent UI behavior
  */
 
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { websocketManager } from '../../../services/websocket/manager';
-import type { Message } from '../types';
+import type { Message, ToolCall } from '../types';
 import type {
   RunStartedPayload,
   ToolCallStartedPayload,
@@ -26,24 +32,15 @@ import type {
 
 // ===== Core Data Types =====
 
-export interface ToolCall {
-  id: string;
-  toolName: string;
-  args: Record<string, unknown>;
-  status: 'running' | 'completed' | 'error';
-  result?: string;
-  startTime: Date;
-  endTime?: Date;
-}
-
 export type RunStatus = 'idle' | 'thinking' | 'tool_running' | 'streaming_text' | 'completed' | 'error';
 
 export interface CurrentRun {
   runId: string | null;
   status: RunStatus;
-  activeToolCalls: ToolCall[];
   startTime?: Date;
   endTime?: Date;
+  // 当前运行的工具调用 - 独立管理，不与消息关联
+  activeToolCalls: ToolCall[];
 }
 
 // ===== Store State Interface =====
@@ -51,17 +48,20 @@ export interface CurrentRun {
 export interface AuraState {
   // Message History
   messages: Message[];
-  
+
   // Current Run State
   currentRun: CurrentRun;
-  
+
   // Connection State
   isConnected: boolean;
   sessionId: string | null;
-  
+
   // UI State
   isInputDisabled: boolean;
   lastError: string | null;
+
+  // Tool Call History - organized by runId
+  toolCallHistory: Record<string, ToolCall[]>;
 }
 
 // ===== Store Actions Interface =====
@@ -89,6 +89,25 @@ export interface AuraActions {
 
 export type AuraStore = AuraState & AuraActions;
 
+// ===== Helper Functions =====
+
+const updateToolCallStatus = (
+  toolCall: ToolCall,
+  toolName: string,
+  status: 'success' | 'error',
+  result: string
+): ToolCall => {
+  if (toolCall.toolName === toolName) {
+    return {
+      ...toolCall,
+      status: (status === 'success' ? 'completed' : 'error') as 'completed' | 'error',
+      result,
+      endTime: new Date()
+    };
+  }
+  return toolCall;
+};
+
 export const useAuraStore = create<AuraStore>((set, get) => ({
   // ===== Initial State =====
   messages: [],
@@ -101,6 +120,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
   sessionId: null,
   isInputDisabled: false,
   lastError: null,
+  toolCallHistory: {},
 
   // ===== WebSocket Event Handlers =====
 
@@ -109,33 +129,26 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     const now = new Date();
 
     set((state) => {
-      // Create a new empty AI message placeholder
-      const aiMessagePlaceholder: Message = {
-        id: uuidv4(),
-        role: 'AI',
-        content: '',
-        timestamp: now,
-        runId: runId,
-        isStreaming: true
-      };
-
+      // Only set thinking status, do NOT create message placeholder yet
+      // The placeholder will be created when the first text_chunk arrives
       return {
-        messages: [...state.messages, aiMessagePlaceholder],
+        ...state,
         currentRun: {
           runId,
           status: 'thinking',
-          activeToolCalls: [],
-          startTime: now
+          startTime: now,
+          activeToolCalls: []
         },
         isInputDisabled: true,
         lastError: null
       };
     });
 
-    console.log('Run started:', { runId, payload });
+
   },
 
   handleToolCallStarted: (payload: ToolCallStartedPayload) => {
+    const { currentRun } = get();
     const toolCall: ToolCall = {
       id: uuidv4(),
       toolName: payload.tool_name,
@@ -144,47 +157,69 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
       startTime: new Date()
     };
 
-    set((state) => ({
-      currentRun: {
-        ...state.currentRun,
-        status: 'tool_running',
-        activeToolCalls: [...state.currentRun.activeToolCalls, toolCall]
-      }
-    }));
+    set((state) => {
+      const runId = currentRun.runId || 'unknown';
+      const existingToolCalls = state.toolCallHistory[runId] || [];
 
-    console.log('Tool call started:', toolCall);
+      return {
+        ...state,
+        currentRun: {
+          ...state.currentRun,
+          status: 'tool_running',
+          activeToolCalls: [...state.currentRun.activeToolCalls, toolCall]
+        },
+        toolCallHistory: {
+          ...state.toolCallHistory,
+          [runId]: [...existingToolCalls, toolCall]
+        }
+      };
+    });
+
+
   },
 
   handleToolCallFinished: (payload: ToolCallFinishedPayload) => {
-    set((state) => ({
-      currentRun: {
-        ...state.currentRun,
-        activeToolCalls: state.currentRun.activeToolCalls.map(tool =>
-          tool.toolName === payload.tool_name
-            ? {
-                ...tool,
-                status: payload.status === 'success' ? 'completed' : 'error',
-                result: payload.result,
-                endTime: new Date()
-              }
-            : tool
-        )
-      }
-    }));
+    const { currentRun } = get();
 
-    console.log('Tool call finished:', payload);
+    set((state) => {
+      const runId = currentRun.runId || 'unknown';
+
+      // Update the tool call status in both activeToolCalls and toolCallHistory
+      const updatedActiveToolCalls = state.currentRun.activeToolCalls.map(tool =>
+        updateToolCallStatus(tool, payload.tool_name, payload.status, payload.result)
+      );
+
+      const updatedHistoryToolCalls = (state.toolCallHistory[runId] || []).map(tool =>
+        updateToolCallStatus(tool, payload.tool_name, payload.status, payload.result)
+      );
+
+      return {
+        ...state,
+        currentRun: {
+          ...state.currentRun,
+          activeToolCalls: updatedActiveToolCalls
+        },
+        toolCallHistory: {
+          ...state.toolCallHistory,
+          [runId]: updatedHistoryToolCalls
+        }
+      };
+    });
+
+
   },
 
   handleTextChunk: (payload: TextChunkPayload) => {
     const { currentRun } = get();
 
     set((state) => {
-      // Find the AI message placeholder created by handleRunStarted
+      // Find existing AI message placeholder for this run
       const existingMessageIndex = state.messages.findIndex(
         msg => msg.runId === currentRun.runId && msg.role === 'AI' && msg.isStreaming
       );
 
       let updatedMessages: Message[];
+      let newStatus: RunStatus = 'streaming_text';
 
       if (existingMessageIndex >= 0) {
         // Update existing streaming message placeholder
@@ -194,7 +229,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
             : msg
         );
       } else {
-        // Fallback: create new AI message if placeholder not found
+        // First text chunk: create new AI message placeholder
         const aiMessage: Message = {
           id: uuidv4(),
           role: 'AI',
@@ -204,13 +239,16 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
           isStreaming: true
         };
         updatedMessages = [...state.messages, aiMessage];
+
+        // Transition from thinking to streaming_text
+        newStatus = 'streaming_text';
       }
 
       return {
         messages: updatedMessages,
         currentRun: {
           ...state.currentRun,
-          status: 'streaming_text'
+          status: newStatus
         }
       };
     });
@@ -242,12 +280,12 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
         currentRun: {
           runId: null,
           status: 'idle',
-          activeToolCalls: []
+          activeToolCalls: [] // Clear active tool calls since they're now in history
         }
       }));
     }, 1000);
 
-    console.log('Run finished:', payload);
+
   },
 
   handleError: (payload: ErrorPayload) => {
@@ -271,7 +309,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
       sessionId,
       lastError: null
     });
-    console.log('Connected to NEXUS:', sessionId);
+
   },
 
   handleDisconnected: () => {
@@ -284,7 +322,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
         activeToolCalls: []
       }
     });
-    console.log('Disconnected from NEXUS');
+
   },
 
   // ===== User Actions =====
@@ -310,7 +348,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
 
     // Send to backend
     websocketManager.sendMessage(content);
-    console.log('Sent message:', content);
+
   },
 
   clearMessages: () => {

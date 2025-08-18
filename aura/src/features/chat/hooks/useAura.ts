@@ -35,16 +35,17 @@ export interface UseAuraReturn {
   isConnected: boolean;
   isInputDisabled: boolean;
   lastError: string | null;
-  
+  toolCallHistory: Record<string, import('../types').ToolCall[]>;
+
   // Actions
   sendMessage: (content: string) => void;
   clearMessages: () => void;
   clearError: () => void;
-  
+
   // Connection Management
   connect: () => Promise<void>;
   disconnect: () => void;
-  
+
   // Computed State
   isThinking: boolean;
   isToolRunning: boolean;
@@ -63,6 +64,7 @@ export function useAura(): UseAuraReturn {
     isConnected,
     isInputDisabled,
     lastError,
+    toolCallHistory,
     sendMessage,
     clearMessages,
     clearError,
@@ -204,16 +206,17 @@ export function useAura(): UseAuraReturn {
     isConnected,
     isInputDisabled,
     lastError,
-    
+    toolCallHistory,
+
     // Actions
     sendMessage,
     clearMessages,
     clearError,
-    
+
     // Connection Management
     connect,
     disconnect,
-    
+
     // Computed State
     ...computedState
   };
