@@ -21,7 +21,6 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
-import { ToolCallCard } from './ToolCallCard';
 
 interface ChatViewProps {
   messages: Message[];
@@ -83,7 +82,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         {/* 滚动消息区：根据 hasStarted 控制可见性与入场 */}
         <motion.div
           className="h-full overflow-y-auto pb-32"
-          style={{ scrollBehavior: 'auto' }}
+          style={{ scrollBehavior: 'auto', scrollbarGutter: 'stable both-edges', overflowAnchor: 'auto' as any }}
           initial={{ opacity: 0 }}
           animate={{ opacity: hasStarted ? 1 : 0 }}
           transition={{ duration: 0.5, ease: cubicBezier(0.22, 1, 0.36, 1) }}
@@ -133,7 +132,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   </div>
                   <div className="flex-1 min-w-0 space-y-2">
                     {currentRunToolCalls.map((toolCall) => (
-                      <ToolCallCard key={toolCall.id} toolCall={toolCall} />
+                      <div key={toolCall.id} className="w-full min-w-0" />
                     ))}
                   </div>
                 </motion.div>

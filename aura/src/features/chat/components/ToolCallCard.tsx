@@ -85,10 +85,12 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      layout="position"
+      initial={{ opacity: 0, y: 10, x: 0 }}
       animate={{
         opacity: 1,
-        y: 0
+        y: 0,
+        x: 0
       }}
       transition={{
         opacity: { duration: ANIMATION_DURATIONS.FADE_IN, ease: 'easeOut' },
@@ -103,6 +105,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
 
         // Layout
         'mb-3 last:mb-0',
+        'w-full min-w-0',
 
         // Interactive (match ChatInput): subtle contrast ring via border color
         'cursor-pointer transition-colors duration-200',

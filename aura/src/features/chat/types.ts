@@ -9,6 +9,8 @@ export interface ToolCall {
   result?: string;
   startTime: Date;
   endTime?: Date;
+  /** Text insertion index when this tool call started (for interleaving) */
+  insertIndex?: number;
 }
 
 export interface Message {

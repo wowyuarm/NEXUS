@@ -153,9 +153,9 @@ export const useAutoScroll = (
 
       // 如果高度增加且用户在底部，自动滚动
       if (currentHeight > lastScrollHeight.current && isAutoScrollingEnabled.current && !isSuppressed()) {
-        // 避免与平滑滚动冲突
+        // 在非平滑滚动期间，立即对齐到底部；即使是大幅跳变（例如插入工具卡片），也不要延迟
         if (!isSmoothScrolling.current) {
-          scrollToBottom('auto');
+          requestAnimationFrame(() => scrollToBottom('auto'));
         }
         lastScrollHeight.current = currentHeight;
       }

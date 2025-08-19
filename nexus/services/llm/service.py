@@ -8,10 +8,11 @@ Features:
 - Real-time streaming responses with configurable chunk delays
 - Universal LLM parameters (temperature, max_tokens, timeout) from configuration
 - Consistent behavior across different LLM providers
-- Automatic text chunk publishing for UI streaming effects
+- Automatic text chunk publishing for streaming effects via Topics.LLM_RESULTS
 
-The service publishes text chunks as UI events during streaming for real-time user feedback,
-then sends the final result with any tool calls to the LLM_RESULTS topic.
+The service publishes text chunks and tool-call-start events to Topics.LLM_RESULTS during
+streaming for the Orchestrator to forward to UI (preserving order). It then sends the final
+result with any tool calls to the LLM_RESULTS topic as a consolidated message.
 """
 
 import logging
@@ -153,7 +154,11 @@ class LLMService:
         )
 
     async def _process_streaming_chunks(self, response, run_id: str, session_id: str):
-        """Process streaming chunks and publish them in real-time."""
+        """Process streaming chunks and publish them in real-time.
+
+        Ensures proper event ordering: all text_chunk events are published first,
+        then tool_call_started events are published after all content is streamed.
+        """
         content_chunks = []
         tool_calls = None
 
@@ -161,21 +166,24 @@ class LLMService:
             if chunk.choices:
                 delta = chunk.choices[0].delta
 
-                # Handle content chunks
+                # Handle content chunks - publish immediately for real-time streaming
                 if hasattr(delta, 'content') and delta.content:
                     content_chunks.append(delta.content)
                     await self._publish_text_chunk(run_id, session_id, delta.content)
 
-                # Handle tool calls - publish immediately when detected
+                # Collect tool calls but don't publish yet - wait until all content is streamed
                 if hasattr(delta, 'tool_calls') and delta.tool_calls:
                     tool_calls = delta.tool_calls
-                    # Publish tool_call_started events immediately for real-time UI updates
-                    await self._publish_tool_call_events(run_id, session_id, delta.tool_calls)
+
+        # After all content chunks are streamed, publish tool_call_started events
+        if tool_calls:
+            logger.info(f"All text chunks streamed for run_id={run_id}, now publishing tool_call_started events")
+            await self._publish_tool_call_events(run_id, session_id, tool_calls)
 
         return content_chunks, tool_calls
 
     async def _publish_text_chunk(self, run_id: str, session_id: str, chunk: str) -> None:
-        """Publish a single text chunk to the UI."""
+        """Publish a single text chunk via LLM_RESULTS for Orchestrator forwarding."""
         chunk_event = Message(
             run_id=run_id,
             session_id=session_id,
@@ -186,14 +194,15 @@ class LLMService:
                 "payload": {"chunk": chunk}
             }
         )
-        await self.bus.publish(Topics.UI_EVENTS, chunk_event)
-        logger.info(f"Published text chunk for run_id={run_id}: '{chunk[:50]}...'")
+        # Publish to LLM_RESULTS so Orchestrator can forward to UI preserving order
+        await self.bus.publish(Topics.LLM_RESULTS, chunk_event)
+        logger.info(f"Published text chunk (LLM_RESULTS) for run_id={run_id}: '{chunk[:50]}...'")
 
         # Add delay for realistic streaming
         await asyncio.sleep(STREAMING_CHUNK_DELAY)
 
     async def _publish_tool_call_events(self, run_id: str, session_id: str, tool_calls) -> None:
-        """Publish tool_call_started events immediately for real-time UI updates."""
+        """Publish tool_call_started events via LLM_RESULTS after text chunks."""
         for tool_call in tool_calls:
             # Extract tool information from the tool call
             function_info = tool_call.function if hasattr(tool_call, 'function') else {}
@@ -224,8 +233,9 @@ class LLMService:
                     }
                 }
             )
-            await self.bus.publish(Topics.UI_EVENTS, tool_event)
-            logger.info(f"Published tool_call_started event for run_id={run_id}, tool={tool_name}")
+            # Publish to LLM_RESULTS so Orchestrator forwards after chunks
+            await self.bus.publish(Topics.LLM_RESULTS, tool_event)
+            logger.info(f"Published tool_call_started (LLM_RESULTS) for run_id={run_id}, tool={tool_name}")
 
         # Add a small delay to ensure proper event ordering
         await asyncio.sleep(TOOL_EVENT_ORDERING_DELAY)

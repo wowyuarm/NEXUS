@@ -170,10 +170,11 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
         const messagesWithToolCall = state.messages.map((msg, index) => {
           if (index === streamingAIMessageIndex) {
             const currentLength = msg.content.length;
+            const tcWithIndex: ToolCall = { ...toolCall, insertIndex: currentLength };
             return {
               ...msg,
-              toolCalls: [...(msg.toolCalls || []), toolCall],
-              // Mark the position where the tool started, so UI can split text
+              toolCalls: [...(msg.toolCalls || []), tcWithIndex],
+              // Keep a legacy split index for backward compatibility with older renderers
               toolInsertIndex: (msg as Message).toolInsertIndex ?? currentLength,
             } as Message;
           }
@@ -199,7 +200,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
           timestamp: new Date(),
           runId: currentRun.runId || undefined,
           isStreaming: true,
-          toolCalls: [toolCall], // Add the tool call to the new message
+          toolCalls: [{ ...toolCall, insertIndex: 0 }], // Add the tool call to the new message
           toolInsertIndex: 0,
         };
 
@@ -239,7 +240,9 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
             ? {
                 ...msg,
                 toolCalls: (msg.toolCalls || []).map(tool =>
-                  updateToolCallStatus(tool, payload.tool_name, payload.status, payload.result)
+                  tool.status === 'running' && tool.toolName === payload.tool_name
+                    ? updateToolCallStatus(tool, payload.tool_name, payload.status, payload.result)
+                    : tool
                 )
               }
             : msg

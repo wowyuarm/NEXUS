@@ -12,8 +12,9 @@ Key responsibilities:
 - History management for multi-turn tool interactions
 - Synchronization of multiple concurrent tool executions
 
-Note: Real-time UI events (text_chunk, tool_call_started) are now published
-directly by LLMService during streaming for immediate user feedback.
+Note: During streaming, LLMService publishes interim events (text_chunk,
+tool_call_started) to Topics.LLM_RESULTS. Orchestrator forwards them to
+Topics.UI_EVENTS to preserve ordering and a single UI gateway.
 """
 
 import logging
@@ -263,6 +264,19 @@ class OrchestratorService:
                 return
 
             content = message.content
+
+            # Forward interim streaming events (text_chunk, tool_call_started) to UI as-is
+            if isinstance(content, dict) and content.get("event") in {UI_EVENT_TEXT_CHUNK, UI_EVENT_TOOL_CALL_STARTED}:
+                ui_event = Message(
+                    run_id=run_id,
+                    session_id=run.session_id,
+                    role=Role.SYSTEM,
+                    content=content,
+                )
+                await self.bus.publish(Topics.UI_EVENTS, ui_event)
+                logger.info(f"Forwarded streaming event '{content.get('event')}' for run_id={run_id} to UI")
+                return
+
             llm_content = content.get("content", "")
             tool_calls = content.get("tool_calls")
 

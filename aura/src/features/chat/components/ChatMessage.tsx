@@ -26,6 +26,9 @@ import { useTypewriter } from '../hooks/useTypewriter';
 import type { Message } from '../types';
 import type { RunStatus } from '../store/auraStore';
 
+// How many characters before a tool insertion boundary we allow early reveal
+const EARLY_REVEAL_CHARS = 6 as const;
+
 interface ChatMessageProps {
   message: Message;
   isLastMessage: boolean;
@@ -59,17 +62,60 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     isStreamingMessage: isStreaming && !shouldUseStaticRendering,
   });
 
-  // Helper function to render tool calls - extracted to avoid duplication
-  const renderToolCalls = (toolCalls: typeof message.toolCalls) => {
-    if (!toolCalls || toolCalls.length === 0) return null;
+  // Decide the content we should render right now
+  const toolCalls = message.toolCalls || [];
+  const minInsertIndex = toolCalls.reduce<number>((min, tc) => {
+    const idx = typeof tc.insertIndex === 'number' ? tc.insertIndex : Number.POSITIVE_INFINITY;
+    return Math.min(min, idx);
+  }, Number.POSITIVE_INFINITY);
 
-    return (
-      <div className="space-y-2">
-        {toolCalls.map((toolCall) => (
-          <ToolCallCard key={toolCall.id} toolCall={toolCall} suppressAutoScroll={suppressAutoScroll} />
-        ))}
-      </div>
+  let contentForRender = isStreaming && !shouldUseStaticRendering ? displayedContent : message.content;
+  // Fast-forward pre-text up to the earliest tool insertion boundary so the card can appear immediately after the explanation
+  if (isStreaming && !shouldUseStaticRendering && Number.isFinite(minInsertIndex)) {
+    const boundary = minInsertIndex as number;
+    if (contentForRender.length < boundary) {
+      contentForRender = message.content.slice(0, boundary);
+    }
+  }
+
+  // Render tool calls interleaved by individual insertIndex
+  const renderInterleaved = () => {
+    const toolCalls = message.toolCalls || [];
+    if (toolCalls.length === 0) return (
+      <>{contentForRender && <MarkdownRenderer content={contentForRender} />}</>
     );
+
+    // Sort tool calls by their insertIndex (default to end)
+    const sorted = [...toolCalls].sort((a, b) => (a.insertIndex ?? Infinity) - (b.insertIndex ?? Infinity));
+
+    const fragments: React.ReactNode[] = [];
+    let cursor = 0;
+
+    for (const tc of sorted) {
+      const idx = Math.min(tc.insertIndex ?? contentForRender.length, contentForRender.length);
+      const slice = contentForRender.slice(cursor, idx);
+      if (slice.trim().length > 0) {
+        fragments.push(<MarkdownRenderer key={`txt-${cursor}-${idx}`} content={slice} />);
+      }
+
+      // Show tool card as soon as we pass close to its insertion point
+      // Allow slight early reveal (lead-in) so the card appears almost immediately after the explanation
+      const okToShow = contentForRender.length + EARLY_REVEAL_CHARS >= idx;
+      if (okToShow) {
+        fragments.push(
+          <ToolCallCard key={tc.id} toolCall={tc} suppressAutoScroll={suppressAutoScroll} />
+        );
+      }
+      cursor = idx;
+    }
+
+    // Remaining text after last tool
+    const tail = contentForRender.slice(cursor);
+    if (tail.trim().length > 0) {
+      fragments.push(<MarkdownRenderer key={`txt-tail-${cursor}`} content={tail} />);
+    }
+
+    return <div className="space-y-3">{fragments}</div>;
   };
 
   // Render content based on current state
@@ -82,38 +128,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
         return null; // This message should not be rendered at all during thinking
       }
 
-      // For streaming states, render text split around tool insertion point + tool calls
-      const fullContent = displayedContent;
-      const insertIndex = (message as Message).toolInsertIndex ?? fullContent.length;
-      const preText = fullContent.slice(0, insertIndex);
-      const postText = fullContent.slice(insertIndex);
-      const hasPre = preText.trim().length > 0;
-      const hasPost = postText.trim().length > 0;
-
-      return (
-        <div className="space-y-3">
-          {/* Text before tool card */}
-          {hasPre && <MarkdownRenderer content={preText} />}
-
-          {/* Tool calls - render between pre and post text */}
-          {renderToolCalls(message.toolCalls)}
-
-          {/* Text after tool card (continues streaming) */}
-          {hasPost && <MarkdownRenderer content={postText} />}
-        </div>
-      );
+      // Streaming/hybrid rendering: split text by tool insertion index
+      return renderInterleaved();
     }
 
-    // Default: static rendering for historical messages
-    return (
-      <div className="space-y-3">
-        {/* Text content */}
-        <MarkdownRenderer content={message.content} />
-
-        {/* Tool calls - reuse helper function */}
-        {renderToolCalls(message.toolCalls)}
-      </div>
-    );
+    // Static rendering for historical messages: keep the tool card at the recorded insertion point
+    // Static rendering uses the same interleaving logic (all text is known)
+    return renderInterleaved();
   };
 
   // Don't render anything during thinking state - ChatView handles the breathing animation
