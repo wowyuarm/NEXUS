@@ -56,8 +56,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   const isStreaming =
     shouldShowStreaming || message.isStreaming || (message.metadata?.isStreaming ?? false);
 
-  // Use typewriter engine only for streaming content
-  const { displayedContent } = useTypewriter({
+  // Use typewriter engine for streaming and to gracefully finish after stream ends
+  const { displayedContent, isTyping } = useTypewriter({
     targetContent: message.content,
     isStreamingMessage: isStreaming && !shouldUseStaticRendering,
   });
@@ -69,9 +69,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     return Math.min(min, idx);
   }, Number.POSITIVE_INFINITY);
 
-  let contentForRender = isStreaming && !shouldUseStaticRendering ? displayedContent : message.content;
+  // Prefer typewriter output while it is still running, even after stream flag turns off
+  const isActivelyTyping = (isStreaming && !shouldUseStaticRendering) || isTyping;
+  let contentForRender = isActivelyTyping ? displayedContent : message.content;
   // Fast-forward pre-text up to the earliest tool insertion boundary so the card can appear immediately after the explanation
-  if (isStreaming && !shouldUseStaticRendering && Number.isFinite(minInsertIndex)) {
+  if (isActivelyTyping && Number.isFinite(minInsertIndex)) {
     const boundary = minInsertIndex as number;
     if (contentForRender.length < boundary) {
       contentForRender = message.content.slice(0, boundary);

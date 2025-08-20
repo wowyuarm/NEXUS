@@ -131,10 +131,18 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     const now = new Date();
 
     set((state) => {
-      // Only set thinking status, do NOT create message placeholder yet
-      // The placeholder will be created when the first text_chunk arrives
+      // Bind any existing streaming AI placeholder (created before run_started)
+      // to this new runId to prevent multiple bubbles.
+      const reboundMessages = state.messages.map((msg) => {
+        if (msg.role === 'AI' && msg.isStreaming && !msg.runId) {
+          return { ...msg, runId };
+        }
+        return msg;
+      });
+
       return {
         ...state,
+        messages: reboundMessages,
         currentRun: {
           runId,
           status: 'thinking',
@@ -145,8 +153,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
         lastError: null
       };
     });
-
-
   },
 
   handleToolCallStarted: (payload: ToolCallStartedPayload) => {
@@ -160,10 +166,19 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     };
 
     set((state) => {
-      // Find the current streaming AI message for this run
-      const streamingAIMessageIndex = state.messages.findIndex(
-        msg => msg.role === 'AI' && msg.runId === currentRun.runId && msg.isStreaming
-      );
+      // Find the latest streaming AI message regardless of runId to ensure a single bubble
+      let streamingAIMessageIndex = state.messages
+        .map((msg, idx) => ({ msg, idx }))
+        .filter(({ msg }) => msg.role === 'AI' && msg.isStreaming)
+        .map(({ idx }) => idx)
+        .pop() ?? -1;
+
+      if (streamingAIMessageIndex < 0) {
+        // Fallback by runId
+        streamingAIMessageIndex = state.messages.findIndex(
+          msg => msg.role === 'AI' && msg.runId === currentRun.runId && msg.isStreaming
+        );
+      }
 
       if (streamingAIMessageIndex >= 0) {
         // Add tool call to the existing streaming AI message and record insertion index
@@ -173,6 +188,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
             const tcWithIndex: ToolCall = { ...toolCall, insertIndex: currentLength };
             return {
               ...msg,
+              runId: msg.runId || currentRun.runId || msg.runId,
               toolCalls: [...(msg.toolCalls || []), tcWithIndex],
               // Keep a legacy split index for backward compatibility with older renderers
               toolInsertIndex: (msg as Message).toolInsertIndex ?? currentLength,
@@ -181,6 +197,9 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
           return msg;
         });
 
+        const runId = currentRun.runId || 'unknown';
+        const existingToolCalls = state.toolCallHistory[runId] || [];
+
         return {
           ...state,
           messages: messagesWithToolCall,
@@ -188,6 +207,10 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
             ...state.currentRun,
             status: 'tool_running',
             activeToolCalls: [...state.currentRun.activeToolCalls, toolCall]
+          },
+          toolCallHistory: {
+            ...state.toolCallHistory,
+            [runId]: [...existingToolCalls, toolCall]
           }
         };
       } else {
@@ -278,10 +301,19 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     const { currentRun } = get();
 
     set((state) => {
-      // Find existing AI message placeholder for this run
-      const existingMessageIndex = state.messages.findIndex(
-        msg => msg.runId === currentRun.runId && msg.role === 'AI' && msg.isStreaming
-      );
+      // Prefer the latest streaming AI message regardless of runId to avoid splitting
+      let existingMessageIndex = state.messages
+        .map((msg, idx) => ({ msg, idx }))
+        .filter(({ msg }) => msg.role === 'AI' && msg.isStreaming)
+        .map(({ idx }) => idx)
+        .pop() ?? -1;
+
+      if (existingMessageIndex < 0) {
+        // Fallback: try to find by current runId if any
+        existingMessageIndex = state.messages.findIndex(
+          msg => msg.runId === currentRun.runId && msg.role === 'AI' && msg.isStreaming
+        );
+      }
 
       let updatedMessages: Message[];
       let newStatus: RunStatus = 'streaming_text';
@@ -290,7 +322,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
         // Update existing streaming message placeholder
         updatedMessages = state.messages.map((msg, index) =>
           index === existingMessageIndex
-            ? { ...msg, content: msg.content + payload.chunk }
+            ? { ...msg, runId: msg.runId || currentRun.runId || msg.runId, content: msg.content + payload.chunk }
             : msg
         );
       } else {

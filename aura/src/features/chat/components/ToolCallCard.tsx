@@ -85,7 +85,6 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
 
   return (
     <motion.div
-      layout="position"
       initial={{ opacity: 0, y: 10, x: 0 }}
       animate={{
         opacity: 1,
@@ -117,7 +116,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
         setIsExpanded(!isExpanded);
       }}
     >
-      {/* Header: Tool name and status */}
+      {/* Header: Tool name and status (disable shared layout to prevent drift) */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {renderStatusIcon()}
