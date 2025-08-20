@@ -24,6 +24,7 @@ from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
 from nexus.services.config import ConfigService
 from .providers.google import GoogleLLMProvider
+from .providers.openrouter import OpenRouterLLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,24 @@ class LLMService:
                 raise ValueError("Google base URL not found in configuration")
 
             return GoogleLLMProvider(api_key=api_key, base_url=base_url, model=model, timeout=timeout)
+
+        elif provider_name == "openrouter":
+            # Get basic OpenRouter configuration
+            api_key = self.config_service.get("llm.providers.openrouter.api_key")
+            base_url = self.config_service.get("llm.providers.openrouter.base_url", "https://openrouter.ai/api/v1")
+            model = self.config_service.get("llm.providers.openrouter.model", "moonshotai/kimi-k2:free")
+            timeout = self.config_service.get_int("llm.timeout", DEFAULT_TIMEOUT)
+
+            if not api_key:
+                raise ValueError("OpenRouter API key not found in configuration")
+
+            return OpenRouterLLMProvider(
+                api_key=api_key,
+                base_url=base_url,
+                model=model,
+                timeout=timeout
+            )
+
         else:
             raise ValueError(f"Unsupported LLM provider: {provider_name}")
 
