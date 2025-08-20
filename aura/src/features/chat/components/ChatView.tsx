@@ -13,7 +13,7 @@
 // - 专注于UI渲染和用户体验
 // - 集成LogStream的消息渲染逻辑
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { motion, cubicBezier } from 'framer-motion';
 import type { Message, ToolCall } from '../types';
 import type { RunStatus } from '../store/auraStore';
@@ -50,6 +50,33 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const hasActiveToolCalls = currentRunToolCalls.length > 0;
   // 是否已开始（是否已存在任意消息）
   const hasStarted = messages.length > 0;
+
+  // 思考标识显示控制：仅在「当前运行存在且尚未开始文本流」且最后一条为用户消息时显示（并有轻微延迟）
+  const lastMessage = messages[messages.length - 1];
+  const isLastHuman = lastMessage?.role === 'HUMAN';
+  const [showThinkingIndicator, setShowThinkingIndicator] = useState(false);
+
+  // 是否已有当前 run 的 AI 流式消息（开始打字后就不再显示思考符号）
+  const hasStreamingAICurrentRun = useMemo(() => {
+    if (!currentRunId) return false;
+    return messages.some((m) => m.role === 'AI' && m.isStreaming && m.runId === currentRunId && (m.content?.length ?? 0) > 0);
+  }, [messages, currentRunId]);
+
+  // 显示条件：存在当前 run 且未开始流式输出，并且上一条为用户消息
+  const shouldDisplayThinking = Boolean(currentRunId) && isLastHuman && !hasStreamingAICurrentRun;
+
+  useEffect(() => {
+    let t: number | undefined;
+    if (shouldDisplayThinking) {
+      // 轻微延迟，避免与用户消息同帧出现
+      t = window.setTimeout(() => setShowThinkingIndicator(true), 800);
+    } else {
+      setShowThinkingIndicator(false);
+    }
+    return () => {
+      if (t) window.clearTimeout(t);
+    };
+  }, [shouldDisplayThinking]);
 
   // 输入区域动画：单一父容器中，通过 transform 控制从居中 -> 底部
   const inputMotion = useMemo(() => {
@@ -101,8 +128,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 />
               ))}
 
-              {/* 独立的思考状态呼吸符号 - 仅在thinking状态时显示 */}
-              {currentRunStatus === 'thinking' && (
+              {/* 独立的思考状态呼吸符号 - 仅在当前会话已开始且尚未出现AI气泡（无文本流）并且上一条为用户消息时显示（并有轻微延迟） */}
+              {shouldDisplayThinking && showThinkingIndicator && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
