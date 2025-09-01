@@ -23,8 +23,9 @@ aura/build/
 # Node.js 依赖
 aura/node_modules/
 
-# AI rules
+# AI rules/tools
 .augment/
+.claude/
 
 # 自用脚本
 scripts/

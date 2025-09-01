@@ -20,3 +20,8 @@ openai
 
 # Web Search Tool
 tavily-python
+
+# Testing
+pytest
+pytest-asyncio
+pytest-mock
