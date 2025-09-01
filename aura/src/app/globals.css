@@ -63,13 +63,36 @@
 
   /* 列表样式 - 使用CSS处理嵌套 */
   .prose ul, .prose ol {
-    @apply list-none pl-0 my-0;
+    @apply list-none pl-0;
   }
 
   /* 嵌套列表特殊样式 */
   .prose ul ul, .prose ol ol, .prose ul ol, .prose ol ul {
-    @apply mt-1.5 mb-0 pl-4;
+    @apply mb-0 pl-4;
   }
+
+  /* 统一且紧凑的列表间距 */
+  .prose ul,
+  .prose ol,
+  .prose li {
+    @apply m-0 p-0 list-inside; /* 彻底重置 */
+  }
+
+  .prose li {
+    @apply pl-3; /* 统一缩进 */
+  }
+
+  /* 为所有列表项（同级、父子）应用统一的紧凑间距 */
+  .prose li + li,
+  .prose li > ul,
+  .prose li > ol {
+    @apply mt-2;
+  }
+
+  .prose li > p {
+    @apply my-0;
+  }
+
 
   /* 链接样式 */
   .prose a {

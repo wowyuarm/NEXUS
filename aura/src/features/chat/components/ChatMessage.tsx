@@ -149,7 +149,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="group relative py-6 flex items-start gap-4"
+      className="group relative py-6 flex items-baseline gap-2"
       data-message-id={message.id}
     >
       {/* Left: Role symbol */}
@@ -159,7 +159,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       />
 
       {/* Right: Message content area */}
-      <div className="flex-1 min-w-0 relative">
+      <div className="flex-1 min-w-0 relative ml-6">
         {/* Timestamp - hover to show, top right */}
         <div className="absolute top-0 right-0">
           <Timestamp

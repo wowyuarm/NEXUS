@@ -21,8 +21,8 @@ export const RoleSymbol: React.FC<RoleSymbolProps> = ({ role, isThinking = false
   return (
     <motion.div
       className={cn(
-        'flex items-center justify-center w-8 h-8',
-        'text-secondary-foreground text-lg font-mono select-none',
+        'flex items-center justify-center w-8 h-8 self-baseline translate-y-[2px]',
+        'text-secondary-foreground text-[18px] leading-none font-mono select-none',
         'flex-shrink-0', // 防止收缩
         isThinking && 'animate-pulse'
       )}

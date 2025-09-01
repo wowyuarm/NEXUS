@@ -25,6 +25,7 @@ from nexus.core.topics import Topics
 from nexus.services.config import ConfigService
 from .providers.google import GoogleLLMProvider
 from .providers.openrouter import OpenRouterLLMProvider
+from .providers.deepseek import DeepSeekLLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,23 @@ class LLMService:
                 raise ValueError("OpenRouter API key not found in configuration")
 
             return OpenRouterLLMProvider(
+                api_key=api_key,
+                base_url=base_url,
+                model=model,
+                timeout=timeout
+            )
+
+        elif provider_name == "deepseek":
+            # Get basic DeepSeek configuration
+            api_key = self.config_service.get("llm.providers.deepseek.api_key")
+            base_url = self.config_service.get("llm.providers.deepseek.base_url", "https://api.deepseek.com/v1")
+            model = self.config_service.get("llm.providers.deepseek.model", "deepseek-chat")
+            timeout = self.config_service.get_int("llm.timeout", DEFAULT_TIMEOUT)
+
+            if not api_key:
+                raise ValueError("DeepSeek API key not found in configuration")
+
+            return DeepSeekLLMProvider(
                 api_key=api_key,
                 base_url=base_url,
                 model=model,

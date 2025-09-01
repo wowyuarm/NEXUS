@@ -92,12 +92,29 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
               'p-1.5 text-secondary-foreground/60 rounded',
               'opacity-0 group-hover:opacity-100 transition-all duration-200',
               'hover:text-secondary-foreground hover:bg-muted/50',
-              'focus:outline-none focus:text-secondary-foreground focus:bg-muted/50'
+              'focus:outline-none'
             )}
             aria-label={copied ? "已复制" : "复制代码"}
           >
-            <div className="transition-all duration-200">
-              {copied ? <Check size={14} /> : <Copy size={14} />}
+            <div className="relative h-3.5 w-3.5">
+              <Copy
+                size={14}
+                className={cn(
+                  'absolute transition-all duration-300 ease-in-out',
+                  copied
+                    ? 'opacity-0 scale-50 rotate-90'
+                    : 'opacity-100 scale-100 rotate-0'
+                )}
+              />
+              <Check
+                size={14}
+                className={cn(
+                  'absolute transition-all duration-300 ease-in-out',
+                  copied
+                    ? 'opacity-100 scale-100 rotate-0'
+                    : 'opacity-0 scale-50 -rotate-90'
+                )}
+              />
             </div>
           </button>
         </div>
@@ -114,12 +131,29 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
               'text-secondary-foreground/60 bg-card/50 backdrop-blur-sm',
               'opacity-0 group-hover:opacity-100 transition-all duration-200',
               'hover:text-secondary-foreground hover:bg-muted/50',
-              'focus:outline-none focus:text-secondary-foreground focus:bg-muted/50'
+              'focus:outline-none'
             )}
             aria-label={copied ? "已复制" : "复制代码"}
           >
-            <div className="transition-all duration-200">
-              {copied ? <Check size={14} /> : <Copy size={14} />}
+            <div className="relative h-3.5 w-3.5">
+              <Copy
+                size={14}
+                className={cn(
+                  'absolute transition-all duration-300 ease-in-out',
+                  copied
+                    ? 'opacity-0 scale-50 rotate-90'
+                    : 'opacity-100 scale-100 rotate-0'
+                )}
+              />
+              <Check
+                size={14}
+                className={cn(
+                  'absolute transition-all duration-300 ease-in-out',
+                  copied
+                    ? 'opacity-100 scale-100 rotate-0'
+                    : 'opacity-0 scale-50 -rotate-90'
+                )}
+              />
             </div>
           </button>
         )}
@@ -378,7 +412,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
 // 无序列表组件 - 简化逻辑，依赖CSS处理嵌套
 ul: ({ children }) => (
-  <ul className="my-4 pl-0 list-none space-y-1.0">
+  <ul className="my-4 pl-0 list-none">
     {children}
   </ul>
 ),
@@ -389,7 +423,7 @@ ol: ((props: { children?: React.ReactNode; start?: number; [key: string]: unknow
   let counter = start || 1;
 
   return (
-    <ol className="my-4 pl-0 list-none space-y-1.0">
+    <ol className="my-4 pl-0 list-none">
       {React.Children.map(children, (child, index) => {
         if (React.isValidElement(child)) {
           return React.cloneElement(child as React.ReactElement<{ [key: string]: unknown }>, {

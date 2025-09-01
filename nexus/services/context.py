@@ -190,11 +190,10 @@ class ContextService:
                     elif role == NEXUS_ROLE_AI:
                         llm_role = LLM_ROLE_ASSISTANT
                     elif role == NEXUS_ROLE_TOOL:
-                        # Tool results can be included as system messages or skipped
-                        # For now, we'll include them as system messages with context
+                        # Tool results should use the tool role with proper format
                         tool_name = msg_data.get("metadata", {}).get("tool_name", "unknown")
-                        llm_role = LLM_ROLE_SYSTEM
-                        content = f"Tool '{tool_name}' result: {content}"
+                        llm_role = LLM_ROLE_TOOL
+                        # Keep original content format for tool messages
                     else:
                         continue  # Skip unknown roles
 

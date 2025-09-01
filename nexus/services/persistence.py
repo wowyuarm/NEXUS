@@ -133,6 +133,11 @@ class PersistenceService:
         try:
             logger.info(f"Handling LLM result for persistence: run_id={message.run_id}")
 
+            # Skip SYSTEM role messages (these are streaming events, not final results)
+            if message.role == Role.SYSTEM:
+                logger.debug(f"Skipping SYSTEM role message (streaming event): run_id={message.run_id}")
+                return
+
             content = message.content
             if not isinstance(content, dict):
                 logger.error(f"Invalid LLM result format: {type(content)}")
@@ -143,6 +148,11 @@ class PersistenceService:
             # Handle None content (when LLM only makes tool calls)
             if ai_content is None:
                 ai_content = ""
+
+            # Skip empty content messages (these are intermediate streaming chunks)
+            if not ai_content and not content.get("tool_calls"):
+                logger.debug(f"Skipping empty content message: run_id={message.run_id}")
+                return
 
             ai_message = Message(
                 run_id=message.run_id,
@@ -176,12 +186,18 @@ class PersistenceService:
                 logger.error(f"Invalid tool result format: {type(content)}")
                 return
 
+            # Skip empty tool results
+            tool_result = content.get("result", "")
+            if not tool_result:
+                logger.debug(f"Skipping empty tool result: run_id={message.run_id}, tool={content.get('tool_name', 'unknown')}")
+                return
+
             # Create a message representing the tool result
             tool_message = Message(
                 run_id=message.run_id,
                 session_id=message.session_id,
                 role=Role.TOOL,
-                content=content.get("result", ""),
+                content=tool_result,
                 metadata={
                     "source": "tool_result",
                     "tool_name": content.get("tool_name", "unknown"),
