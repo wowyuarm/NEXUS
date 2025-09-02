@@ -9,10 +9,11 @@ import logging
 import json
 import uuid
 from typing import Dict
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message, Role, Run, RunStatus
 from nexus.core.topics import Topics
+from nexus.services.database.service import DatabaseService
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,9 @@ MESSAGE_TYPE_USER_MESSAGE = "user_message"
 
 
 class WebsocketInterface:
-    def __init__(self, bus: NexusBus):
+    def __init__(self, bus: NexusBus, database_service: DatabaseService):
         self.bus = bus
+        self.database_service = database_service
         # Store active WebSocket connections by session_id
         self.connections: Dict[str, WebSocket] = {}
         logger.info("WebsocketInterface initialized")
@@ -98,12 +100,34 @@ class WebsocketInterface:
         app = FastAPI(title="NEXUS WebSocket API")
 
         @app.get("/")
-        async def health_check():
+        async def root_health():
             return {"status": "ok", "service": "NEXUS WebSocket API"}
 
         @app.get("/health")
-        async def health():
+        async def basic_health():
             return {"status": "healthy", "connections": len(self.connections)}
+
+        @app.get("/api/v1/health")
+        async def comprehensive_health_check():
+            """Comprehensive health check including database connectivity."""
+            try:
+                # Check database connection health (sync method, no await needed)
+                is_db_healthy = self.database_service.provider.health_check()
+                
+                if is_db_healthy:
+                    return {"status": "ok", "dependencies": {"database": "ok"}}
+                else:
+                    # Return HTTP 503 Service Unavailable error
+                    raise HTTPException(
+                        status_code=503, 
+                        detail={"status": "error", "dependencies": {"database": "unavailable"}}
+                    )
+            except Exception as e:
+                logger.error(f"Health check failed: {e}")
+                raise HTTPException(
+                    status_code=503,
+                    detail={"status": "error", "dependencies": {"database": "connection_error"}}
+                )
 
         @app.websocket("/api/v1/ws/{session_id}")
         async def websocket_endpoint(websocket: WebSocket, session_id: str):

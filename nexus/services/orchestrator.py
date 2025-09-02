@@ -18,6 +18,7 @@ Topics.UI_EVENTS to preserve ordering and a single UI gateway.
 """
 
 import logging
+import os
 import json
 from typing import Dict, List
 from nexus.core.bus import NexusBus
@@ -449,13 +450,17 @@ class OrchestratorService:
             # Call LLM again with complete history
             run.status = RunStatus.AWAITING_LLM_DECISION
 
+            # 当处于 E2E 假 LLM（NEXUS_E2E_FAKE_LLM=1）时，为避免循环，只传空工具列表；
+            # 否则在正常环境保留可用工具以支持连续工具调用。
+            tools_for_followup = [] if os.getenv("NEXUS_E2E_FAKE_LLM", "0") == "1" else run.tools
+
             llm_request = Message(
                 run_id=run_id,
                 session_id=run.session_id,
                 role=Role.SYSTEM,
                 content={
                     "messages": messages,
-                    "tools": run.tools
+                    "tools": tools_for_followup
                 }
             )
 

@@ -68,7 +68,7 @@ async def main() -> None:
 
     # Orchestrator and interface services
     orchestrator_service = OrchestratorService(bus, config_service)
-    websocket_interface = WebsocketInterface(bus)
+    websocket_interface = WebsocketInterface(bus, database_service)
 
     services: List[object] = [
         database_service,

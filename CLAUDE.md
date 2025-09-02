@@ -78,7 +78,7 @@ pnpm typecheck  # Note: Add this script if missing
 ```
 GEMINI_API_KEY=your_gemini_key
 OPENROUTER_API_KEY=your_openrouter_key  
-MONGO_URI=mongodb://localhost:27017
+MONGO_URI=mongodb_atlas
 ```
 
 ### Config File (config.default.yml)

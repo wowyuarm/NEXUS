@@ -25,3 +25,4 @@ tavily-python
 pytest
 pytest-asyncio
 pytest-mock
+httpx

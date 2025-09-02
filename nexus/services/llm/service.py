@@ -16,6 +16,7 @@ result with any tool calls to the LLM_RESULTS topic as a consolidated message.
 """
 
 import logging
+import os
 import asyncio
 import json
 from typing import Dict
@@ -129,6 +130,11 @@ class LLMService:
                 logger.error(f"No messages found in LLM request for run_id={run_id}")
                 return
 
+            # If running in E2E fake mode, simulate streaming, tool call, and final result to avoid external dependencies
+            if os.getenv("NEXUS_E2E_FAKE_LLM", "0") == "1":
+                await self._handle_fake_llm_flow(message, messages, tools)
+                return
+
             # Get universal LLM parameters from configuration
             temperature = self.config_service.get_float("llm.temperature", DEFAULT_TEMPERATURE)
             max_tokens = self.config_service.get_int("llm.max_tokens", DEFAULT_MAX_TOKENS)
@@ -239,22 +245,41 @@ class LLMService:
         await asyncio.sleep(STREAMING_CHUNK_DELAY)
 
     async def _publish_tool_call_events(self, run_id: str, session_id: str, tool_calls) -> None:
-        """Publish tool_call_started events via LLM_RESULTS after text chunks."""
-        for tool_call in tool_calls:
-            # Extract tool information from the tool call
-            function_info = tool_call.function if hasattr(tool_call, 'function') else {}
-            tool_name = function_info.name if hasattr(function_info, 'name') else "unknown"
+        """Publish tool_call_started events via LLM_RESULTS after text chunks.
 
-            # Parse arguments - they might be a string that needs to be parsed as JSON
+        Supports both provider objects (with attributes) and dict structures.
+        """
+        for tool_call in tool_calls:
+            tool_name = "unknown"
             tool_args = {}
-            if hasattr(function_info, 'arguments'):
+
+            # Handle object-like tool call (provider SDK)
+            if hasattr(tool_call, 'function'):
+                function_info = tool_call.function
+                if hasattr(function_info, 'name'):
+                    tool_name = function_info.name
+                if hasattr(function_info, 'arguments'):
+                    try:
+                        if isinstance(function_info.arguments, str):
+                            tool_args = json.loads(function_info.arguments)
+                        else:
+                            tool_args = function_info.arguments
+                    except (json.JSONDecodeError, AttributeError):
+                        tool_args = {"raw_arguments": str(getattr(function_info, 'arguments', ''))}
+            # Handle dict-based tool call (our fake path)
+            elif isinstance(tool_call, dict):
+                function_info = tool_call.get("function", {})
+                tool_name = function_info.get("name", "unknown")
+                raw_args = function_info.get("arguments")
                 try:
-                    if isinstance(function_info.arguments, str):
-                        tool_args = json.loads(function_info.arguments)
+                    if isinstance(raw_args, str):
+                        tool_args = json.loads(raw_args)
+                    elif isinstance(raw_args, dict):
+                        tool_args = raw_args
                     else:
-                        tool_args = function_info.arguments
-                except (json.JSONDecodeError, AttributeError):
-                    tool_args = {"raw_arguments": str(function_info.arguments)}
+                        tool_args = {"raw_arguments": str(raw_args)}
+                except json.JSONDecodeError:
+                    tool_args = {"raw_arguments": str(raw_args)}
 
             # Create and publish tool_call_started event
             tool_event = Message(
@@ -294,18 +319,67 @@ class LLMService:
         await self.bus.publish(Topics.LLM_RESULTS, result_message)
         logger.info(f"Published real-time streaming LLM result for run_id={run_id}")
 
+    async def _handle_fake_llm_flow(self, original_message: Message, messages, tools) -> None:
+        """Simulate streaming, optional tool call, and final result for E2E tests.
+
+        This avoids reliance on external LLM providers and ensures deterministic UI events
+        so E2E tests can pass in isolated environments.
+        """
+        run_id = original_message.run_id
+        session_id = original_message.session_id
+
+        # 1) Stream a few text chunks
+        for chunk in ["Thinking...", " Analyzing context...", " Preparing response."]:
+            await self._publish_text_chunk(run_id, session_id, chunk)
+
+        # 2) Optionally emit a single web_search tool call if tools include it
+        has_web_search = any(
+            (t.get("function", {}).get("name") == "web_search") if isinstance(t, dict) else False
+            for t in (tools or [])
+        )
+        tool_calls = None
+        if has_web_search:
+            # Emit tool_call_started via LLM_RESULTS to be forwarded by Orchestrator
+            await self._publish_tool_call_events(
+                run_id,
+                session_id,
+                [{
+                    "id": "call_fake_1",
+                    "type": "function",
+                    "function": {"name": "web_search", "arguments": json.dumps({"query": "artificial intelligence news"})}
+                }]
+            )
+            tool_calls = [{
+                "id": "call_fake_1",
+                "type": "function",
+                "function": {"name": "web_search", "arguments": json.dumps({"query": "artificial intelligence news"})}
+            }]
+
+        # 3) Send final result (no actual provider call)
+        await self._send_final_streaming_result(run_id, session_id, [" Here is a concise summary."], tool_calls)
+
     def _format_tool_calls(self, tool_calls) -> list:
-        """Format tool calls to expected structure."""
+        """Format tool calls to expected structure; supports object or dict."""
         formatted_tool_calls = []
         for tool_call in tool_calls:
-            formatted_tool_calls.append({
-                "id": tool_call.id,
-                "type": tool_call.type,
-                "function": {
-                    "name": tool_call.function.name,
-                    "arguments": tool_call.function.arguments
-                }
-            })
+            if hasattr(tool_call, 'id') and hasattr(tool_call, 'type') and hasattr(tool_call, 'function'):
+                formatted_tool_calls.append({
+                    "id": tool_call.id,
+                    "type": tool_call.type,
+                    "function": {
+                        "name": getattr(tool_call.function, 'name', 'unknown'),
+                        "arguments": getattr(tool_call.function, 'arguments', {})
+                    }
+                })
+            elif isinstance(tool_call, dict):
+                formatted_tool_calls.append({
+                    "id": tool_call.get("id", ""),
+                    "type": tool_call.get("type", "function"),
+                    "function": {
+                        "name": tool_call.get("function", {}).get("name", "unknown"),
+                        "arguments": tool_call.get("function", {}).get("arguments", {})
+                    }
+                })
         return formatted_tool_calls
 
     async def _handle_non_streaming_result(self, original_message: Message, result: Dict) -> None:
