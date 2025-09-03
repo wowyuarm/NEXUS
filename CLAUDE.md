@@ -145,6 +145,22 @@ cd aura && pnpm test
 - **WebSocket connection**: Verify backend is running on correct port
 - **Type errors**: Run `pnpm typecheck` in aura directory
 
+## 🤖 Agent Collaboration Best Practices
+
+### When delegating to test-engineer agent:
+1. **Provide specific context**: Include file paths to existing test patterns, service implementations, and relevant constants
+2. **Specify test scope**: Clearly define success/failure scenarios, edge cases, and expected behaviors
+3. **Include project-specific patterns**: Mention pytest fixtures, mocking approaches, and async/await patterns used
+4. **Verify enum values**: Always check actual enum definitions (Role.HUMAN vs Role.USER) before writing tests
+5. **Review generated tests**: Check for proper mocking, async handling, and alignment with existing code patterns
+
+### Test Writing Guidelines:
+- Use `mocker` fixture for consistent mocking
+- Follow existing test structure and naming conventions
+- Test both success and failure paths comprehensively
+- Verify async/await patterns match service implementations
+- Check for proper constant usage from core models
+
 ## 🔍 Code Navigation Tips
 
 - **Backend entry**: `nexus/main.py`

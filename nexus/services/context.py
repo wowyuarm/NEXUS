@@ -34,6 +34,7 @@ NEXUS_ROLE_TOOL = "tool"
 LLM_ROLE_USER = "user"
 LLM_ROLE_ASSISTANT = "assistant"
 LLM_ROLE_SYSTEM = "system"
+LLM_ROLE_TOOL = "tool"
 
 
 class ContextService:

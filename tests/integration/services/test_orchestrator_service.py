@@ -455,3 +455,138 @@ class TestOrchestratorService:
         
         assert error_event is not None, "Error event not published for max iterations"
         assert "Maximum tool iterations" in error_event.content["payload"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_context_build_failure_flow(self, orchestrator_service, mock_bus, sample_run):
+        """Test context build failure flow with error status."""
+        # Setup: Create a new run
+        run_new_message = Message(
+            run_id="run_123",
+            session_id="session_456",
+            role=Role.SYSTEM,
+            content=sample_run
+        )
+        await orchestrator_service.handle_new_run(run_new_message)
+        
+        # Reset mock for context response testing
+        mock_bus.publish.reset_mock()
+
+        # Arrange - CONTEXT_BUILD_RESPONSE event with error status
+        context_response = Message(
+            run_id="run_123",
+            session_id="session_456",
+            role=Role.SYSTEM,
+            content={
+                "status": "error",
+                "error": "Failed to build context: database unavailable",
+                "messages": [],
+                "tools": []
+            }
+        )
+
+        # Act: Handle context ready with error
+        await orchestrator_service.handle_context_ready(context_response)
+
+        # Assert: Should NOT publish UI_EVENTS for context build failures (current implementation)
+        ui_event_calls = [call for call in mock_bus.publish.call_args_list if call[0][0] == Topics.UI_EVENTS]
+        assert len(ui_event_calls) == 0, "UI_EVENTS should not be published for context build failures"
+
+        # Assert: Run should remain in active_runs but with failed status
+        assert "run_123" in orchestrator_service.active_runs, "Run should remain in active_runs after context build failure"
+        run = orchestrator_service.active_runs["run_123"]
+        assert run.status == "FAILED", "Run status should be set to FAILED after context build failure"
+
+    @pytest.mark.asyncio
+    async def test_tool_execution_failure_flow(self, orchestrator_service, mock_bus, sample_run):
+        """Test tool execution failure flow where LLM handles the failure."""
+        # Setup: Get through initial context building
+        run_new_message = Message(
+            run_id="run_123",
+            session_id="session_456",
+            role=Role.SYSTEM,
+            content=sample_run
+        )
+        await orchestrator_service.handle_new_run(run_new_message)
+        
+        context_response = Message(
+            run_id="run_123",
+            session_id="session_456",
+            role=Role.SYSTEM,
+            content={
+                "status": "success",
+                "messages": [
+                    {"role": "user", "content": "Calculate 2+2"}
+                ],
+                "tools": [{"name": "calculator"}]
+            }
+        )
+        await orchestrator_service.handle_context_ready(context_response)
+        
+        # Reset mock for LLM result testing
+        mock_bus.publish.reset_mock()
+
+        # Arrange - LLM_RESULTS event with tool call
+        llm_result = Message(
+            run_id="run_123",
+            session_id="session_456",
+            role=Role.AI,
+            content={
+                "content": "I'll calculate that for you",
+                "tool_calls": [
+                    {
+                        "id": "call_1",
+                        "function": {
+                            "name": "calculator",
+                            "arguments": "{\"expression\": \"2+2\"}"
+                        }
+                    }
+                ]
+            }
+        )
+
+        # Act: Handle LLM result with tool call
+        await orchestrator_service.handle_llm_result(llm_result)
+
+        # Reset mock for tool result testing
+        mock_bus.publish.reset_mock()
+
+        # Arrange - TOOLS_RESULTS event with error status
+        tool_result = Message(
+            run_id="run_123",
+            session_id="session_456",
+            role=Role.SYSTEM,
+            content={
+                "tool_name": "calculator",
+                "result": "Error: Division by zero",
+                "status": "error",
+                "call_id": "call_1"
+            }
+        )
+
+        # Act: Handle tool result with error
+        await orchestrator_service.handle_tool_result(tool_result)
+
+        # Assert: Should NOT mark the Run as failed
+        run = orchestrator_service.active_runs["run_123"]
+        assert run.status != "failed", "Run should not be marked as failed for tool execution error"
+
+        # Assert: Failure result should be appended to the history
+        tool_messages = [msg for msg in run.history if msg.role == Role.TOOL]
+        assert len(tool_messages) == 1, "Tool result should be appended to history"
+        tool_message = tool_messages[0]
+        assert tool_message.content == "Error: Division by zero"
+        assert tool_message.metadata["status"] == "error"
+
+        # Assert: Should publish LLM_REQUESTS to let LLM handle the tool failure
+        llm_request_calls = [call for call in mock_bus.publish.call_args_list if call[0][0] == Topics.LLM_REQUESTS]
+        assert len(llm_request_calls) == 1, "LLM request should be published to handle tool failure"
+        
+        llm_request = llm_request_calls[0][0][1]
+        assert llm_request.run_id == "run_123"
+        assert "messages" in llm_request.content
+
+        # Verify the tool error is included in the messages sent to LLM
+        messages = llm_request.content["messages"]
+        tool_result_messages = [msg for msg in messages if msg.get("role") == "tool"]
+        assert len(tool_result_messages) == 1
+        assert "Error: Division by zero" in tool_result_messages[0].get("content", "")
