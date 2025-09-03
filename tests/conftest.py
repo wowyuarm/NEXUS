@@ -31,22 +31,8 @@ def nexus_service() -> Generator[str, None, None]:
     Yields:
         WebSocket URL for connecting to the NEXUS service
     """
-    import nexus.services.config
-    
     # Generate unique temporary database name (shorter to respect MongoDB limits)
     temp_db_name = f"test_{uuid.uuid4().hex[:16]}"
-    
-    # Store original get method for restoration
-    original_get = nexus.services.config.ConfigService.get
-    
-    def patched_get(self, key: str, default=None):
-        """Patch ConfigService.get to use temporary database for tests."""
-        if key == "database.db_name":
-            return temp_db_name
-        return original_get(self, key, default)
-    
-    # Apply monkeypatch manually since we can't use fixture in session scope
-    nexus.services.config.ConfigService.get = patched_get
     
     # Ensure local connections are not routed via proxies which can cause 502/handshake issues
     # We also set NO_PROXY for localhost explicitly. Keep a copy to restore later.
@@ -71,6 +57,8 @@ def nexus_service() -> Generator[str, None, None]:
     env_vars = dict(os.environ)
     # Enable fake LLM path to ensure deterministic E2E without external providers
     env_vars["NEXUS_E2E_FAKE_LLM"] = "1"
+    # Ensure child process uses an isolated temporary DB
+    env_vars["NEXUS_TEST_DB_NAME"] = temp_db_name
 
     process = subprocess.Popen(
         ["python", "-m", "nexus.main"],
@@ -107,9 +95,6 @@ def nexus_service() -> Generator[str, None, None]:
     if stderr:
         print(f"NEXUS service stderr:\n{stderr.decode()}")
     
-    # Restore original get method
-    nexus.services.config.ConfigService.get = original_get
-
     # Restore environment variables (proxies and others)
     os.environ.clear()
     os.environ.update(original_environ)

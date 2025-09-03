@@ -48,6 +48,18 @@ class ConfigService:
             # Substitute environment variables in config
             self._substitute_env_vars()
             
+            # If running under tests with isolated DB, override database name
+            test_db_name = os.getenv("NEXUS_TEST_DB_NAME")
+            if test_db_name:
+                try:
+                    if "database" not in self._config or not isinstance(self._config.get("database"), dict):
+                        self._config["database"] = {}
+                    self._config["database"]["db_name"] = test_db_name
+                    logger.warning(f"Overriding database.db_name for testing: {test_db_name}")
+                except Exception as e:
+                    logger.error(f"Failed to override test database name: {e}")
+                    raise
+            
             self._initialized = True
             logger.info("ConfigService initialization completed")
             
