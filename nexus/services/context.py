@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 PROMPTS_SUBDIR = "prompts/xi"
 PERSONA_FILENAME = "persona.md"
 TOOLS_FILENAME = "tools.md"
+SYSTEM_FILENAME = "system.md"
 CONTENT_SEPARATOR = "\n\n---\n\n"
 FALLBACK_SYSTEM_PROMPT = "You are Xi, an AI assistant. Please respond helpfully and thoughtfully."
 
@@ -123,13 +124,19 @@ class ContextService:
 
             # Load prompt files
             persona_content = self._load_prompt_file(prompts_dir, PERSONA_FILENAME, FALLBACK_SYSTEM_PROMPT)
+            system_content = self._load_prompt_file(prompts_dir, SYSTEM_FILENAME, "")
             tools_content = self._load_prompt_file(prompts_dir, TOOLS_FILENAME, "")
 
             # Combine content with separator
+            parts = []
+            if persona_content:
+                parts.append(persona_content)
+            if system_content:
+                parts.append(system_content)
             if tools_content:
-                combined_content = f"{persona_content}{CONTENT_SEPARATOR}{tools_content}"
-            else:
-                combined_content = persona_content
+                parts.append(tools_content)
+
+            combined_content = CONTENT_SEPARATOR.join(parts) if parts else FALLBACK_SYSTEM_PROMPT
 
             logger.info("System prompt constructed successfully")
             return combined_content

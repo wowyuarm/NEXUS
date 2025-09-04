@@ -195,3 +195,71 @@
 最终的实现必须确保，运行`pytest`时，系统会自动连接到一个临时的、唯一的测试数据库，并在测试结束后将其彻底清除，对生产数据库的**影响为零**。
 
 **任务开始。**
+
+---
+---
+
+扩展核心服务的单元与集成测试覆盖，为`MongoProvider`, `GoogleLLMProvider`, `ContextService`编写新的测试文件，并为`OrchestratorService`的现有测试文件补充异常路径的测试用例。
+
+---
+
+#### **第一部分：任务目标 (Objective)**
+
+你的任务是创建三个新的测试文件并修改一个现有文件，以覆盖以下核心场景：
+1.  **数据库提供者**: 验证`MongoProvider`在连接和操作失败时的行为。
+2.  **LLM提供者**: 验证`GoogleLLMProvider`在API调用成功、失败以及数据格式化方面的正确性。
+3.  **上下文服务**: 验证`ContextService`能否正确地集成历史记录、Prompt和工具定义。
+4.  **编排器容错**: 验证`OrchestratorService`在面对下游服务失败时的容错能力。
+
+#### **第二部分：文件与核心指令 (Files & Core Instructions)**
+
+你将按顺序创建和修改以下文件：
+
+**1. 新文件: `tests/unit/services/database/test_mongo_provider.py`**
+*   **任务**: 为`MongoProvider`编写单元测试。
+*   **核心指令**:
+    *   使用`mocker`来模拟`pymongo.MongoClient`。
+    *   **测试用例**:
+        *   `test_connection_failure`: 模拟`MongoClient`在初始化时抛出`ConnectionFailure`，断言`MongoProvider.connect()`会捕获并重新抛出该异常。
+        *   `test_insert_message_operation_failure`: 模拟`messages_collection.insert_one`方法抛出`OperationFailure`，断言`provider.insert_message()`返回`False`并记录错误日志。
+        *   `test_get_messages_operation_failure`: 模拟`messages_collection.find`方法抛出`OperationFailure`，断言`provider.get_messages_by_session_id()`返回一个空列表。
+
+**2. 新文件: `tests/unit/services/llm/test_google_provider.py`**
+*   **任务**: 为`GoogleLLMProvider`编写单元测试。
+*   **核心指令**:
+    *   使用`mocker`来模拟`openai.AsyncOpenAI`客户端及其`chat.completions.create`异步方法。
+    *   **测试用例**:
+        *   `test_chat_completion_success`: 模拟`create`方法返回一个成功的、包含`content`和`tool_calls`的响应对象，断言`provider.chat_completion()`返回了正确格式化的字典。
+        *   `test_chat_completion_api_error`: 模拟`create`方法抛出一个API异常，断言`provider.chat_completion()`会将异常向上传播。
+        *   `test_initialization_with_no_api_key`: 测试在`api_key`为空字符串时，初始化`GoogleLLMProvider`会抛出`ValueError`。
+
+**3. 新文件: `tests/integration/services/test_context_service.py`**
+*   **任务**: 为`ContextService`编写集成测试。
+*   **核心指令**:
+    *   使用`mocker`来模拟`PersistenceService`, `ToolRegistry`, 和内置的`open`函数。
+    *   **测试用例**:
+        *   `test_build_request_with_history_and_tools`:
+            *   **Arrange**: 模拟`persistence_service.get_history`返回一个包含2条历史消息的列表。模拟`tool_registry.get_all_tool_definitions`返回一个包含1个工具的列表。模拟`open`函数返回假的`persona`和`tools`内容。
+            *   **Act**: 调用`context_service.handle_build_request()`。
+            *   **Assert**: 断言`context_service`发布的`CONTEXT_BUILD_RESPONSE`消息中，`messages`列表包含了`system` prompt、2条历史消息和当前用户输入，并且`tools`字段包含了那1个工具定义。
+
+**4. 文件修改: `tests/integration/services/test_orchestrator_service.py`**
+*   **任务**: 为`OrchestratorService`补充异常路径的测试用例。
+*   **核心指令**:
+    *   在`TestOrchestratorService`类中，**追加**以下新的测试用例：
+        *   **`test_context_build_failure_flow`**:
+            *   **Act**: 模拟`ContextService`发布一个`status="error"`的`CONTEXT_BUILD_RESPONSE`消息，并调用`orchestrator.handle_context_ready()`。
+            *   **Assert**: 断言`orchestrator`发布的`UI_EVENTS`中，包含一个`event`为`error`的消息，并且对应的`Run`在`active_runs`中被清理。
+        *   **`test_tool_execution_failure_flow`**:
+            *   **Act**: 模拟`ToolExecutorService`发布一个`status="error"`的`TOOLS_RESULTS`消息，并调用`orchestrator.handle_tool_result()`。
+            *   **Assert**: 断言`orchestrator`**没有**将`Run`设为失败，而是将这个失败的结果追加到了`history`中，并**继续发布`LLM_REQUESTS`**事件，让LLM来处理这个工具失败。
+
+---
+**交付要求：**
+你必须：
+1.  提供三个新测试文件 (`test_mongo_provider.py`, `test_google_provider.py`, `test_context_service.py`) 的完整代码。
+2.  提供`test_orchestrator_service.py`文件的**完整**代码，其中包含新增的两个测试用例。
+
+所有测试都必须遵循`pytest`的最佳实践，并使用`mocker`进行依赖隔离。
+
+**任务开始。**
