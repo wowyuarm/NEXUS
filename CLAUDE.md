@@ -169,3 +169,11 @@ cd aura && pnpm test
 - **WebSocket**: `nexus/interfaces/websocket.py` and `aura/src/services/websocket.ts`
 - **LLM integration**: `nexus/services/llm/service.py`
 - **Database**: `nexus/services/database/service.py`
+
+## 📝 Git Commit Guidelines
+
+### Commit Message Rules
+- **English only**: All commit messages must be written in English
+- **No Claude Code signature**: Do not include `🤖 Generated with [Claude Code](https://claude.ai/code)` or `Co-Authored-By: Claude <noreply@anthropic.com>` in commit messages
+- **Conventional commits**: Use the format `type: description` (e.g., `feat: add new feature`, `fix: resolve bug`)
+- **Be descriptive**: Include what changed and why in the commit message
