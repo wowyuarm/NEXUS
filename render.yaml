@@ -54,7 +54,7 @@ services:
     type: web
     env: docker
     repo: https://github.com/wowyuarm/NEXUS
-    dockerfilePath: ./aura/Dockerfile
+    dockerfilePath: ./Dockerfile
     rootDir: aura
     plan: free
     region: oregon  # Should match backend region
