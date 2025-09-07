@@ -177,3 +177,41 @@ cd aura && pnpm test
 - **No Claude Code signature**: Do not include `🤖 Generated with [Claude Code](https://claude.ai/code)` or `Co-Authored-By: Claude <noreply@anthropic.com>` in commit messages
 - **Conventional commits**: Use the format `type: description` (e.g., `feat: add new feature`, `fix: resolve bug`)
 - **Be descriptive**: Include what changed and why in the commit message
+
+## 🌐 Render MCP Server Usage
+
+### Getting Started
+1. **Workspace Selection**: The MCP server automatically selects the available workspace. Only one workspace is supported.
+2. **Service Management**: Use `mcp__render__list_services` to get all services and their IDs
+3. **Deployment Logs**: Use `mcp__render__list_logs` with `resource` parameter set to service ID array
+
+### Common MCP Commands
+```bash
+# List all services
+mcp__render__list_services includePreviews=false
+
+# Get service details  
+mcp__render__get_service serviceId=srv-xxxxx
+
+# List deployments for a service
+mcp__render__list_deploys serviceId=srv-xxxxx
+
+# Get specific deployment details
+mcp__render__get_deploy serviceId=srv-xxxxx deployId=dep-xxxxx
+
+# Get deployment logs (CRITICAL: resource must be array)
+mcp__render__list_logs resource=["srv-xxxxx"]
+```
+
+### Important Notes
+- **Resource Parameter**: Must be an array of service IDs, not a single string
+- **Workspace**: Only one workspace supported, auto-selected
+- **Service IDs**: Use the exact service ID from list_services output
+- **Log Filtering**: Can filter by level, type, time range using additional parameters
+- **Health Checks**: Render automatically uses Dockerfile HEALTHCHECK instructions, no need for manual healthCheck config in render.yaml
+
+### Troubleshooting Render Deployments
+1. **Docker Context Issues**: Ensure `dockerContext` is set correctly in render.yaml for subdirectories
+2. **Missing Files**: Check that package.json, Dockerfile, and other required files are in the correct context
+3. **Environment Variables**: Use `sync: false` for secrets that need to be set in Render dashboard
+4. **Build Failures**: Check logs for specific error messages and file path issues
