@@ -13,14 +13,6 @@ services:
     dockerfilePath: ./nexus/Dockerfile
     plan: free
     region: oregon  # Choose your preferred region
-    
-    # Health check configuration
-    healthCheck:
-      path: /api/v1/health
-      initialDelaySeconds: 60  # Allow time for dependencies to connect
-      intervalSeconds: 30
-      timeoutSeconds: 30
-      gracePeriodSeconds: 30
       
     # Environment variables
     envVars:
@@ -33,20 +25,21 @@ services:
         value: "1"
         
       # LLM Provider Keys - Set these in Render Dashboard > Environment > Secrets
+      # sync: false means these are secrets that need to be set in the dashboard
       - key: GEMINI_API_KEY
-        fromSecretFile: /etc/secrets/gemini_api_key
+        sync: false
       - key: OPENROUTER_API_KEY
-        fromSecretFile: /etc/secrets/openrouter_api_key
+        sync: false
       - key: DEEPSEEK_API_KEY
-        fromSecretFile: /etc/secrets/deepseek_api_key
+        sync: false
         
       # Database configuration
       - key: MONGO_URI
-        fromSecretFile: /etc/secrets/mongo_uri
+        sync: false
         
       # Search provider configuration
       - key: TAVILY_API_KEY
-        fromSecretFile: /etc/secrets/tavily_api_key
+        sync: false
         
       # Service configuration
       - key: NEXUS_ENV
@@ -64,14 +57,6 @@ services:
     dockerfilePath: ./aura/Dockerfile
     plan: free
     region: oregon  # Should match backend region
-    
-    # Health check configuration
-    healthCheck:
-      path: /health
-      initialDelaySeconds: 10
-      intervalSeconds: 30
-      timeoutSeconds: 30
-      gracePeriodSeconds: 10
       
     # Environment variables
     envVars:
@@ -96,12 +81,12 @@ services:
 # - ${aura-frontend.url} - Internal URL for frontend service
 
 # For production deployment, you need to:
-# 1. Create Secret Files in Render Dashboard for API keys:
-#    - /etc/secrets/gemini_api_key
-#    - /etc/secrets/openrouter_api_key  
-#    - /etc/secrets/deepseek_api_key
-#    - /etc/secrets/mongo_uri
-#    - /etc/secrets/tavily_api_key
+# 1. Set these environment variables in Render Dashboard > Environment > Secrets:
+#    - GEMINI_API_KEY
+#    - OPENROUTER_API_KEY  
+#    - DEEPSEEK_API_KEY
+#    - MONGO_URI
+#    - TAVILY_API_KEY
 #
 # 2. After first deployment of nexus-backend, copy its public URL and
 #    update VITE_WS_URL in aura-frontend environment variables
