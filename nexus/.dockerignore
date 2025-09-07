@@ -1,0 +1,75 @@
+# NEXUS Backend .dockerignore file
+
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitmodules
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Local configuration
+config.yml
+
+# Documentation
+/docs/
+
+# Temporary files
+.tmp/
+temp/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db

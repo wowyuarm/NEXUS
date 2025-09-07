@@ -1,0 +1,54 @@
+# /docker-compose.yml
+services:
+  #--------------------------------
+  # NEXUS Backend Service
+  #--------------------------------
+  nexus-backend:
+    build:
+      context: .  # Build context is the project root directory
+      dockerfile: nexus/Dockerfile
+    container_name: nexus_backend_prod
+    restart: unless-stopped
+    env_file:
+      - ./.env  # Load environment variables from the root .env file
+    ports:
+      - "8000:8000" # Maps host port 8000 to container port 8000
+    networks:
+      - nexus-net
+    healthcheck:
+      # Checks the health endpoint defined in websocket.py
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s # Give the container 30s to start before first health check
+
+  #--------------------------------
+  # AURA Frontend Service
+  #--------------------------------
+  aura-frontend:
+    build:
+      context: ./aura  # Build context is the 'aura' sub-directory
+      dockerfile: Dockerfile
+    container_name: aura_frontend_prod
+    restart: unless-stopped
+    ports:
+      - "5173:80" # Maps host port 5173 to container's Nginx port 80
+    networks:
+      - nexus-net
+    depends_on:
+      nexus-backend:
+        condition: service_healthy # Aura will only start after nexus-backend is healthy
+    environment:
+      # This is a build-time argument, but we define it here for clarity.
+      # The actual value used by Nginx is baked into the static files during build.
+      # For dynamic configuration, Nginx setup would need to be more complex.
+      # This approach is sufficient for our current needs.
+      - VITE_WS_URL=ws://nexus-backend:8000/api/v1/ws
+
+#--------------------------------
+# Shared Network
+#--------------------------------
+networks:
+  nexus-net:
+    driver: bridge
