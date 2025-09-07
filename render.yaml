@@ -9,7 +9,7 @@ services:
   - name: nexus-backend
     type: web
     env: docker
-    repo: https://github.com/your-username/NEXUS  # Render will auto-fill this
+    repo: https://github.com/wowyuarm/NEXUS
     dockerfilePath: ./nexus/Dockerfile
     plan: free
     region: oregon  # Choose your preferred region
@@ -53,7 +53,7 @@ services:
   - name: aura-frontend
     type: web
     env: docker
-    repo: https://github.com/your-username/NEXUS  # Render will auto-fill this
+    repo: https://github.com/wowyuarm/NEXUS
     dockerfilePath: ./aura/Dockerfile
     plan: free
     region: oregon  # Should match backend region
