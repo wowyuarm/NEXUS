@@ -61,17 +61,18 @@ services:
       
     # Environment variables
     envVars:
-      # WebSocket URL configuration
-      # IMPORTANT: After deploying nexus-backend, replace this value with:
-      # wss://nexus-backend-xxx.onrender.com/api/v1/ws
-      - key: VITE_WS_URL
-        value: "wss://your-backend-url.onrender.com/api/v1/ws"
-        
       # Build configuration
       - key: NODE_ENV
         value: "production"
       - key: VITE_APP_NAME
         value: "NEXUS AURA"
+    
+    # Reverse proxy configuration for API and WebSocket requests
+    rewrites:
+      - source: /api/:path*
+        destination: http://nexus-backend/api/:path*
+      - source: /ws/:path*
+        destination: http://nexus-backend/ws/:path*
         
 #--------------------------------
 # Render-specific Configuration
@@ -89,7 +90,10 @@ services:
 #    - MONGO_URI
 #    - TAVILY_API_KEY
 #
-# 2. After first deployment of nexus-backend, copy its public URL and
-#    update VITE_WS_URL in aura-frontend environment variables
+# 2. Run the configuration seeding script after deployment:
+#    python scripts/seed_config.py --env production
 #
 # 3. Ensure MongoDB Atlas allows connections from Render's IP ranges
+#
+# Note: The frontend now uses environment-aware WebSocket URLs and reverse proxy,
+# so no manual URL configuration is needed.

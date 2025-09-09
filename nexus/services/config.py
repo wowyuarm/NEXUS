@@ -1,64 +1,66 @@
 """
 Configuration service for NEXUS.
 
-This service manages all configuration loading from config.default.yml and .env files.
-It supports environment variable substitution and provides a unified interface for
-accessing configuration values throughout the system.
+This service manages all configuration loading from database with environment awareness.
+It provides a unified interface for accessing configuration values throughout the system
+with fallback to hardcoded defaults for resilience.
 """
 
 import os
-import re
 import logging
 from typing import Any, Dict
-import yaml
-from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
 
 class ConfigService:
     """
-    Unified configuration service for NEXUS.
+    Database-driven configuration service for NEXUS.
     
-    Loads configuration from config.default.yml and .env files,
-    supports environment variable substitution, and provides
-    dot-notation access to configuration values.
+    Loads configuration from database based on environment, with fallback to
+    hardcoded defaults for resilience. Provides dot-notation access to
+    configuration values.
     """
     
-    def __init__(self):
-        """Initialize the configuration service."""
+    def __init__(self, database_service=None):
+        """Initialize the configuration service.
+        
+        Args:
+            database_service: Optional DatabaseService instance for config loading
+        """
         self._config: Dict[str, Any] = {}
-        self._env_vars: Dict[str, str] = {}
+        self._environment: str = "development"
         self._initialized = False
+        self._database_service = database_service
         logger.info("ConfigService initialized")
     
-    def initialize(self) -> None:
+    async def initialize(self) -> None:
         """
-        Load and parse configuration from files.
+        Load and parse configuration from database.
         
         This method should be called once during application startup.
         """
         try:
-            # Load environment variables from .env file
-            self._load_env_vars()
+            # Determine current environment
+            self._environment = os.getenv("NEXUS_ENV", "development")
+            logger.info(f"Initializing ConfigService for environment: {self._environment}")
             
-            # Load YAML configuration
-            self._load_yaml_config()
-            
-            # Substitute environment variables in config
-            self._substitute_env_vars()
-            
-            # If running under tests with isolated DB, override database name
-            test_db_name = os.getenv("NEXUS_TEST_DB_NAME")
-            if test_db_name:
+            # Try to load configuration from database
+            if self._database_service:
                 try:
-                    if "database" not in self._config or not isinstance(self._config.get("database"), dict):
-                        self._config["database"] = {}
-                    self._config["database"]["db_name"] = test_db_name
-                    logger.warning(f"Overriding database.db_name for testing: {test_db_name}")
+                    db_config = await self._database_service.get_configuration_async(self._environment)
+                    if db_config:
+                        self._config = db_config
+                        logger.info(f"Configuration loaded from database for environment: {self._environment}")
+                    else:
+                        logger.warning(f"No configuration found in database for environment: {self._environment}")
+                        self._load_default_config()
                 except Exception as e:
-                    logger.error(f"Failed to override test database name: {e}")
-                    raise
+                    logger.error(f"Failed to load configuration from database: {e}")
+                    self._load_default_config()
+            else:
+                logger.warning("No database service provided, using default configuration")
+                self._load_default_config()
             
             self._initialized = True
             logger.info("ConfigService initialization completed")
@@ -67,79 +69,83 @@ class ConfigService:
             logger.error(f"Failed to initialize ConfigService: {e}")
             raise
     
-    def _load_env_vars(self) -> None:
-        """Load environment variables from .env file."""
-        # Get project root directory (parent of nexus directory)
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(os.path.dirname(current_dir))
-        env_path = os.path.join(project_root, ".env")
+    def _load_default_config(self) -> None:
+        """Load hardcoded default configuration for resilience."""
+        logger.warning("Loading default configuration for resilience")
         
-        if os.path.exists(env_path):
-            load_dotenv(env_path)
-            logger.info(f"Loaded environment variables from {env_path}")
+        if self._environment == "development":
+            self._config = {
+                "server": {
+                    "host": "127.0.0.1",
+                    "port": 8000
+                },
+                "database": {
+                    "mongo_uri": os.getenv("MONGO_URI", "mongodb://localhost:27017"),
+                    "db_name": "NEXUS_DB_DEV"
+                },
+                "llm": {
+                    "providers": {
+                        "google": {
+                            "model": "gemini-2.5-flash",
+                            "api_key": os.getenv("GEMINI_API_KEY", "")
+                        },
+                        "openrouter": {
+                            "model": "moonshotai/kimi-k2",
+                            "api_key": os.getenv("OPENROUTER_API_KEY", "")
+                        }
+                    }
+                },
+                "system": {
+                    "log_level": "INFO",
+                    "max_tokens": 4000,
+                    "temperature": 0.7
+                }
+            }
+        elif self._environment == "production":
+            self._config = {
+                "server": {
+                    "host": "0.0.0.0",
+                    "port": 8000
+                },
+                "database": {
+                    "mongo_uri": os.getenv("MONGO_URI", ""),
+                    "db_name": "NEXUS_DB_PROD"
+                },
+                "llm": {
+                    "providers": {
+                        "google": {
+                            "model": "gemini-2.5-flash",
+                            "api_key": os.getenv("GEMINI_API_KEY", "")
+                        },
+                        "openrouter": {
+                            "model": "moonshotai/kimi-k2",
+                            "api_key": os.getenv("OPENROUTER_API_KEY", "")
+                        }
+                    }
+                },
+                "system": {
+                    "log_level": "WARNING",
+                    "max_tokens": 4000,
+                    "temperature": 0.7
+                }
+            }
         else:
-            logger.warning(f"No .env file found at {env_path}")
+            # Fallback for unknown environments
+            self._config = {
+                "server": {
+                    "host": "127.0.0.1",
+                    "port": 8000
+                },
+                "database": {
+                    "mongo_uri": os.getenv("MONGO_URI", ""),
+                    "db_name": "NEXUS_DB"
+                },
+                "system": {
+                    "log_level": "INFO"
+                }
+            }
         
-        # Store all environment variables for substitution
-        self._env_vars = dict(os.environ)
-    
-    def _load_yaml_config(self) -> None:
-        """Load configuration from config.default.yml file."""
-        # Get project root directory
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(os.path.dirname(current_dir))
-        config_path = os.path.join(project_root, "config.default.yml")
-        
-        if not os.path.exists(config_path):
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-        
-        with open(config_path, "r", encoding="utf-8") as f:
-            self._config = yaml.safe_load(f) or {}
-        
-        logger.info(f"Loaded YAML configuration from {config_path}")
-    
-    def _substitute_env_vars(self) -> None:
-        """Recursively substitute environment variables in configuration."""
-        self._config = self._substitute_recursive(self._config)
-    
-    def _substitute_recursive(self, obj: Any) -> Any:
-        """
-        Recursively substitute environment variables in nested structures.
-        
-        Args:
-            obj: The object to process (dict, list, str, or other)
-            
-        Returns:
-            The object with environment variables substituted
-        """
-        if isinstance(obj, dict):
-            return {key: self._substitute_recursive(value) for key, value in obj.items()}
-        elif isinstance(obj, list):
-            return [self._substitute_recursive(item) for item in obj]
-        elif isinstance(obj, str):
-            return self._substitute_env_in_string(obj)
-        else:
-            return obj
-    
-    def _substitute_env_in_string(self, text: str) -> str:
-        """
-        Substitute environment variables in a string.
-        
-        Supports ${VAR_NAME} syntax.
-        
-        Args:
-            text: String that may contain environment variable references
-            
-        Returns:
-            String with environment variables substituted
-        """
-        def replace_var(match):
-            var_name = match.group(1)
-            return self._env_vars.get(var_name, match.group(0))
-        
-        # Pattern to match ${VAR_NAME}
-        pattern = r'\$\{([^}]+)\}'
-        return re.sub(pattern, replace_var, text)
+        logger.info(f"Default configuration loaded for environment: {self._environment}")
     
     def get(self, key: str, default: Any = None) -> Any:
         """
@@ -231,6 +237,15 @@ class ConfigService:
             raise RuntimeError("ConfigService not initialized. Call initialize() first.")
         return self._config.copy()
     
+    def get_environment(self) -> str:
+        """
+        Get the current environment.
+        
+        Returns:
+            Current environment name
+        """
+        return self._environment
+    
     def is_initialized(self) -> bool:
         """
         Check if the configuration service has been initialized.
@@ -239,3 +254,27 @@ class ConfigService:
             True if initialized, False otherwise
         """
         return self._initialized
+    
+    async def update_configuration(self, config_data: Dict[str, Any]) -> bool:
+        """
+        Update configuration in database for current environment.
+        
+        Args:
+            config_data: New configuration data to store
+            
+        Returns:
+            True if update was successful, False otherwise
+        """
+        if not self._database_service:
+            logger.error("No database service available for configuration update")
+            return False
+        
+        try:
+            success = await self._database_service.upsert_configuration_async(self._environment, config_data)
+            if success:
+                self._config = config_data
+                logger.info(f"Configuration updated successfully for environment: {self._environment}")
+            return success
+        except Exception as e:
+            logger.error(f"Failed to update configuration: {e}")
+            return False

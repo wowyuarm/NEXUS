@@ -41,6 +41,7 @@ class MongoProvider(DatabaseProvider):
         self.client: Optional[MongoClient] = None
         self.database: Optional[Database] = None
         self.messages_collection: Optional[Collection] = None
+        self.config_collection: Optional[Collection] = None
         logger.info(f"MongoProvider initialized for database: {db_name}")
 
     def connect(self) -> None:
@@ -56,12 +57,18 @@ class MongoProvider(DatabaseProvider):
 
             self.database = self.client[self.db_name]
             self.messages_collection = self.database.messages
+            self.config_collection = self.database.system_configurations
 
             # Create index on session_id and timestamp for efficient queries
             self.messages_collection.create_index([
                 ("session_id", 1),
                 ("timestamp", DESCENDING)
             ])
+
+            # Create unique index on environment for configuration collection
+            self.config_collection.create_index([
+                ("environment", 1)
+            ], unique=True)
 
             logger.info(f"Successfully connected to MongoDB: {self.db_name}")
 
@@ -79,6 +86,7 @@ class MongoProvider(DatabaseProvider):
             self.client = None
             self.database = None
             self.messages_collection = None
+            self.config_collection = None
             logger.info("MongoDB connection closed")
 
     def insert_message(self, message: Message) -> bool:
@@ -177,4 +185,70 @@ class MongoProvider(DatabaseProvider):
             return False
         except Exception as e:
             logger.error(f"MongoDB health check failed - unexpected error: {e}")
+            return False
+
+    def get_configuration(self, environment: str) -> Optional[Dict[str, Any]]:
+        """Get configuration for a specific environment.
+
+        Args:
+            environment: The environment name (e.g., 'development', 'production')
+
+        Returns:
+            Optional[Dict[str, Any]]: Configuration dictionary if found, None otherwise
+        """
+        if self.config_collection is None:
+            logger.error("MongoDB not connected. Cannot retrieve configuration.")
+            return None
+
+        try:
+            config_doc = self.config_collection.find_one({"environment": environment})
+            if config_doc:
+                # Remove MongoDB ObjectId and environment field from returned config
+                config_data = config_doc.get("config_data", {})
+                logger.info(f"Retrieved configuration for environment: {environment}")
+                return config_data
+            else:
+                logger.warning(f"No configuration found for environment: {environment}")
+                return None
+
+        except OperationFailure as e:
+            logger.error(f"MongoDB operation failed during configuration retrieval: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error during configuration retrieval: {e}")
+            return None
+
+    def upsert_configuration(self, environment: str, config_data: Dict[str, Any]) -> bool:
+        """Insert or update configuration for a specific environment.
+
+        Args:
+            environment: The environment name (e.g., 'development', 'production')
+            config_data: Configuration data to store
+
+        Returns:
+            bool: True if operation was successful, False otherwise
+        """
+        if self.config_collection is None:
+            logger.error("MongoDB not connected. Cannot upsert configuration.")
+            return False
+
+        try:
+            result = self.config_collection.update_one(
+                {"environment": environment},
+                {"$set": {"config_data": config_data}},
+                upsert=True
+            )
+
+            if result.upserted_id or result.modified_count > 0:
+                logger.info(f"Configuration upserted successfully for environment: {environment}")
+                return True
+            else:
+                logger.error(f"Failed to upsert configuration for environment: {environment}")
+                return False
+
+        except OperationFailure as e:
+            logger.error(f"MongoDB operation failed during configuration upsert: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error during configuration upsert: {e}")
             return False

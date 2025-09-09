@@ -122,6 +122,51 @@ class DatabaseService:
 
 
 
+    async def get_configuration_async(self, environment: str) -> Optional[Dict[str, Any]]:
+        """Asynchronously get configuration for a specific environment.
+
+        Args:
+            environment: The environment name (e.g., 'development', 'production')
+
+        Returns:
+            Optional[Dict[str, Any]]: Configuration dictionary if found, None otherwise
+        """
+        if not self.provider:
+            logger.error("Database provider not initialized")
+            return None
+
+        try:
+            # Use asyncio.to_thread to run the sync database operation
+            config = await asyncio.to_thread(self.provider.get_configuration, environment)
+            return config
+
+        except Exception as e:
+            logger.error(f"Error during async configuration retrieval: {e}")
+            return None
+
+    async def upsert_configuration_async(self, environment: str, config_data: Dict[str, Any]) -> bool:
+        """Asynchronously insert or update configuration for a specific environment.
+
+        Args:
+            environment: The environment name (e.g., 'development', 'production')
+            config_data: Configuration data to store
+
+        Returns:
+            bool: True if operation was successful, False otherwise
+        """
+        if not self.provider:
+            logger.error("Database provider not initialized")
+            return False
+
+        try:
+            # Use asyncio.to_thread to run the sync database operation
+            result = await asyncio.to_thread(self.provider.upsert_configuration, environment, config_data)
+            return result
+
+        except Exception as e:
+            logger.error(f"Error during async configuration upsert: {e}")
+            return False
+
     async def run_forever(self) -> None:
         """Run background tasks if any (idle for now)."""
         # No background loop needed for DatabaseService

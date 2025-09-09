@@ -82,3 +82,28 @@ class DatabaseProvider(ABC):
             bool: True if database is accessible and healthy, False otherwise
         """
         pass
+
+    @abstractmethod
+    def get_configuration(self, environment: str) -> Optional[Dict[str, Any]]:
+        """Get configuration for a specific environment.
+
+        Args:
+            environment: The environment name (e.g., 'development', 'production')
+
+        Returns:
+            Optional[Dict[str, Any]]: Configuration dictionary if found, None otherwise
+        """
+        pass
+
+    @abstractmethod
+    def upsert_configuration(self, environment: str, config_data: Dict[str, Any]) -> bool:
+        """Insert or update configuration for a specific environment.
+
+        Args:
+            environment: The environment name (e.g., 'development', 'production')
+            config_data: Configuration data to store
+
+        Returns:
+            bool: True if operation was successful, False otherwise
+        """
+        pass

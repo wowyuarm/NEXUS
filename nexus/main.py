@@ -34,27 +34,34 @@ async def main() -> None:
     _setup_logging()
     logger = logging.getLogger("nexus.main")
 
-    # 1) Initialize configuration service first
-    config_service = ConfigService()
-    config_service.initialize()
-    logger.info("ConfigService initialized")
-
-    # 2) Instantiate the bus
+    # 1) Instantiate the bus first
     bus = NexusBus()
     logger.info("NexusBus instantiated")
 
-    # 3) Initialize and configure tool registry
+    # 2) Initialize core infrastructure services in dependency order
+    # Create a temporary config service for database initialization
+    temp_config = ConfigService()
+    await temp_config.initialize()
+    logger.info("Temporary ConfigService initialized")
+
+    # 3) Initialize database service with temporary config
+    database_service = DatabaseService(bus, temp_config)
+    logger.info("DatabaseService initialized")
+
+    # 4) Initialize main config service with database service
+    config_service = ConfigService(database_service)
+    await config_service.initialize()
+    logger.info("Main ConfigService initialized with database")
+
+    # 5) Initialize and configure tool registry
     tool_registry = ToolRegistry()
 
     # Auto-discover and register all tools
     tool_registry.discover_and_register('nexus.tools.definition')
     logger.info("Tools auto-discovery and registration completed")
 
-    # 4) Instantiate services and interfaces with proper dependency injection
+    # 6) Instantiate services and interfaces with proper dependency injection
     # Order matters: dependencies must be created before dependents
-
-    # Core infrastructure services first
-    database_service = DatabaseService(bus, config_service)
 
     # Persistence service depends on database service
     persistence_service = PersistenceService(database_service)
@@ -80,26 +87,26 @@ async def main() -> None:
         websocket_interface,
     ]
 
-    # 5) Wire subscriptions
+    # 7) Wire subscriptions
     for svc in services:
         subscribe = getattr(svc, "subscribe_to_bus", None)
         if callable(subscribe):
             subscribe()
             logger.info("%s subscribed to bus", svc.__class__.__name__)
 
-    # 6) Get server configuration from config service
+    # 8) Get server configuration from config service
     server_host = config_service.get("server.host", "127.0.0.1")
     server_port = config_service.get_int("server.port", 8000)
 
-    # 7) Get FastAPI app from WebSocket interface
+    # 9) Get FastAPI app from WebSocket interface
     app = await websocket_interface.run_forever(host=server_host, port=server_port)
 
-    # 8) Long-running tasks (bus listeners)
+    # 10) Long-running tasks (bus listeners)
     bus_task = asyncio.create_task(bus.run_forever(), name="nexusbus.run_forever")
 
     logger.info(f"NEXUS engine configured with FastAPI app at {server_host}:{server_port}")
 
-    # 9) Import uvicorn and run the FastAPI app
+    # 11) Import uvicorn and run the FastAPI app
     import uvicorn
 
     # Create a task for the uvicorn server

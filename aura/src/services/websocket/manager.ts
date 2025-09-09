@@ -84,13 +84,22 @@ export class WebSocketManager {
   private reconnectTimer: number | null = null;
 
   constructor(config: WebSocketManagerConfig = {}) {
-    this.baseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/api/v1/ws';
+    this.baseUrl = this._getBaseUrl();
     this.sessionId = this._getSessionId();
     this.config = {
       heartbeatInterval: config.heartbeatInterval ?? 30000, // 30 seconds
       reconnectInterval: config.reconnectInterval ?? 5000,   // 5 seconds
       maxReconnectAttempts: config.maxReconnectAttempts ?? 10
     };
+  }
+
+  // ===== Private URL Management =====
+
+  private _getBaseUrl(): string {
+    // Generate WebSocket URL based on current environment
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    return `${protocol}//${host}/api/v1/ws`;
   }
 
   // ===== Private Session Management =====
