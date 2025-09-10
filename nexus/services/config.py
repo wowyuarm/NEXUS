@@ -1,7 +1,7 @@
 """
 Configuration service for NEXUS.
 
-This service manages all configuration loading from database with environment awareness.
+This service manages all configuration loading from YAML files, database with environment awareness.
 It provides a unified interface for accessing configuration values throughout the system
 with fallback to hardcoded defaults for resilience.
 """
@@ -9,6 +9,7 @@ with fallback to hardcoded defaults for resilience.
 import os
 import logging
 from typing import Any, Dict
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +23,11 @@ class ConfigService:
     configuration values.
     """
     
-    def __init__(self, database_service=None):
+    def __init__(self, database_service):
         """Initialize the configuration service.
         
         Args:
-            database_service: Optional DatabaseService instance for config loading
+            database_service: DatabaseService instance for config loading
         """
         self._config: Dict[str, Any] = {}
         self._environment: str = "development"
@@ -36,31 +37,30 @@ class ConfigService:
     
     async def initialize(self) -> None:
         """
-        Load and parse configuration from database.
+        Load and parse configuration from database with fallback to hardcoded defaults.
         
         This method should be called once during application startup.
         """
         try:
-            # Determine current environment
+            # Load .env file to get environment
+            load_dotenv()
             self._environment = os.getenv("NEXUS_ENV", "development")
             logger.info(f"Initializing ConfigService for environment: {self._environment}")
             
-            # Try to load configuration from database
-            if self._database_service:
-                try:
-                    db_config = await self._database_service.get_configuration_async(self._environment)
-                    if db_config:
-                        self._config = db_config
-                        logger.info(f"Configuration loaded from database for environment: {self._environment}")
-                    else:
-                        logger.warning(f"No configuration found in database for environment: {self._environment}")
-                        self._load_default_config()
-                except Exception as e:
-                    logger.error(f"Failed to load configuration from database: {e}")
-                    self._load_default_config()
-            else:
-                logger.warning("No database service provided, using default configuration")
-                self._load_default_config()
+            # Try to load configuration from database first
+            try:
+                db_config = await self._database_service.get_configuration_async(self._environment)
+                if db_config:
+                    self._config = db_config
+                    logger.info(f"Configuration loaded from database for environment: {self._environment}")
+                else:
+                    logger.warning(f"No configuration found in database for environment: {self._environment}")
+                    self._load_minimal_default_config()
+                    logger.info("Using minimal default configuration")
+            except Exception as e:
+                logger.error(f"Failed to load configuration from database: {e}")
+                self._load_minimal_default_config()
+                logger.info("Using minimal default configuration as fallback")
             
             self._initialized = True
             logger.info("ConfigService initialization completed")
@@ -69,84 +69,55 @@ class ConfigService:
             logger.error(f"Failed to initialize ConfigService: {e}")
             raise
     
-    def _load_default_config(self) -> None:
-        """Load hardcoded default configuration for resilience."""
-        logger.warning("Loading default configuration for resilience")
+    def _load_minimal_default_config(self) -> None:
+        """Load minimal hardcoded default configuration as fallback."""
+        logger.warning("Loading minimal default configuration as fallback")
         
-        if self._environment == "development":
-            self._config = {
-                "server": {
-                    "host": "127.0.0.1",
-                    "port": 8000
-                },
-                "database": {
-                    "mongo_uri": os.getenv("MONGO_URI", "mongodb://localhost:27017"),
-                    "db_name": "NEXUS_DB_DEV"
-                },
-                "llm": {
-                    "providers": {
-                        "google": {
-                            "model": "gemini-2.5-flash",
-                            "api_key": os.getenv("GEMINI_API_KEY", "")
-                        },
-                        "openrouter": {
-                            "model": "moonshotai/kimi-k2",
-                            "api_key": os.getenv("OPENROUTER_API_KEY", "")
-                        }
-                    }
-                },
-                "system": {
-                    "log_level": "INFO",
-                    "max_tokens": 4000,
-                    "temperature": 0.7
-                }
-            }
-        elif self._environment == "production":
-            self._config = {
-                "server": {
-                    "host": "0.0.0.0",
-                    "port": 8000
-                },
-                "database": {
-                    "mongo_uri": os.getenv("MONGO_URI", ""),
-                    "db_name": "NEXUS_DB_PROD"
-                },
-                "llm": {
-                    "providers": {
-                        "google": {
-                            "model": "gemini-2.5-flash",
-                            "api_key": os.getenv("GEMINI_API_KEY", "")
-                        },
-                        "openrouter": {
-                            "model": "moonshotai/kimi-k2",
-                            "api_key": os.getenv("OPENROUTER_API_KEY", "")
-                        }
-                    }
-                },
-                "system": {
-                    "log_level": "WARNING",
-                    "max_tokens": 4000,
-                    "temperature": 0.7
-                }
-            }
-        else:
-            # Fallback for unknown environments
-            self._config = {
-                "server": {
-                    "host": "127.0.0.1",
-                    "port": 8000
-                },
-                "database": {
-                    "mongo_uri": os.getenv("MONGO_URI", ""),
-                    "db_name": "NEXUS_DB"
-                },
-                "system": {
-                    "log_level": "INFO"
-                }
-            }
+        # Load environment variables for API keys
+        load_dotenv()
         
-        logger.info(f"Default configuration loaded for environment: {self._environment}")
-    
+        # Minimal hardcoded configuration for resilience with environment variable support
+        self._config = {
+            "server": {
+                "host": "127.0.0.1",
+                "port": 8000
+            },
+            "database": {
+                "mongo_uri": "mongodb://localhost:27017",
+                "db_name": "NEXUS_DB_DEV"
+            },
+            "llm": {
+                "provider": "google",
+                "temperature": 0.7,
+                "max_tokens": 4000,
+                "timeout": 30,
+                "providers": {
+                    "google": {
+                        "model": "gemini-2.5-flash",
+                        "api_key": os.getenv("GEMINI_API_KEY", ""),
+                        "base_url": "https://generativelanguage.googleapis.com/v1beta"
+                    },
+                    "openrouter": {
+                        "model": "moonshotai/kimi-k2",
+                        "api_key": os.getenv("OPENROUTER_API_KEY", ""),
+                        "base_url": "https://openrouter.ai/api/v1"
+                    },
+                    "deepseek": {
+                        "model": "deepseek-chat",
+                        "api_key": os.getenv("DEEPSEEK_API_KEY", ""),
+                        "base_url": "https://api.deepseek.com/v1"
+                    }
+                }
+            },
+            "system": {
+                "log_level": "INFO",
+                "max_tool_iterations": 5
+            },
+            "memory": {
+                "history_context_size": 20
+            }
+        }
+            
     def get(self, key: str, default: Any = None) -> Any:
         """
         Get a configuration value using dot notation.
@@ -244,6 +215,8 @@ class ConfigService:
         Returns:
             Current environment name
         """
+        if not self._initialized:
+            raise RuntimeError("ConfigService not initialized. Call initialize() first.")
         return self._environment
     
     def is_initialized(self) -> bool:

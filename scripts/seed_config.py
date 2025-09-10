@@ -82,7 +82,7 @@ def get_mongo_connection() -> MongoClient:
 
 def seed_environment_config(client: MongoClient, environment: str, config_data: dict) -> bool:
     """Seed configuration for a specific environment."""
-    db_name = os.getenv("MONGO_DB_NAME", f"NEXUS_DB_{environment.upper()}")
+    db_name = os.getenv("MONGO_DB_NAME", "NEXUS_DB")
     database = client[db_name]
     config_collection = database.system_configurations
     
@@ -120,6 +120,8 @@ def main():
                        default='all', help='Target environment(s) to seed')
     parser.add_argument('--file', default='config.example.yml',
                        help='YAML configuration file to use')
+    parser.add_argument('--no-substitute', action='store_true',
+                       help='Keep environment variable placeholders instead of substituting them')
     
     args = parser.parse_args()
     
@@ -134,7 +136,13 @@ def main():
     
     # Load and process configuration
     config_data = load_config_file(args.file)
-    config_data = substitute_env_vars(config_data)
+    
+    # Only substitute environment variables if not explicitly disabled
+    if not args.no_substitute:
+        config_data = substitute_env_vars(config_data)
+        print("✓ Environment variables substituted")
+    else:
+        print("✓ Environment variable placeholders preserved")
     
     # Connect to MongoDB
     client = get_mongo_connection()

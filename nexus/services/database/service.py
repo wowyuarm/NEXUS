@@ -15,7 +15,6 @@ from typing import List, Dict, Any, Optional
 
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message
-from nexus.services.config import ConfigService
 from .providers.mongo import MongoProvider
 
 logger = logging.getLogger(__name__)
@@ -29,41 +28,79 @@ class DatabaseService:
     integrated with the NEXUS event-driven architecture.
     """
 
-    def __init__(self, bus: NexusBus, config_service: ConfigService):
+    def __init__(self, bus: NexusBus, mongo_uri: str, db_name: str):
         """Initialize DatabaseService with configuration.
 
         Args:
             bus: The NexusBus instance for event communication
-            config_service: Configuration service for database settings
+            mongo_uri: MongoDB connection URI
+            db_name: Database name
         """
         self.bus = bus
-        self.config_service = config_service
+        self.mongo_uri = mongo_uri
+        self.db_name = db_name
         self.provider: Optional[MongoProvider] = None
+        self._connected = False
 
-        # Initialize database provider based on configuration
+        # Initialize database provider
         self._initialize_provider()
-        logger.info("DatabaseService initialized")
+        logger.info("DatabaseService initialized (connection not established)")
 
     def _initialize_provider(self) -> None:
-        """Initialize the database provider based on configuration."""
+        """Initialize the database provider."""
         try:
-            # Get database configuration using ConfigService dot notation
-            mongo_uri = self.config_service.get("database.mongo_uri")
-            db_name = self.config_service.get("database.db_name", "NEXUS_DB")
+            if not self.mongo_uri:
+                raise ValueError("MongoDB URI not provided. Please set MONGO_URI in .env file.")
 
-            if not mongo_uri:
-                raise ValueError("MongoDB URI not found in configuration. Please set MONGO_URI in .env file.")
+            # Create MongoDB provider (but don't connect yet)
+            self.provider = MongoProvider(self.mongo_uri, self.db_name)
 
-            # Create and connect MongoDB provider
-            self.provider = MongoProvider(mongo_uri, db_name)
-            self.provider.connect()
-
-            logger.info(f"Database provider initialized: MongoDB ({db_name})")
+            logger.info(f"Database provider initialized: MongoDB ({self.db_name})")
 
         except Exception as e:
             logger.error(f"Failed to initialize database provider: {e}")
             raise
 
+    def connect(self) -> bool:
+        """
+        Establish connection to the database.
+        
+        Returns:
+            True if connection was successful, False otherwise
+        """
+        if not self.provider:
+            logger.error("Database provider not initialized")
+            return False
+        
+        try:
+            self.provider.connect()
+            self._connected = True
+            logger.info("Database connection established successfully")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to connect to database: {e}")
+            self._connected = False
+            return False
+    
+    def is_connected(self) -> bool:
+        """
+        Check if database connection is established.
+        
+        Returns:
+            True if connected, False otherwise
+        """
+        return self._connected and self.provider is not None
+    
+    def disconnect(self) -> None:
+        """Close database connection."""
+        if self.provider:
+            try:
+                self.provider.disconnect()
+                self._connected = False
+                logger.info("Database connection closed")
+            except Exception as e:
+                logger.error(f"Error during database disconnect: {e}")
+    
     def subscribe_to_bus(self) -> None:
         """Subscribe to bus topics (no direct subscriptions for now)."""
         # DatabaseService doesn't directly subscribe to topics
@@ -79,8 +116,8 @@ class DatabaseService:
         Returns:
             bool: True if insertion was successful, False otherwise
         """
-        if not self.provider:
-            logger.error("Database provider not initialized")
+        if not self.is_connected():
+            logger.error("Database not connected. Cannot insert message.")
             return False
 
         try:
@@ -103,8 +140,8 @@ class DatabaseService:
             List[Dict[str, Any]]: List of message dictionaries, sorted by timestamp
                                  in descending order (newest first)
         """
-        if not self.provider:
-            logger.error("Database provider not initialized")
+        if not self.is_connected():
+            logger.error("Database not connected. Cannot retrieve history.")
             return []
 
         try:
@@ -131,8 +168,8 @@ class DatabaseService:
         Returns:
             Optional[Dict[str, Any]]: Configuration dictionary if found, None otherwise
         """
-        if not self.provider:
-            logger.error("Database provider not initialized")
+        if not self.is_connected():
+            logger.error("Database not connected. Cannot retrieve configuration.")
             return None
 
         try:
@@ -154,8 +191,8 @@ class DatabaseService:
         Returns:
             bool: True if operation was successful, False otherwise
         """
-        if not self.provider:
-            logger.error("Database provider not initialized")
+        if not self.is_connected():
+            logger.error("Database not connected. Cannot upsert configuration.")
             return False
 
         try:

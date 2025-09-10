@@ -7,12 +7,14 @@ long-lived tasks concurrently.
 
 import asyncio
 import logging
+import os
 from typing import List
 
 from nexus.core.bus import NexusBus
 from nexus.interfaces.websocket import WebsocketInterface
 from nexus.services.config import ConfigService
 from nexus.services.database.service import DatabaseService
+from dotenv import load_dotenv
 from nexus.services.llm.service import LLMService
 from nexus.services.tool_executor import ToolExecutorService
 from nexus.services.context import ContextService
@@ -38,20 +40,35 @@ async def main() -> None:
     bus = NexusBus()
     logger.info("NexusBus instantiated")
 
-    # 2) Initialize core infrastructure services in dependency order
-    # Create a temporary config service for database initialization
-    temp_config = ConfigService()
-    await temp_config.initialize()
-    logger.info("Temporary ConfigService initialized")
+    # 2) Load environment variables from .env file
+    load_dotenv()
+    logger.info("Environment variables loaded from .env file")
 
-    # 3) Initialize database service with temporary config
-    database_service = DatabaseService(bus, temp_config)
-    logger.info("DatabaseService initialized")
+    # 3) Get database configuration from environment
+    mongo_uri = os.getenv("MONGO_URI")
+    db_name = os.getenv("MONGO_DB_NAME", "NEXUS_DB_DEV")
+    
+    if not mongo_uri:
+        logger.error("MONGO_URI not found in environment variables. Please check your .env file.")
+        return
+    
+    logger.info(f"Database configuration loaded - URI: {mongo_uri[:20]}..., DB: {db_name}")
 
-    # 4) Initialize main config service with database service
+    # 4) Initialize and connect to database
+    logger.info("Initializing database service...")
+    database_service = DatabaseService(bus, mongo_uri, db_name)
+    
+    logger.info("Connecting to database...")
+    if not database_service.connect():
+        logger.error("Failed to connect to database. Please check your MongoDB instance and MONGO_URI configuration.")
+        return
+    logger.info("Database connection established successfully")
+
+    # 5) Initialize config service with database service
+    logger.info("Initializing configuration service...")
     config_service = ConfigService(database_service)
     await config_service.initialize()
-    logger.info("Main ConfigService initialized with database")
+    logger.info("Configuration service initialized successfully")
 
     # 5) Initialize and configure tool registry
     tool_registry = ToolRegistry()

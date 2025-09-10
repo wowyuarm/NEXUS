@@ -1,249 +1,183 @@
 """Unit tests for ConfigService."""
 
-import os
 import pytest
-from unittest.mock import patch, mock_open
+from unittest.mock import AsyncMock, MagicMock, patch
 from nexus.services.config import ConfigService
+from nexus.services.database.service import DatabaseService
 
 
 class TestConfigService:
     """Test suite for ConfigService functionality."""
 
     @pytest.fixture
-    def config_service(self):
-        """Fixture providing a fresh ConfigService instance for each test."""
-        return ConfigService()
+    def mock_database_service(self):
+        """Fixture providing a mock DatabaseService."""
+        mock_db = MagicMock(spec=DatabaseService)
+        mock_db.get_configuration_async = AsyncMock()
+        mock_db.upsert_configuration_async = AsyncMock()
+        return mock_db
 
     @pytest.fixture
-    def mock_env_file(self, tmp_path):
-        """Fixture creating a temporary .env file for testing."""
-        env_file = tmp_path / ".env"
-        env_file.write_text("""
-GEMINI_API_KEY=test_gemini_api_key_123
-OPENROUTER_API_KEY=test_openrouter_key_456
-MONGO_URI=mongodb://localhost:27017/test
-""")
-        return str(env_file)
+    def config_service(self, mock_database_service):
+        """Fixture providing a ConfigService with mocked database."""
+        return ConfigService(mock_database_service)
 
     @pytest.fixture
-    def mock_config_file(self, tmp_path):
-        """Fixture creating a temporary config.default.yml file for testing."""
-        config_file = tmp_path / "config.default.yml"
-        config_file.write_text("""
-system:
-  log_level: INFO
-  port: 8000
-  debug: false
-
-llm:
-  providers:
-    google:
-      model: gemini-pro
-      api_key: ${GEMINI_API_KEY}
-      temperature: 0.7
-    openrouter:
-      model: google/gemini-pro
-      api_key: ${OPENROUTER_API_KEY}
-
-database:
-  mongo_uri: ${MONGO_URI}
-  db_name: nexus_test
-""")
-        return str(config_file)
-
-    def test_initialize_success(self, config_service):
-        """Test successful initialization with valid config files."""
-        # Instead of complex path mocking, test the individual methods directly
-        # since the path resolution logic is complex to mock correctly
-        
-        # Mock the individual load methods
-        with patch.object(config_service, '_load_env_vars') as mock_load_env, \
-             patch.object(config_service, '_load_yaml_config') as mock_load_yaml, \
-             patch.object(config_service, '_substitute_env_vars') as mock_substitute:
-            
-            config_service.initialize()
-            
-            # Verify all methods were called
-            mock_load_env.assert_called_once()
-            mock_load_yaml.assert_called_once()
-            mock_substitute.assert_called_once()
-            assert config_service.is_initialized() is True
-
-    def test_initialize_file_not_found(self, config_service):
-        """Test initialization fails when config file is not found."""
-        # Mock _load_yaml_config to raise FileNotFoundError
-        with patch.object(config_service, '_load_yaml_config') as mock_load_yaml:
-            mock_load_yaml.side_effect = FileNotFoundError("Config file not found")
-            
-            # Should raise FileNotFoundError
-            with pytest.raises(FileNotFoundError):
-                config_service.initialize()
-
-    def test_get_simple_value(self, config_service):
-        """Test getting a simple configuration value."""
-        # Setup mock config
-        config_service._config = {
-            'system': {
-                'log_level': 'INFO',
-                'port': 8000
-            }
-        }
-        config_service._initialized = True
-        
-        # Test simple value access
-        assert config_service.get('system.log_level') == 'INFO'
-        assert config_service.get('system.port') == 8000
-
-    def test_get_nested_value(self, config_service):
-        """Test getting a nested configuration value."""
-        # Setup mock config
-        config_service._config = {
-            'llm': {
-                'providers': {
-                    'google': {
-                        'model': 'gemini-pro',
-                        'temperature': 0.7
+    def sample_config(self):
+        """Sample configuration data for testing."""
+        return {
+            "server": {
+                "host": "127.0.0.1",
+                "port": 8000
+            },
+            "database": {
+                "mongo_uri": "mongodb://localhost:27017",
+                "db_name": "NEXUS_DB_TEST"
+            },
+            "llm": {
+                "providers": {
+                    "google": {
+                        "model": "gemini-pro",
+                        "api_key": "test_key"
                     }
                 }
+            },
+            "system": {
+                "log_level": "INFO",
+                "max_tokens": 4000,
+                "debug_mode": True
             }
         }
-        config_service._initialized = True
-        
-        # Test nested value access
-        assert config_service.get('llm.providers.google.model') == 'gemini-pro'
-        assert config_service.get('llm.providers.google.temperature') == 0.7
 
-    def test_get_with_default_value(self, config_service):
-        """Test getting a value with default fallback."""
-        config_service._config = {'existing_key': 'value'}
-        config_service._initialized = True
+    @pytest.mark.asyncio
+    async def test_initialize_with_database_success(self, config_service, mock_database_service, sample_config):
+        """Test successful initialization with database configuration."""
+        # Setup mock to return sample config
+        mock_database_service.get_configuration_async.return_value = sample_config
         
-        # Test existing key
-        assert config_service.get('existing_key') == 'value'
+        # Test initialization
+        await config_service.initialize()
         
-        # Test non-existent key with default
-        assert config_service.get('non.existent.key', 'default_value') == 'default_value'
-        assert config_service.get('another.missing.key', 42) == 42
+        # Verify database was called with correct environment
+        mock_database_service.get_configuration_async.assert_called_once_with("development")
+        
+        # Verify service is initialized
+        assert config_service.is_initialized() is True
+        assert config_service.get_environment() == "development"
+        
+        # Verify configuration was loaded
+        assert config_service.get("server.host") == "127.0.0.1"
+        assert config_service.get("server.port") == 8000
+        assert config_service.get("llm.providers.google.model") == "gemini-pro"
 
-    def test_substitute_env_vars(self, config_service):
-        """Test environment variable substitution in configuration."""
-        # Setup environment variables
-        config_service._env_vars = {
-            'GEMINI_API_KEY': 'actual_gemini_key_123',
-            'OPENROUTER_API_KEY': 'actual_openrouter_key_456'
-        }
-        
-        # Setup config with env var references
-        config_service._config = {
-            'llm': {
-                'providers': {
-                    'google': {
-                        'api_key': '${GEMINI_API_KEY}',
-                        'model': 'gemini-pro'
-                    },
-                    'openrouter': {
-                        'api_key': '${OPENROUTER_API_KEY}',
-                        'model': 'google/gemini-pro'
-                    }
-                }
-            }
-        }
-        
-        # Perform substitution
-        config_service._substitute_env_vars()
-        
-        # Verify substitution worked
-        assert config_service._config['llm']['providers']['google']['api_key'] == 'actual_gemini_key_123'
-        assert config_service._config['llm']['providers']['openrouter']['api_key'] == 'actual_openrouter_key_456'
-        # Non-env var values should remain unchanged
-        assert config_service._config['llm']['providers']['google']['model'] == 'gemini-pro'
+    @pytest.mark.asyncio
+    async def test_initialize_with_production_environment(self, config_service, mock_database_service, sample_config):
+        """Test initialization with production environment."""
+        # Set production environment
+        with patch.dict('os.environ', {"NEXUS_ENV": "production"}):
+            mock_database_service.get_configuration_async.return_value = sample_config
+            
+            await config_service.initialize()
+            
+            # Verify production environment was used
+            mock_database_service.get_configuration_async.assert_called_once_with("production")
+            assert config_service.get_environment() == "production"
 
-    def test_substitute_env_vars_missing(self, config_service):
-        """Test env var substitution when variable is missing."""
-        config_service._env_vars = {}  # No env vars set
+    @pytest.mark.asyncio
+    async def test_initialize_database_returns_none(self, config_service, mock_database_service):
+        """Test initialization when database returns None (no config found)."""
+        # Setup mock to return None
+        mock_database_service.get_configuration_async.return_value = None
         
-        config_service._config = {
-            'llm': {
-                'providers': {
-                    'google': {
-                        'api_key': '${MISSING_VAR}'
-                    }
-                }
-            }
-        }
+        await config_service.initialize()
         
-        # Should leave the placeholder unchanged
-        config_service._substitute_env_vars()
-        assert config_service._config['llm']['providers']['google']['api_key'] == '${MISSING_VAR}'
+        # Verify default config was loaded
+        assert config_service.is_initialized() is True
+        assert config_service.get_environment() == "development"
+        
+        # Verify default values are present
+        assert config_service.get("server.host") == "127.0.0.1"
+        assert config_service.get("server.port") == 8000
 
-    def test_get_before_initialization(self, config_service):
-        """Test that get() raises error before initialization."""
+    @pytest.mark.asyncio
+    async def test_initialize_database_error(self, config_service, mock_database_service):
+        """Test initialization when database access fails."""
+        # Setup mock to raise exception
+        mock_database_service.get_configuration_async.side_effect = Exception("Database connection failed")
+        
+        await config_service.initialize()
+        
+        # Verify default config was loaded as fallback
+        assert config_service.is_initialized() is True
+        assert config_service.get_environment() == "development"
+        
+        # Verify default values are present
+        assert config_service.get("server.host") == "127.0.0.1"
+
+    @pytest.mark.asyncio
+    async def test_initialize_without_database_service(self):
+        """Test initialization without database service (fallback only)."""
+        config_service = ConfigService(database_service=None)
+        
+        await config_service.initialize()
+        
+        # Verify default config was loaded
+        assert config_service.is_initialized() is True
+        assert config_service.get_environment() == "development"
+        
+        # Verify default values are present
+        assert config_service.get("server.host") == "127.0.0.1"
+
+    @pytest.mark.asyncio
+    async def test_get_methods_after_initialization(self, config_service, mock_database_service, sample_config):
+        """Test all get methods work correctly after initialization."""
+        mock_database_service.get_configuration_async.return_value = sample_config
+        
+        await config_service.initialize()
+        
+        # Test basic get
+        assert config_service.get("server.host") == "127.0.0.1"
+        assert config_service.get("nonexistent.key", "default") == "default"
+        
+        # Test get_bool
+        assert config_service.get_bool("system.debug_mode") is True
+        
+        # Test get_int
+        assert config_service.get_int("server.port") == 8000
+        
+        # Test get_float
+        assert config_service.get_float("server.port") == 8000.0
+        
+        # Test get_all
+        all_config = config_service.get_all()
+        assert isinstance(all_config, dict)
+        assert "server" in all_config
+
+    @pytest.mark.asyncio
+    async def test_get_before_initialization(self, config_service):
+        """Test that get methods raise error before initialization."""
         with pytest.raises(RuntimeError, match="ConfigService not initialized"):
-            config_service.get('some.key')
-
-    def test_get_all(self, config_service):
-        """Test getting the entire configuration dictionary."""
-        test_config = {
-            'system': {'log_level': 'INFO'},
-            'llm': {'providers': {'google': {'model': 'gemini-pro'}}}
-        }
-        config_service._config = test_config
-        config_service._initialized = True
+            config_service.get("some.key")
         
-        result = config_service.get_all()
-        assert result == test_config
-        # Should return a copy, not the original
-        assert result is not test_config
-
-    def test_get_bool(self, config_service):
-        """Test boolean value retrieval."""
-        config_service._config = {
-            'feature': {
-                'enabled': True,
-                'disabled': False,
-                'string_true': 'true',
-                'string_false': 'false',
-                'number': 1
-            }
-        }
-        config_service._initialized = True
+        with pytest.raises(RuntimeError, match="ConfigService not initialized"):
+            config_service.get_bool("some.key")
         
-        assert config_service.get_bool('feature.enabled') is True
-        assert config_service.get_bool('feature.disabled') is False
-        assert config_service.get_bool('feature.string_true') is True
-        assert config_service.get_bool('feature.string_false') is False
-        assert config_service.get_bool('feature.number') is True
-        assert config_service.get_bool('non.existent', True) is True
-        assert config_service.get_bool('non.existent', False) is False
-
-    def test_get_int(self, config_service):
-        """Test integer value retrieval."""
-        config_service._config = {
-            'numbers': {
-                'integer': 42,
-                'string_int': '123',
-                'float': 3.14
-            }
-        }
-        config_service._initialized = True
+        with pytest.raises(RuntimeError, match="ConfigService not initialized"):
+            config_service.get_int("some.key")
         
-        assert config_service.get_int('numbers.integer') == 42
-        assert config_service.get_int('numbers.string_int') == 123
-        assert config_service.get_int('numbers.float') == 3  # Truncated
-        assert config_service.get_int('non.existent', 999) == 999
-
-    def test_get_float(self, config_service):
-        """Test float value retrieval."""
-        config_service._config = {
-            'numbers': {
-                'float': 3.14,
-                'string_float': '2.718',
-                'integer': 42
-            }
-        }
-        config_service._initialized = True
+        with pytest.raises(RuntimeError, match="ConfigService not initialized"):
+            config_service.get_float("some.key")
         
-        assert config_service.get_float('numbers.float') == 3.14
-        assert config_service.get_float('numbers.string_float') == 2.718
-        assert config_service.get_float('numbers.integer') == 42.0
-        assert config_service.get_float('non.existent', 1.234) == 1.234
+        with pytest.raises(RuntimeError, match="ConfigService not initialized"):
+            config_service.get_all()
+
+    @pytest.mark.asyncio
+    async def test_get_environment(self, config_service):
+        """Test environment detection."""
+        # Test before initialization
+        with pytest.raises(RuntimeError, match="ConfigService not initialized"):
+            config_service.get_environment()
+        
+        # Test after initialization
+        await config_service.initialize()
+        assert config_service.get_environment() == "development"
