@@ -62,11 +62,11 @@ services:
     # Environment variables
     envVars:
       # Build configuration
-      - key: AURA_ENV
+      - key: VITE_AURA_ENV
         value: "production"
-      - key: AURA_WS_URL
+      - key: VITE_AURA_WS_URL
         value: "wss://nexus-backend-tp8m.onrender.com/api/v1/ws"
-      - key: AURA_API_URL
+      - key: VITE_AURA_API_URL
         value: "https://nexus-backend-tp8m.onrender.com/api/v1"
       - key: VITE_APP_NAME
         value: "AURA"
