@@ -28,7 +28,7 @@ const mockWindow = {
 // Mock localStorage
 const mockLocalStorage = {
   store: {} as Record<string, string>,
-  getItem: vi.fn((key: string) => mockLocalStorage.store[key]),
+  getItem: vi.fn((key: string): string | null => mockLocalStorage.store[key] || null),
   setItem: vi.fn((key: string, value: string) => {
     mockLocalStorage.store[key] = value;
   }),
@@ -58,7 +58,7 @@ class MockWebSocket {
     this.url = url;
   }
 
-  send(data: string) {
+  send(_data: string) {
     // Mock send method
   }
 
