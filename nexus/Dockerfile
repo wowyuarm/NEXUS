@@ -19,9 +19,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --user -r requirements.txt
 
-# Copy application code and config
+# Copy application code
 COPY nexus/ ./nexus/
-COPY config.default.yml ./
 
 # Final stage
 FROM python:3.11-slim-bullseye
@@ -41,9 +40,8 @@ RUN adduser --disabled-password --gecos "" nexususer
 # Copy installed Python packages from builder stage
 COPY --from=builder /root/.local /home/nexususer/.local
 
-# Copy application code and config
+# Copy application code
 COPY --from=builder /app/nexus ./nexus
-COPY --from=builder /app/config.default.yml ./
 
 # Set environment variables
 ENV PATH="/home/nexususer/.local/bin:${PATH}"
