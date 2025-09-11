@@ -61,22 +61,20 @@ services:
       
     # Environment variables
     envVars:
-      # Build configuration
+      # Build configuration (optional overrides - frontend also supports relative paths)
       - key: VITE_AURA_ENV
         value: "production"
       - key: VITE_AURA_WS_URL
-        value: "wss://nexus-backend-tp8m.onrender.com/api/v1/ws"
+        value: ""
       - key: VITE_AURA_API_URL
-        value: "https://nexus-backend-tp8m.onrender.com/api/v1"
+        value: ""
       - key: VITE_APP_NAME
         value: "AURA"
+      # Runtime backend origin for nginx reverse proxy
+      - key: BACKEND_ORIGIN
+        value: "https://nexus-backend-tp8m.onrender.com"
     
-    # Reverse proxy configuration for API and WebSocket requests
-    rewrites:
-      - source: /api/:path*
-        destination: http://nexus-backend/api/:path*
-      - source: /ws/:path*
-        destination: http://nexus-backend/ws/:path*
+    # Reverse proxy configuration removed; handled by nginx in container
         
 #--------------------------------
 # Render-specific Configuration

@@ -25,14 +25,14 @@ RUN pnpm run build
 # Final stage
 FROM nginx:stable-alpine
 
-# Install curl for health checks
-RUN apk add --no-cache curl
+# Install curl for health checks and gettext for envsubst
+RUN apk add --no-cache curl gettext
 
 # Remove default nginx configuration
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/
+# Copy nginx template and entrypoint
+COPY nginx.conf /etc/nginx/conf.d/nginx.conf.template
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -44,5 +44,6 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:80 || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start nginx with env substitution
+ENV BACKEND_ORIGIN=""
+CMD sh -c "envsubst '\$BACKEND_ORIGIN' < /etc/nginx/conf.d/nginx.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"

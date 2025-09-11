@@ -25,7 +25,7 @@ export const getNexusConfig = (): NexusConfig => {
 	
 	// For production, if not provided, use relative paths (served behind reverse proxy)
 	if (env === 'production' && !wsUrl) {
-		wsUrl = '/ws/api/v1/ws';
+		wsUrl = '/api/v1/ws';
 	}
 	if (env === 'production' && !apiUrl) {
 		apiUrl = '/api/v1';
