@@ -62,10 +62,14 @@ services:
     # Environment variables
     envVars:
       # Build configuration
-      - key: NODE_ENV
+      - key: AURA_ENV
         value: "production"
+      - key: AURA_WS_URL
+        value: "wss://nexus-backend-tp8m.onrender.com/api/v1/ws"
+      - key: AURA_API_URL
+        value: "https://nexus-backend-tp8m.onrender.com/api/v1"
       - key: VITE_APP_NAME
-        value: "NEXUS AURA"
+        value: "AURA"
     
     # Reverse proxy configuration for API and WebSocket requests
     rewrites:

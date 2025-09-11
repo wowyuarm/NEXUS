@@ -16,18 +16,18 @@ const defaultConfig: NexusConfig = {
 
 // Read configuration from Vite environment variables
 export const getNexusConfig = (): NexusConfig => {
-  const env = import.meta.env.NEXUS_ENV || 
-              import.meta.env.AURA_ENV || 
+  const env = import.meta.env.AURA_ENV || 
               import.meta.env.VITE_AURA_ENV || 
+              import.meta.env.NEXUS_ENV || 
               'development';
   
   // Use URLs from environment variables
-  let wsUrl = import.meta.env.NEXUS_WS_URL || 
-              import.meta.env.AURA_WS_URL || 
-              import.meta.env.VITE_AURA_WS_URL;
-  let apiUrl = import.meta.env.NEXUS_API_URL || 
-               import.meta.env.AURA_API_URL || 
-               import.meta.env.VITE_AURA_API_URL;
+  let wsUrl = import.meta.env.AURA_WS_URL || 
+              import.meta.env.VITE_AURA_WS_URL || 
+              import.meta.env.NEXUS_WS_URL;
+  let apiUrl = import.meta.env.AURA_API_URL || 
+               import.meta.env.VITE_AURA_API_URL || 
+               import.meta.env.NEXUS_API_URL;
   
   // For production, use relative paths with reverse proxy
   if (env === 'production' && !wsUrl) {
