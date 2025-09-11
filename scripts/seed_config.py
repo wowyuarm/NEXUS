@@ -6,16 +6,19 @@ This script seeds the MongoDB database with initial configuration data
 for development and production environments.
 
 Usage:
-    python scripts/seed_config.py [--env development|production|all] [--file config_file.yml]
+    python scripts/seed_config.py [--env development|production|all] [--file config_file.yml] [--keep-api-keys]
 
 Arguments:
     --env: Target environment(s) to seed (default: all)
     --file: YAML configuration file to use (default: config.example.yml)
+    --keep-api-keys: Keep API keys as placeholders (e.g., ${GEMINI_API_KEY}) while substituting other environment variables
+    --no-substitute: Keep all environment variable placeholders instead of substituting them
 
 Examples:
     python scripts/seed_config.py
     python scripts/seed_config.py --env development
     python scripts/seed_config.py --env production
+    python scripts/seed_config.py --keep-api-keys
     python scripts/seed_config.py --env all --file custom_config.yml
 """
 
@@ -44,7 +47,7 @@ def load_config_file(file_path: str) -> dict:
         print(f"✗ Error parsing YAML file: {e}")
         sys.exit(1)
 
-def substitute_env_vars(config: dict) -> dict:
+def substitute_env_vars(config: dict, keep_api_keys: bool = False) -> dict:
     """Substitute environment variables in configuration."""
     def substitute_recursive(obj):
         if isinstance(obj, dict):
@@ -53,6 +56,9 @@ def substitute_env_vars(config: dict) -> dict:
             return [substitute_recursive(item) for item in obj]
         elif isinstance(obj, str) and obj.startswith('${') and obj.endswith('}'):
             var_name = obj[2:-1]
+            # Keep API keys as placeholders if requested
+            if keep_api_keys and var_name.endswith('_API_KEY'):
+                return obj
             return os.getenv(var_name, obj)
         else:
             return obj
@@ -80,9 +86,32 @@ def get_mongo_connection() -> MongoClient:
         print(f"✗ Failed to connect to MongoDB: {e}")
         sys.exit(1)
 
+def create_environment_config(base_config: dict, environment: str) -> dict:
+    """Create environment-specific configuration from base config."""
+    config = base_config.copy()
+    
+    if environment == "development":
+        # Development-specific settings
+        config["system"]["log_level"] = "DEBUG"
+        config["llm"]["providers"]["google"]["model"] = "gemini-2.5-flash"
+        config["llm"]["temperature"] = 0.7
+        config["database"]["db_name"] = "NEXUS_DB_DEV"
+    elif environment == "production":
+        # Production-specific settings
+        config["system"]["log_level"] = "INFO"
+        config["llm"]["providers"]["google"]["model"] = "gemini-2.5-flash"
+        config["llm"]["temperature"] = 0.7
+        config["database"]["db_name"] = "NEXUS_DB_PROD"
+    
+    return config
+
 def seed_environment_config(client: MongoClient, environment: str, config_data: dict) -> bool:
     """Seed configuration for a specific environment."""
-    db_name = os.getenv("MONGO_DB_NAME", "NEXUS_DB")
+    # Create environment-specific configuration
+    env_config = create_environment_config(config_data, environment)
+    
+    # Use environment-specific database name
+    db_name = env_config["database"]["db_name"]
     database = client[db_name]
     config_collection = database.system_configurations
     
@@ -93,16 +122,16 @@ def seed_environment_config(client: MongoClient, environment: str, config_data: 
         # Insert or update configuration
         result = config_collection.update_one(
             {"environment": environment},
-            {"$set": {"config_data": config_data}},
+            {"$set": {"config_data": env_config}},
             upsert=True
         )
         
         if result.upserted_id:
-            print(f"✓ Configuration inserted for {environment} environment (ID: {result.upserted_id})")
+            print(f"✓ Configuration inserted for {environment} environment in {db_name} (ID: {result.upserted_id})")
         elif result.modified_count > 0:
-            print(f"✓ Configuration updated for {environment} environment")
+            print(f"✓ Configuration updated for {environment} environment in {db_name}")
         else:
-            print(f"✓ Configuration already exists for {environment} environment")
+            print(f"✓ Configuration already exists for {environment} environment in {db_name}")
         
         return True
         
@@ -122,6 +151,8 @@ def main():
                        help='YAML configuration file to use')
     parser.add_argument('--no-substitute', action='store_true',
                        help='Keep environment variable placeholders instead of substituting them')
+    parser.add_argument('--keep-api-keys', action='store_true',
+                       help='Keep API keys as placeholders (e.g., ${GEMINI_API_KEY}) while substituting other environment variables')
     
     args = parser.parse_args()
     
@@ -139,8 +170,11 @@ def main():
     
     # Only substitute environment variables if not explicitly disabled
     if not args.no_substitute:
-        config_data = substitute_env_vars(config_data)
-        print("✓ Environment variables substituted")
+        config_data = substitute_env_vars(config_data, keep_api_keys=args.keep_api_keys)
+        if args.keep_api_keys:
+            print("✓ Environment variables substituted (API keys kept as placeholders)")
+        else:
+            print("✓ Environment variables substituted")
     else:
         print("✓ Environment variable placeholders preserved")
     
@@ -150,6 +184,11 @@ def main():
     try:
         # Seed configurations for requested environments
         environments = ['development', 'production'] if args.env == 'all' else [args.env]
+        
+        print(f"\nEnvironment-specific configurations:")
+        for env in environments:
+            env_config = create_environment_config(config_data, env)
+            print(f"  - {env}: log_level={env_config['system']['log_level']}, model={env_config['llm']['providers']['google']['model']}, db={env_config['database']['db_name']}")
         
         success_count = 0
         for env in environments:

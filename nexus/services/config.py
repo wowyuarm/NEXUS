@@ -35,16 +35,17 @@ class ConfigService:
         self._database_service = database_service
         logger.info("ConfigService initialized")
     
-    async def initialize(self) -> None:
+    async def initialize(self, environment: str = "development") -> None:
         """
         Load and parse configuration from database with fallback to hardcoded defaults.
+        
+        Args:
+            environment: Target environment (development or production)
         
         This method should be called once during application startup.
         """
         try:
-            # Load .env file to get environment
-            load_dotenv()
-            self._environment = os.getenv("NEXUS_ENV", "development")
+            self._environment = environment
             logger.info(f"Initializing ConfigService for environment: {self._environment}")
             
             # Try to load configuration from database first
@@ -73,18 +74,19 @@ class ConfigService:
         """Load minimal hardcoded default configuration as fallback."""
         logger.warning("Loading minimal default configuration as fallback")
         
-        # Load environment variables for API keys
-        load_dotenv()
+        # Environment-specific database name
+        db_name = f"NEXUS_DB_{'DEV' if self._environment == 'development' else 'PROD'}"
         
-        # Minimal hardcoded configuration for resilience with environment variable support
+        # Minimal hardcoded configuration with environment variable placeholders
+        # This ensures consistency with database-stored configurations
         self._config = {
             "server": {
                 "host": "127.0.0.1",
                 "port": 8000
             },
             "database": {
-                "mongo_uri": "mongodb://localhost:27017",
-                "db_name": "NEXUS_DB_DEV"
+                "mongo_uri": "${MONGO_URI}",
+                "db_name": db_name
             },
             "llm": {
                 "provider": "google",
@@ -94,17 +96,17 @@ class ConfigService:
                 "providers": {
                     "google": {
                         "model": "gemini-2.5-flash",
-                        "api_key": os.getenv("GEMINI_API_KEY", ""),
+                        "api_key": "${GEMINI_API_KEY}",
                         "base_url": "https://generativelanguage.googleapis.com/v1beta"
                     },
                     "openrouter": {
                         "model": "moonshotai/kimi-k2",
-                        "api_key": os.getenv("OPENROUTER_API_KEY", ""),
+                        "api_key": "${OPENROUTER_API_KEY}",
                         "base_url": "https://openrouter.ai/api/v1"
                     },
                     "deepseek": {
                         "model": "deepseek-chat",
-                        "api_key": os.getenv("DEEPSEEK_API_KEY", ""),
+                        "api_key": "${DEEPSEEK_API_KEY}",
                         "base_url": "https://api.deepseek.com/v1"
                     }
                 }
@@ -117,6 +119,18 @@ class ConfigService:
                 "history_context_size": 20
             }
         }
+    
+    def _substitute_env_vars(self, value: Any) -> Any:
+        """Recursively substitute environment variables in configuration values."""
+        if isinstance(value, dict):
+            return {k: self._substitute_env_vars(v) for k, v in value.items()}
+        elif isinstance(value, list):
+            return [self._substitute_env_vars(item) for item in value]
+        elif isinstance(value, str) and value.startswith('${') and value.endswith('}'):
+            var_name = value[2:-1]
+            return os.getenv(var_name, value)
+        else:
+            return value
             
     def get(self, key: str, default: Any = None) -> Any:
         """
@@ -127,7 +141,7 @@ class ConfigService:
             default: Default value if key is not found
             
         Returns:
-            The configuration value or default
+            The configuration value or default (with environment variables substituted)
         """
         if not self._initialized:
             raise RuntimeError("ConfigService not initialized. Call initialize() first.")
@@ -138,7 +152,8 @@ class ConfigService:
         try:
             for k in keys:
                 current = current[k]
-            return current
+            # Substitute environment variables in the returned value
+            return self._substitute_env_vars(current)
         except (KeyError, TypeError):
             logger.debug(f"Configuration key '{key}' not found, returning default: {default}")
             return default

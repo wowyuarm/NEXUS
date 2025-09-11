@@ -17,6 +17,7 @@ import {
   parseNexusEvent,
   createClientMessage
 } from './protocol';
+import { nexusConfig } from '../../config/nexus';
 
 // ===== Event Emitter Implementation =====
 
@@ -96,10 +97,10 @@ export class WebSocketManager {
   // ===== Private URL Management =====
 
   private _getBaseUrl(): string {
-    // Generate WebSocket URL based on current environment
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    return `${protocol}//${host}/api/v1/ws`;
+    // Use unified configuration from nexusConfig
+    const wsUrl = nexusConfig.wsUrl;
+    console.log('Using WebSocket URL from unified config:', wsUrl);
+    return wsUrl;
   }
 
   // ===== Private Session Management =====
@@ -131,12 +132,23 @@ export class WebSocketManager {
     this.sessionId = this._getSessionId();
     const fullUrl = `${this.baseUrl}/${this.sessionId}`;
 
+    // Debug information
+    const isDevelopment = window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1';
+    console.log('🔌 Connecting to WebSocket:', {
+      environment: isDevelopment ? 'development' : 'production',
+      hostname: window.location.hostname,
+      baseUrl: this.baseUrl,
+      fullUrl: fullUrl,
+      sessionId: this.sessionId
+    });
+
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(fullUrl);
         
         this.ws.onopen = () => {
-          console.log('WebSocket connected to NEXUS');
+          console.log('✅ WebSocket connected to NEXUS');
           this.isConnected = true;
           this.reconnectAttempts = 0;
           this.startHeartbeat();
@@ -149,7 +161,7 @@ export class WebSocketManager {
         };
 
         this.ws.onclose = () => {
-          console.log('WebSocket disconnected from NEXUS');
+          console.log('❌ WebSocket disconnected from NEXUS');
           this.isConnected = false;
           this.stopHeartbeat();
           this.emitter.emit('disconnected', {});
@@ -157,12 +169,20 @@ export class WebSocketManager {
         };
 
         this.ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
+          console.error('💥 WebSocket error:', error);
+          console.error('📍 Connection details:', {
+            environment: isDevelopment ? 'development' : 'production',
+            hostname: window.location.hostname,
+            baseUrl: this.baseUrl,
+            fullUrl: fullUrl,
+            readyState: this.ws?.readyState
+          });
           this.emitter.emit('error', { error });
           reject(error);
         };
 
       } catch (error) {
+        console.error('💥 Failed to create WebSocket:', error);
         reject(error);
       }
     });

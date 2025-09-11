@@ -153,3 +153,113 @@
 注意相关其他文件。首先足够了解代码与具体细节。
 
 **任务开始。**
+
+---
+---
+
+### **第一部分：最终的、环境感知的启动流程 (The Final, Environment-Aware Lifecycle)**
+
+这将是我们对NEXUS启动流程的最终定义。
+
+1.  **阶段一：环境确定 (Environment Determination)**
+    *   **动作**: `main.py`启动，第一件事就是通过`os.getenv("NEXUS_ENV", "development")`读取并确定当前是`development`还是`production`环境。
+    *   **产出**: 一个明确的`environment`字符串。
+
+2.  **阶段二：引导配置 (Bootstrap Configuration)**
+    *   **动作**: `main.py`加载`.env`文件。然后，它创建一个**临时的、只包含引导信息的字典**。
+    *   **产出**: 一个`bootstrap_config`字典，内容类似：
+        ```python
+        {
+            "environment": "development",
+            "mongo_uri": "...",
+            # 关键：根据环境，动态生成数据库名称
+            "db_name": f"NEXUS_DB_{'DEV' if environment == 'development' else 'PROD'}"
+        }
+        ```
+
+3.  **阶段三：核心依赖连接 (Core Dependency Connection)**
+    *   **动作**: `main.py`使用`bootstrap_config`中的`mongo_uri`和`db_name`，实例化并连接`DatabaseService`。
+    *   **产出**: 一个已连接的、指向**正确环境数据库**的`database_service`实例。
+
+4.  **阶段四：应用配置加载 (Application Configuration Loading)**
+    *   **动作**: `main.py`将`database_service`和`bootstrap_config`（特别是`environment`字段）注入到`ConfigService`中。`ConfigService`被初始化，它会根据传入的`environment`，去数据库的`system_configurations`集合中，加载**对应环境的配置文档**。
+    *   **产出**: 一个`config_service`实例，其内存中缓存的是**当前环境的、从数据库加载的**完整应用配置。
+
+5.  **阶段五：应用构建与运行 (Application Construction & Run)**
+    *   **动作**: `main.py`使用这个最终的`config_service`，实例化所有其他服务，连接总线，并启动应用。
+    *   **产出**: 一个正在运行的、其行为完全由**当前环境的数据库配置**所驱动的NEXUS实例。
+
+---
+
+### **第二部分：如何验证？**
+
+要验证这个流程是否正确实现，我们需要一个清晰的测试计划。工程师AI需要：
+
+1.  **准备环境**:
+    *   确保`.env`文件中添加了`NEXUS_ENV="development"`。
+    *   使用`scripts/seed_config.py`脚本，向MongoDB中同时写入`development`和`production`两套不同的配置（例如，`dev`用`flash`模型，`prod`用`pro`模型）。
+    *   确保本地MongoDB正在运行。
+
+2.  **执行验证**:
+    *   **验证场景1 (开发环境)**:
+        *   不修改任何代码，直接运行`python -m nexus.main`。
+        *   **预期日志**:
+            *   看到日志明确指出`"Running in 'development' environment"`。
+            *   看到日志指出正在连接到`NEXUS_DB_DEV`。
+            *   看到日志指出`ConfigService`正在从数据库加载`development`配置。
+            *   （可选）通过一个临时的REST API端点或调试日志，验证`LLMService`加载的模型确实是`flash`。
+    *   **验证场景2 (生产环境模拟)**:
+        *   在**不修改代码**的情况下，通过**命令行**临时设置环境变量来模拟生产环境：
+            ```bash
+            NEXUS_ENV="production" python -m nexus.main
+            ```
+        *   **预期日志**:
+            *   看到日志明确指出`"Running in 'production' environment"`。
+            *   看到日志指出正在连接到`NEXUS_DB_PROD`。
+            *   看到日志指出`ConfigService`正在从数据库加载`production`配置。
+            *   （可选）验证加载的模型确实是`pro`。
+
+---
+
+### **第三部分：最终的任务委托**
+
+现在，我们将这个完整的、包含验证步骤的计划，转化为给工程师AI的最终指令。
+
+---
+
+最终化NEXUS启动生命周期，实现严格的环境分离。对NEXUS的启动流程进行最后一次、决定性的重构，以实现一个完全隔离的、环境感知的、且健壮的启动生命周期。
+
+---
+
+#### **核心指令**
+
+**1. 文件重构: `.env.example`**
+*   **行动**: 在文件的顶部添加`NEXUS_ENV="development"`，并提供注释说明其作用。
+
+**2. 文件重构: `nexus/main.py`**
+*   **目标**: 实现我们最终确立的、五阶段的环境感知启动流程。
+*   **行动**:
+    *   **阶段一 (环境确定)**: 在`main`函数顶部，读取`NEXUS_ENV`环境变量。
+    *   **阶段二 (引导配置)**: 根据读取到的`environment`，动态地构建数据库名称（例如`NEXUS_DB_DEV`或`NEXUS_DB_PROD`）。
+    *   **阶段三 (核心依赖连接)**: 使用引导配置中的`MONGO_URI`和动态生成的`db_name`，实例化并连接`DatabaseService`。
+    *   **阶段四 (应用配置加载)**: 将`database_service`和`environment`字符串，注入到`ConfigService`的构造函数或`initialize`方法中。
+    *   **阶段五 (应用构建)**: 使用最终的`config_service`实例化其余所有服务。
+
+**3. 文件重构: `nexus/services/config.py`**
+*   **目标**: 使`ConfigService`能够加载特定于环境的配置。
+*   **行动**:
+    *   修改`initialize`方法，使其接收`environment: str`作为参数。
+    *   它现在应该调用`self.database_service.get_configuration_async(environment)`来获取**特定环境**的配置文档。
+    *   确保其“代码回退”逻辑返回的是一个**安全的、最小化的开发环境配置**。
+
+**4. 文件重构: `scripts/seed_config.py`**
+*   **目标**: 更新种子脚本，使其能够一次性写入多个环境的配置。
+*   **行动**:
+    *   修改脚本，让它读取`config.example.yml`，然后将其作为模板，在`system_configurations`集合中创建**两个**独立的文档：一个`{"environment": "development", ...}`，一个`{"environment": "production", ...}`。
+    *   你可以为两个环境的配置设置一些微小的差异（例如，不同的`log_level`），以便于测试时验证。
+
+---
+**探索与验证要求：**
+在交付最终代码之前，你必须**亲自执行**我在“第二部分：如何验证？”中描述的两个验证场景，并**在你的交付报告中，附上这两个场景的关键启动日志片段**，以证明你的实现是完全正确的。
+
+**任务开始。**

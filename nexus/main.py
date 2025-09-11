@@ -36,26 +36,24 @@ async def main() -> None:
     _setup_logging()
     logger = logging.getLogger("nexus.main")
 
-    # 1) Instantiate the bus first
-    bus = NexusBus()
-    logger.info("NexusBus instantiated")
-
-    # 2) Load environment variables from .env file
+    # 1): Environment Determination
     load_dotenv()
-    logger.info("Environment variables loaded from .env file")
+    environment = os.getenv("NEXUS_ENV", "development")
+    logger.info(f"Running in '{environment}' environment")
 
-    # 3) Get database configuration from environment
+    # 2): Bootstrap Configuration
     mongo_uri = os.getenv("MONGO_URI")
-    db_name = os.getenv("MONGO_DB_NAME", "NEXUS_DB_DEV")
-    
     if not mongo_uri:
         logger.error("MONGO_URI not found in environment variables. Please check your .env file.")
         return
     
-    logger.info(f"Database configuration loaded - URI: {mongo_uri[:20]}..., DB: {db_name}")
+    # Dynamic database name based on environment
+    db_name = f"NEXUS_DB_{'DEV' if environment == 'development' else 'PROD'}"
+    logger.info(f"Bootstrap configuration - Environment: {environment}, DB: {db_name}")
 
-    # 4) Initialize and connect to database
+    # 3): Core Dependency Connection
     logger.info("Initializing database service...")
+    bus = NexusBus()
     database_service = DatabaseService(bus, mongo_uri, db_name)
     
     logger.info("Connecting to database...")
@@ -64,13 +62,13 @@ async def main() -> None:
         return
     logger.info("Database connection established successfully")
 
-    # 5) Initialize config service with database service
+    # 4): Application Configuration Loading
     logger.info("Initializing configuration service...")
     config_service = ConfigService(database_service)
-    await config_service.initialize()
+    await config_service.initialize(environment)
     logger.info("Configuration service initialized successfully")
 
-    # 5) Initialize and configure tool registry
+    # 5): Application Construction & Run
     tool_registry = ToolRegistry()
 
     # Auto-discover and register all tools
