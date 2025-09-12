@@ -74,20 +74,55 @@ class OrchestratorService:
         for hist_msg in run.history:
             if hist_msg.role == Role.AI:
                 # AI message with potential tool calls
+                # Coerce content to a string (empty string if None) per OpenAI-compatible schema
+                assistant_content = hist_msg.content
+                if not isinstance(assistant_content, str):
+                    assistant_content = "" if assistant_content is None else str(assistant_content)
                 msg_dict = {
                     "role": LLM_ROLE_ASSISTANT,
-                    "content": hist_msg.content
+                    "content": assistant_content
                 }
+                # Normalize tool_calls schema: ensure function.arguments is a JSON string
                 if "tool_calls" in hist_msg.metadata:
-                    msg_dict["tool_calls"] = hist_msg.metadata["tool_calls"]
+                    normalized_tool_calls = []
+                    for tc in hist_msg.metadata["tool_calls"] or []:
+                        function_obj = tc.get("function", {}) if isinstance(tc, dict) else {}
+                        args = function_obj.get("arguments")
+                        # arguments must be a JSON string per OpenAI-compatible schema
+                        if isinstance(args, (dict, list)):
+                            try:
+                                args_str = json.dumps(args, ensure_ascii=False)
+                            except Exception:
+                                args_str = json.dumps({"_raw": str(args)})
+                        elif isinstance(args, str):
+                            args_str = args
+                        else:
+                            args_str = json.dumps({})
+
+                        normalized_tool_calls.append({
+                            "id": tc.get("id", "") if isinstance(tc, dict) else "",
+                            "type": tc.get("type", "function") if isinstance(tc, dict) else "function",
+                            "function": {
+                                "name": function_obj.get("name", ""),
+                                "arguments": args_str,
+                            },
+                        })
+                    msg_dict["tool_calls"] = normalized_tool_calls
                 messages.append(msg_dict)
             elif hist_msg.role == Role.TOOL:
                 # Tool result message
+                content_value = hist_msg.content
+                if not isinstance(content_value, str):
+                    try:
+                        content_value = json.dumps(content_value, ensure_ascii=False)
+                    except Exception:
+                        content_value = str(content_value)
+
+                # Per OpenAI-compatible schema for tool messages, include content and tool_call_id only
                 messages.append({
                     "role": LLM_ROLE_TOOL,
-                    "content": hist_msg.content,
-                    "tool_call_id": hist_msg.metadata.get("call_id", ""),
-                    "name": hist_msg.metadata.get("tool_name", "")
+                    "content": content_value,
+                    "tool_call_id": hist_msg.metadata.get("call_id", "")
                 })
             elif hist_msg.role == Role.HUMAN:
                 # User message

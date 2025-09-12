@@ -198,18 +198,24 @@ class ContextService:
                     elif role == NEXUS_ROLE_AI:
                         llm_role = LLM_ROLE_ASSISTANT
                     elif role == NEXUS_ROLE_TOOL:
-                        # Tool results should use the tool role with proper format
-                        tool_name = msg_data.get("metadata", {}).get("tool_name", "unknown")
-                        llm_role = LLM_ROLE_TOOL
-                        # Keep original content format for tool messages
+                        # IMPORTANT: Skip persisted tool messages in initial LLM context because
+                        # they often lack the required tool_call_id linkage to an assistant message
+                        # within the same request, which violates the OpenAI-compatible schema and
+                        # can cause INVALID_ARGUMENT (400). The agentic loop will add proper tool
+                        # messages during the same run when needed.
+                        continue
                     else:
                         continue  # Skip unknown roles
 
                     # Handle None content and only add non-empty messages
-                    if content and str(content).strip():
+                    if content is None:
+                        content_str = ""
+                    else:
+                        content_str = str(content)
+                    if content_str.strip():
                         messages.append({
                             "role": llm_role,
-                            "content": str(content)
+                            "content": content_str
                         })
 
                 logger.info(f"Added {len(history_messages)} historical messages to context for session {session_id}")
