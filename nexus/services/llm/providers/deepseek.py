@@ -106,7 +106,20 @@ class DeepSeekLLMProvider(LLMProvider):
                 return await self._handle_non_streaming_response(response)
 
         except Exception as e:
-            logger.error(f"Error in DeepSeek chat completion: {e}")
+            error_type = type(e).__name__
+            error_msg = str(e)
+            logger.error(f"DeepSeek API error [{error_type}]: {error_msg}")
+            logger.error(f"DeepSeek API call failed - model: {model}, base_url: {self.base_url}, timeout: {self.timeout}")
+            
+            # Provide specific error context
+            if "Connection" in error_type or "timeout" in error_msg.lower() or "reset by peer" in error_msg:
+                logger.error("DeepSeek connection issue detected - possible causes:")
+                logger.error("1. Network connectivity problems")
+                logger.error("2. Firewall/VPN blocking DeepSeek API")
+                logger.error("3. Geographic restrictions")
+                logger.error("4. DeepSeek server issues")
+                raise ConnectionError(f"DeepSeek API connection failed [{error_type}]: {error_msg}")
+            
             raise
 
     async def _handle_non_streaming_response(self, response) -> Dict[str, Any]:

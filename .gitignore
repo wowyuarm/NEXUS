@@ -26,6 +26,7 @@ aura/node_modules/
 # AI rules/tools
 .augment/
 .claude/
+.cursor/
 
 # 自用脚本
 scripts/
