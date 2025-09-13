@@ -8,7 +8,7 @@ via WebSocket connections. Handles incoming user messages and outgoing responses
 import logging
 import json
 import uuid
-from typing import Dict
+from typing import Dict, Union
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message, Role, Run, RunStatus
@@ -25,6 +25,38 @@ ERROR_MSG_PROCESSING = "Error processing message"
 # Constants for message types
 MESSAGE_TYPE_PING = "ping"
 MESSAGE_TYPE_USER_MESSAGE = "user_message"
+
+
+def _parse_client_message(data: str) -> Dict[str, Union[str, Dict]]:
+    """
+    Parse incoming client message data and extract relevant information.
+    
+    Args:
+        data: Raw JSON string data from WebSocket client
+        
+    Returns:
+        Dictionary containing parsed message data with standardized structure
+        
+    Raises:
+        json.JSONDecodeError: If data is not valid JSON
+    """
+    message_data = json.loads(data)
+    message_type = message_data.get("type", "")
+    payload = message_data.get("payload", {})
+    
+    if message_type == MESSAGE_TYPE_PING:
+        return {"type": message_type, "payload": payload}
+    elif message_type == MESSAGE_TYPE_USER_MESSAGE:
+        user_input = payload.get("content", "")
+        return {
+            "type": message_type,
+            "payload": {"content": user_input},
+            "user_input": user_input
+        }
+    elif message_type == "":
+        return {"type": "", "payload": payload}
+    else:
+        return {"type": "unknown", "original_type": message_type}
 
 
 class WebsocketInterface:
@@ -144,18 +176,16 @@ class WebsocketInterface:
                     logger.info(f"Received message from session_id={session_id}: {data[:100]}...")
 
                     try:
-                        # Parse the incoming message
-                        message_data = json.loads(data)
-                        message_type = message_data.get("type", "")
+                        # Parse the incoming message using the helper function
+                        parsed_message = _parse_client_message(data)
+                        message_type = parsed_message.get("type", "")
 
                         # Handle different message types
                         if message_type == MESSAGE_TYPE_PING:
                             logger.debug(f"Received ping from client session_id={session_id}")
                             continue
                         elif message_type == MESSAGE_TYPE_USER_MESSAGE:
-                            # Extract user input from payload
-                            payload = message_data.get("payload", {})
-                            user_input = payload.get("content", "")
+                            user_input = parsed_message.get("user_input", "")
 
                             if not user_input.strip():
                                 logger.warning(f"Empty user message received from session_id={session_id}")

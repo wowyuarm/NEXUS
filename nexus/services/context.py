@@ -11,6 +11,7 @@ prompt construction by combining persona and tool descriptions.
 
 import logging
 import os
+from typing import List, Dict
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
@@ -157,8 +158,76 @@ class ContextService:
             logger.warning(f"Error loading {filename}: {e}")
             return fallback
 
-    async def _build_messages_with_history(self, session_id: str, system_prompt: str, current_input: str) -> list:
+    def _format_llm_messages(
+        self,
+        system_prompt: str,
+        history_from_db: List[Dict],
+        current_input: str
+    ) -> List[Dict]:
+        """Format LLM messages from system prompt, history data, and current input.
+
+        This method handles all data transformation, role mapping, and message
+        concatenation logic. It is synchronous and purely focused on data processing.
+
+        Args:
+            system_prompt: The system prompt to include
+            history_from_db: List of historical message dictionaries from database
+            current_input: The current user input
+
+        Returns:
+            List of message dictionaries formatted for LLM context
+        """
+        messages = [
+            {
+                "role": "system",
+                "content": system_prompt
+            }
+        ]
+
+        # Convert database messages to LLM format and add to context
+        for msg_data in reversed(history_from_db):  # Reverse to get chronological order
+            role = msg_data.get("role", "").lower()
+            content = msg_data.get("content", "")
+
+            # Map NEXUS roles to LLM roles
+            if role == NEXUS_ROLE_HUMAN:
+                llm_role = LLM_ROLE_USER
+            elif role == NEXUS_ROLE_AI:
+                llm_role = LLM_ROLE_ASSISTANT
+            elif role == NEXUS_ROLE_TOOL:
+                # IMPORTANT: Skip persisted tool messages in initial LLM context because
+                # they often lack the required tool_call_id linkage to an assistant message
+                # within the same request, which violates the OpenAI-compatible schema and
+                # can cause INVALID_ARGUMENT (400). The agentic loop will add proper tool
+                # messages during the same run when needed.
+                continue
+            else:
+                continue  # Skip unknown roles
+
+            # Handle None content and only add non-empty messages
+            if content is None:
+                content_str = ""
+            else:
+                content_str = str(content)
+            if content_str.strip():
+                messages.append({
+                    "role": llm_role,
+                    "content": content_str
+                })
+
+        # Add the current user input
+        messages.append({
+            "role": "user",
+            "content": current_input
+        })
+
+        return messages
+
+    async def _build_messages_with_history(self, session_id: str, system_prompt: str, current_input: str) -> List[Dict]:
         """Build messages list with conversation history from database.
+
+        This method focuses on async I/O operations and delegates message formatting
+        to the synchronous _format_llm_messages method.
 
         Args:
             session_id: The session ID to load history for
@@ -168,12 +237,7 @@ class ContextService:
         Returns:
             List of message dictionaries for LLM context
         """
-        messages = [
-            {
-                "role": "system",
-                "content": system_prompt
-            }
-        ]
+        history_from_db = []
 
         # Load recent conversation history if persistence service is available
         # This provides short-term memory by including recent messages in the context
@@ -185,49 +249,13 @@ class ContextService:
                     history_limit = self.config_service.get_int(CONFIG_HISTORY_SIZE_KEY, DEFAULT_HISTORY_LIMIT)
 
                 # Retrieve historical messages
-                history_messages = await self.persistence_service.get_history(session_id, history_limit)
-
-                # Convert database messages to LLM format and add to context
-                for msg_data in reversed(history_messages):  # Reverse to get chronological order
-                    role = msg_data.get("role", "").lower()
-                    content = msg_data.get("content", "")
-
-                    # Map NEXUS roles to LLM roles
-                    if role == NEXUS_ROLE_HUMAN:
-                        llm_role = LLM_ROLE_USER
-                    elif role == NEXUS_ROLE_AI:
-                        llm_role = LLM_ROLE_ASSISTANT
-                    elif role == NEXUS_ROLE_TOOL:
-                        # IMPORTANT: Skip persisted tool messages in initial LLM context because
-                        # they often lack the required tool_call_id linkage to an assistant message
-                        # within the same request, which violates the OpenAI-compatible schema and
-                        # can cause INVALID_ARGUMENT (400). The agentic loop will add proper tool
-                        # messages during the same run when needed.
-                        continue
-                    else:
-                        continue  # Skip unknown roles
-
-                    # Handle None content and only add non-empty messages
-                    if content is None:
-                        content_str = ""
-                    else:
-                        content_str = str(content)
-                    if content_str.strip():
-                        messages.append({
-                            "role": llm_role,
-                            "content": content_str
-                        })
-
-                logger.info(f"Added {len(history_messages)} historical messages to context for session {session_id}")
+                history_from_db = await self.persistence_service.get_history(session_id, history_limit)
+                logger.info(f"Added {len(history_from_db)} historical messages to context for session {session_id}")
 
             except Exception as e:
                 logger.error(f"Failed to load conversation history for session {session_id}: {e}")
                 # Continue without history if loading fails
+                history_from_db = []
 
-        # Add the current user input
-        messages.append({
-            "role": "user",
-            "content": current_input
-        })
-
-        return messages
+        # Format and return the messages using the synchronous method
+        return self._format_llm_messages(system_prompt, history_from_db, current_input)

@@ -160,7 +160,10 @@ class ToolRegistry:
 
             package = importlib.import_module(discovery_path)
             if not hasattr(package, '__path__'):
-                logger.warning(f"Package {discovery_path} has no __path__ attribute")
+                # Some callers may pass a module path instead of a package. In that case,
+                # try to process the module itself for tool definitions.
+                logger.warning(f"Package {discovery_path} has no __path__ attribute; attempting direct module processing")
+                self._process_module_for_tools(discovery_path)
                 return
 
             # Discover and register tools from each module
@@ -168,6 +171,13 @@ class ToolRegistry:
                 if not ispkg:  # Skip sub-packages
                     full_module_name = f"{discovery_path}.{modname}"
                     self._process_module_for_tools(full_module_name)
+
+            # Additionally, process the root module itself in case tools are defined there
+            try:
+                self._process_module_for_tools(discovery_path)
+            except Exception:
+                # Do not fail discovery if root processing has issues
+                pass
 
             logger.info(f"Tool discovery completed. Total registered tools: {len(self._tools)}")
 
