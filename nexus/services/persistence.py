@@ -202,7 +202,8 @@ class PersistenceService:
                     "source": "tool_result",
                     "tool_name": content.get("tool_name", "unknown"),
                     "status": content.get("status", "unknown"),
-                    "execution_success": content.get("status") == "success"
+                    "execution_success": content.get("status") == "success",
+                    "call_id": content.get("call_id", "")
                 }
             )
 

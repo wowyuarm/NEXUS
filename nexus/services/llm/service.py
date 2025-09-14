@@ -187,14 +187,77 @@ class LLMService:
 
     async def _create_streaming_response(self, messages, tools, temperature, max_tokens):
         """Create streaming response from LLM provider."""
+        # Normalize messages to satisfy provider requirements (e.g., Google needs tool 'name')
+        normalized_messages = self._normalize_messages_for_provider(messages)
+
         return await self.provider.client.chat.completions.create(
             model=self.provider.default_model,
-            messages=messages,
+            messages=normalized_messages,
             temperature=temperature,
             max_tokens=max_tokens,
             tools=tools if tools else None,
             stream=True
         )
+
+    def _normalize_messages_for_provider(self, messages: list[dict]) -> list[dict]:
+        """Normalize messages to be compatible across providers.
+
+        - Ensures tool-role messages include a non-empty 'name'. If missing, we
+          backfill using the preceding assistant tool_calls matched by tool_call_id.
+        - Ensures tool message content is a string (JSON-serialized if needed).
+        - Leaves other roles untouched.
+        """
+        try:
+            # Map tool_call_id -> function.name from the most recent assistant message
+            call_id_to_name: dict[str, str] = {}
+
+            for msg in messages:
+                role = msg.get("role")
+                if role == "assistant" and isinstance(msg.get("tool_calls"), list):
+                    for tc in msg["tool_calls"]:
+                        try:
+                            call_id = (tc or {}).get("id") or ""
+                            fn = (tc or {}).get("function", {})
+                            fn_name = (fn or {}).get("name") or ""
+                            if call_id and fn_name:
+                                call_id_to_name[call_id] = fn_name
+                        except Exception:
+                            # Be resilient to unexpected structures
+                            continue
+
+            normalized: list[dict] = []
+            for msg in messages:
+                if msg.get("role") == "tool":
+                    # Copy to avoid mutating the caller's list
+                    tool_msg = dict(msg)
+                    name = tool_msg.get("name") or tool_msg.get("tool_name") or ""
+                    tool_call_id = tool_msg.get("tool_call_id") or ""
+
+                    if not name:
+                        # Backfill using linked assistant tool call
+                        if tool_call_id and tool_call_id in call_id_to_name:
+                            name = call_id_to_name[tool_call_id]
+                        else:
+                            name = "unknown"
+                        tool_msg["name"] = name
+
+                    # Ensure content is a string
+                    content_val = tool_msg.get("content")
+                    if not isinstance(content_val, str):
+                        try:
+                            import json as _json
+                            tool_msg["content"] = _json.dumps(content_val, ensure_ascii=False)
+                        except Exception:
+                            tool_msg["content"] = str(content_val)
+
+                    normalized.append(tool_msg)
+                else:
+                    normalized.append(msg)
+
+            return normalized
+        except Exception:
+            # On any failure, return original messages for safety
+            return messages
 
     async def _process_streaming_chunks(self, response, run_id: str, session_id: str):
         """Process streaming chunks and publish them in real-time.

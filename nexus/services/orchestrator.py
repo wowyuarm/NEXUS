@@ -119,10 +119,13 @@ class OrchestratorService:
                         content_value = str(content_value)
 
                 # Per OpenAI-compatible schema for tool messages, include content and tool_call_id only
+                # Note: Some providers (e.g., Google's OpenAI-compatible endpoint) also require the tool 'name'
+                # to properly map to their native function_response schema. We include it when available.
                 messages.append({
                     "role": LLM_ROLE_TOOL,
                     "content": content_value,
-                    "tool_call_id": hist_msg.metadata.get("call_id", "")
+                    "tool_call_id": hist_msg.metadata.get("call_id", ""),
+                    "name": hist_msg.metadata.get("tool_name", "unknown") or "unknown"
                 })
             elif hist_msg.role == Role.HUMAN:
                 # User message

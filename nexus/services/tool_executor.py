@@ -53,7 +53,8 @@ class ToolExecutorService:
         session_id: str,
         result: str,
         status: str,
-        tool_name: str
+        tool_name: str,
+        call_id: str = ""
     ) -> Message:
         """
         Create a standardized tool result message.
@@ -75,7 +76,8 @@ class ToolExecutorService:
             content={
                 "result": result,
                 "status": status,
-                "tool_name": tool_name
+                "tool_name": tool_name,
+                "call_id": call_id
             }
         )
 
@@ -89,6 +91,7 @@ class ToolExecutorService:
         run_id = message.run_id
         session_id = message.session_id
         tool_name = None
+        call_id = ""
 
         try:
             logger.info(f"Handling tool request for run_id={run_id}")
@@ -100,6 +103,7 @@ class ToolExecutorService:
 
             tool_name = content.get("name")
             tool_args = content.get("args", {})
+            call_id = content.get("call_id", "")
 
             if not tool_name:
                 raise ValueError("Tool request missing 'name' field")
@@ -126,7 +130,8 @@ class ToolExecutorService:
                 session_id=session_id,
                 result=result,
                 status=TOOL_STATUS_SUCCESS,
-                tool_name=tool_name
+                tool_name=tool_name,
+                call_id=call_id
             )
             await self.bus.publish(Topics.TOOLS_RESULTS, result_message)
             logger.info(f"Tool '{tool_name}' executed successfully for run_id={run_id}")
@@ -141,6 +146,7 @@ class ToolExecutorService:
                 session_id=session_id,
                 result=error_msg,
                 status=TOOL_STATUS_ERROR,
-                tool_name=tool_name or TOOL_STATUS_UNKNOWN
+                tool_name=tool_name or TOOL_STATUS_UNKNOWN,
+                call_id=call_id
             )
             await self.bus.publish(Topics.TOOLS_RESULTS, error_message)
