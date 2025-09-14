@@ -217,11 +217,12 @@ class ConfigService:
         Get the entire configuration dictionary.
         
         Returns:
-            Complete configuration dictionary
+            Complete configuration dictionary (deep copy)
         """
         if not self._initialized:
             raise RuntimeError("ConfigService not initialized. Call initialize() first.")
-        return self._config.copy()
+        import copy
+        return copy.deepcopy(self._config)
     
     def get_environment(self) -> str:
         """
