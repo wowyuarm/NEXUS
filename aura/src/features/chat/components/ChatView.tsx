@@ -21,7 +21,6 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
-import { ToolCallCard } from './ToolCallCard';
 
 interface ChatViewProps {
   messages: Message[];
@@ -60,22 +59,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // 是否已有当前 run 的 AI 流式消息（开始打字后就不再显示思考符号）
   const hasStreamingAICurrentRun = useMemo(() => {
     if (!currentRunId) return false;
-    return messages.some((m) => m.role === 'AI' && m.isStreaming && m.runId === currentRunId && (m.content?.length ?? 0) > 0);
+    return messages.some((m) =>
+      m.role === 'AI'
+      && (m.isStreaming || ((m as any).metadata?.isStreaming ?? false))
+      && (m as any).runId === currentRunId
+      && ((m.content?.length ?? 0) > 0)
+    );
   }, [messages, currentRunId]);
 
   // 显示条件：仅当当前状态为 thinking，且未开始流式输出，并且上一条为用户消息
   const shouldDisplayThinking = currentRunStatus === 'thinking' && Boolean(currentRunId) && isLastHuman && !hasStreamingAICurrentRun;
 
-  // 统一活动行（AI 行）条件：
-  // - 思考阶段：仅在 shouldDisplayThinking 且 showThinkingIndicator 为真时展示（有轻微延迟）
-  // - 流式阶段：当最后一条为当前 run 的 AI 且 isStreaming 为真时展示
-  const isLastAI = lastMessage?.role === 'AI';
-  const isLastAIStreamingCurrent = useMemo(() => {
-    if (!currentRunId || !isLastAI) return false;
-    return Boolean((lastMessage as any)?.isStreaming) && (lastMessage as any)?.runId === currentRunId;
-  }, [currentRunId, lastMessage, isLastAI]);
-
-  const showUnifiedActiveRow = (shouldDisplayThinking && showThinkingIndicator) || isLastAIStreamingCurrent || currentRunStatus === 'tool_running' || hasActiveToolCalls;
+  // 思考阶段单独行：仅在 shouldDisplayThinking 且 showThinkingIndicator 为真时展示（有轻微延迟）
+  const showThinkingRow = shouldDisplayThinking && showThinkingIndicator;
 
   useEffect(() => {
     let t: number | undefined;
@@ -130,56 +126,30 @@ export const ChatView: React.FC<ChatViewProps> = ({
           <div className="flex justify-center">
             {/* 消息流渲染 - 集成原LogStream逻辑 */}
             <div className="w-full max-w-3xl mx-auto px-4">
-              {messages.map((message, index) => {
-                const isLast = index === messages.length - 1;
-                // 当我们采用统一活动行并且最后一条为当前 run 的流式 AI 消息时，避免重复渲染该条（将在统一行中以 contentOnly 方式渲染）
-                if (showUnifiedActiveRow && isLast && isLastAIStreamingCurrent) {
-                  return null;
-                }
-                return (
-                  <ChatMessage
-                    key={message.id}
-                    message={message}
-                    isLastMessage={isLast}
-                    currentRunStatus={currentRunStatus}
-                    suppressAutoScroll={suppressAutoScroll}
-                  />
-                );
-              })}
+              {messages.map((message, index) => (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  isLastMessage={index === messages.length - 1}
+                  currentRunStatus={currentRunStatus}
+                  suppressAutoScroll={suppressAutoScroll}
+                />
+              ))}
 
-              {/* 统一的活动 AI 行：同一个 RoleSymbol 持续存在，状态切换时仅切换动画与右侧内容 */}
-              {showUnifiedActiveRow && (
-                <div className="group relative py-6 flex items-baseline gap-2">
-                  <RoleSymbol role="AI" isThinking={shouldDisplayThinking && showThinkingIndicator} />
-                  {/* 流式阶段：渲染最后一条 AI 消息的内容区域 */}
-                  {isLastAIStreamingCurrent && lastMessage && (
-                    <ChatMessage
-                      key={(lastMessage as any).id}
-                      message={lastMessage as any}
-                      isLastMessage={true}
-                      currentRunStatus={currentRunStatus}
-                      suppressAutoScroll={suppressAutoScroll}
-                      variant="contentOnly"
-                    />
-                  )}
-                  {/* 工具运行阶段：在 RoleSymbol 右侧渲染工具卡片 */}
-                  {!isLastAIStreamingCurrent && (currentRunStatus === 'tool_running' || hasActiveToolCalls) && (
-                    <div className="flex-1 min-w-0 relative ml-6">
-                      <div className="space-y-2 pr-16">
-                        {currentRunToolCalls.map((toolCall) => (
-                          <ToolCallCard key={toolCall.id} toolCall={toolCall} suppressAutoScroll={suppressAutoScroll} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {/* 思考阶段：右侧占位，保证布局稳定 */}
-                  {!isLastAIStreamingCurrent && shouldDisplayThinking && showThinkingIndicator && (
-                    <div className="flex-1 min-w-0 relative ml-6" />
-                  )}
-                </div>
+              {/* 思考阶段：独立的呼吸符号行，仅在尚未出现当前 run 的 AI 文本时显示 */}
+              {showThinkingRow && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: 'easeOut' }}
+                  className="py-6 flex items-center gap-3"
+                >
+                  <RoleSymbol role="AI" isThinking={true} />
+                  <div className="flex-1 min-w-0" />
+                </motion.div>
               )}
 
-              {/* 工具卡片由统一活动行负责渲染 */}
+              {/* 工具卡片由 ChatMessage 内部按插入位置渲染，避免重复与顺序漂移 */}
             </div>
           </div>
         </motion.div>

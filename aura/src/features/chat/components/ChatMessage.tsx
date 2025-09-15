@@ -16,7 +16,7 @@
  * - DRY principle applied with extracted helper functions
  */
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { motion } from 'framer-motion';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { Timestamp } from '@/components/ui/Timestamp';
@@ -73,18 +73,20 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     return Math.min(min, idx);
   }, Number.POSITIVE_INFINITY);
 
-  // Prefer typewriter output while it is still running, even after stream flag turns off
-  const isActivelyTyping = (isStreaming && !shouldUseStaticRendering) || isTyping;
-  let contentForRender = isActivelyTyping ? displayedContent : message.content;
-  // Fast-forward pre-text up to the earliest tool insertion boundary so the card can appear immediately after the explanation
-  if (isActivelyTyping && Number.isFinite(minInsertIndex)) {
-    const boundary = minInsertIndex as number;
-    if (contentForRender.length < boundary) {
-      contentForRender = message.content.slice(0, boundary);
-    }
-  }
+  // Prefer typewriter output until it has fully caught up to message.content, to avoid sudden jump-to-full
+  const shouldUseTypewriterOutput =
+    !shouldUseStaticRendering && (
+      isTyping ||
+      (displayedContent.length > 0 && displayedContent.length < (message.content?.length ?? 0)) ||
+      isStreaming
+    );
+  const isActivelyTyping = shouldUseTypewriterOutput;
+  let contentForRender = shouldUseTypewriterOutput ? displayedContent : message.content;
+  // Strict gating: do not fast-forward. Cards will only appear after text up to their insertIndex has streamed.
 
   // Render tool calls interleaved by individual insertIndex
+  const lockedInsertIndexRef = useRef<Record<string, number>>({});
+
   const renderInterleaved = () => {
     const toolCalls = message.toolCalls || [];
     if (toolCalls.length === 0) return (
@@ -92,25 +94,50 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     );
 
     // Sort tool calls by their insertIndex (default to end)
-    const sorted = [...toolCalls].sort((a, b) => (a.insertIndex ?? Infinity) - (b.insertIndex ?? Infinity));
+    // Lock stable insertIndex once first observed as finite, to prevent momentary end-placement when backend toggles state at completion
+    for (const tc of toolCalls) {
+      const cand = typeof tc.insertIndex === 'number' ? tc.insertIndex : undefined;
+      if (typeof cand === 'number' && Number.isFinite(cand) && lockedInsertIndexRef.current[tc.id] === undefined) {
+        lockedInsertIndexRef.current[tc.id] = cand;
+      }
+    }
+
+    const getEffectiveInsertIndex = (tc: typeof toolCalls[number]) => {
+      const locked = lockedInsertIndexRef.current[tc.id];
+      if (typeof locked === 'number' && Number.isFinite(locked)) return locked;
+      if (typeof tc.insertIndex === 'number' && Number.isFinite(tc.insertIndex)) return tc.insertIndex;
+      return Infinity; // default to end if unknown
+    };
+
+    const sorted = [...toolCalls].sort((a, b) => getEffectiveInsertIndex(a) - getEffectiveInsertIndex(b));
 
     const fragments: React.ReactNode[] = [];
     let cursor = 0;
 
     for (const tc of sorted) {
-      const idx = Math.min(tc.insertIndex ?? contentForRender.length, contentForRender.length);
+      const effectiveIdx = getEffectiveInsertIndex(tc);
+      const idx = Math.min(
+        Number.isFinite(effectiveIdx) ? effectiveIdx : contentForRender.length,
+        contentForRender.length
+      );
       const slice = contentForRender.slice(cursor, idx);
       if (slice.trim().length > 0) {
         fragments.push(<MarkdownRenderer key={`txt-${cursor}-${idx}`} content={slice} />);
       }
 
-      // Show tool card as soon as we pass close to its insertion point
-      // Allow slight early reveal (lead-in) so the card appears almost immediately after the explanation
-      const okToShow = contentForRender.length + EARLY_REVEAL_CHARS >= idx;
+      // Strict reveal: show tool card only after text has streamed past its insertion point.
+      // Use the un-clamped effectiveIdx for gating. If index is unknown (Infinity), show only after typing finishes.
+      const okToShow = Number.isFinite(effectiveIdx)
+        ? contentForRender.length >= (effectiveIdx as number)
+        : !isActivelyTyping;
       if (okToShow) {
         fragments.push(
           <ToolCallCard key={tc.id} toolCall={tc} suppressAutoScroll={suppressAutoScroll} />
         );
+        // If we revealed with a known finite index, lock it for stability
+        if (Number.isFinite(effectiveIdx) && lockedInsertIndexRef.current[tc.id] === undefined) {
+          lockedInsertIndexRef.current[tc.id] = effectiveIdx as number;
+        }
       }
       cursor = idx;
     }
