@@ -21,6 +21,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
+import { ToolCallCard } from './ToolCallCard';
 
 interface ChatViewProps {
   messages: Message[];
@@ -62,8 +63,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
     return messages.some((m) => m.role === 'AI' && m.isStreaming && m.runId === currentRunId && (m.content?.length ?? 0) > 0);
   }, [messages, currentRunId]);
 
-  // 显示条件：存在当前 run 且未开始流式输出，并且上一条为用户消息
-  const shouldDisplayThinking = Boolean(currentRunId) && isLastHuman && !hasStreamingAICurrentRun;
+  // 显示条件：仅当当前状态为 thinking，且未开始流式输出，并且上一条为用户消息
+  const shouldDisplayThinking = currentRunStatus === 'thinking' && Boolean(currentRunId) && isLastHuman && !hasStreamingAICurrentRun;
+
+  // 统一活动行（AI 行）条件：
+  // - 思考阶段：仅在 shouldDisplayThinking 且 showThinkingIndicator 为真时展示（有轻微延迟）
+  // - 流式阶段：当最后一条为当前 run 的 AI 且 isStreaming 为真时展示
+  const isLastAI = lastMessage?.role === 'AI';
+  const isLastAIStreamingCurrent = useMemo(() => {
+    if (!currentRunId || !isLastAI) return false;
+    return Boolean((lastMessage as any)?.isStreaming) && (lastMessage as any)?.runId === currentRunId;
+  }, [currentRunId, lastMessage, isLastAI]);
+
+  const showUnifiedActiveRow = (shouldDisplayThinking && showThinkingIndicator) || isLastAIStreamingCurrent || currentRunStatus === 'tool_running' || hasActiveToolCalls;
 
   useEffect(() => {
     let t: number | undefined;
@@ -118,52 +130,56 @@ export const ChatView: React.FC<ChatViewProps> = ({
           <div className="flex justify-center">
             {/* 消息流渲染 - 集成原LogStream逻辑 */}
             <div className="w-full max-w-3xl mx-auto px-4">
-              {messages.map((message, index) => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  isLastMessage={index === messages.length - 1}
-                  currentRunStatus={currentRunStatus}
-                  suppressAutoScroll={suppressAutoScroll}
-                />
-              ))}
-
-              {/* 独立的思考状态呼吸符号 - 仅在当前会话已开始且尚未出现AI气泡（无文本流）并且上一条为用户消息时显示（并有轻微延迟） */}
-              {shouldDisplayThinking && showThinkingIndicator && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, ease: 'easeOut' }}
-                  className="py-6 flex items-center gap-3"
-                >
-                  <RoleSymbol
-                    role="AI"
-                    isThinking={true}
+              {messages.map((message, index) => {
+                const isLast = index === messages.length - 1;
+                // 当我们采用统一活动行并且最后一条为当前 run 的流式 AI 消息时，避免重复渲染该条（将在统一行中以 contentOnly 方式渲染）
+                if (showUnifiedActiveRow && isLast && isLastAIStreamingCurrent) {
+                  return null;
+                }
+                return (
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                    isLastMessage={isLast}
+                    currentRunStatus={currentRunStatus}
+                    suppressAutoScroll={suppressAutoScroll}
                   />
-                  <div className="flex-1 min-w-0">
-                    {/* 空内容区域，只显示呼吸符号 */}
-                  </div>
-                </motion.div>
+                );
+              })}
+
+              {/* 统一的活动 AI 行：同一个 RoleSymbol 持续存在，状态切换时仅切换动画与右侧内容 */}
+              {showUnifiedActiveRow && (
+                <div className="group relative py-6 flex items-baseline gap-2">
+                  <RoleSymbol role="AI" isThinking={shouldDisplayThinking && showThinkingIndicator} />
+                  {/* 流式阶段：渲染最后一条 AI 消息的内容区域 */}
+                  {isLastAIStreamingCurrent && lastMessage && (
+                    <ChatMessage
+                      key={(lastMessage as any).id}
+                      message={lastMessage as any}
+                      isLastMessage={true}
+                      currentRunStatus={currentRunStatus}
+                      suppressAutoScroll={suppressAutoScroll}
+                      variant="contentOnly"
+                    />
+                  )}
+                  {/* 工具运行阶段：在 RoleSymbol 右侧渲染工具卡片 */}
+                  {!isLastAIStreamingCurrent && (currentRunStatus === 'tool_running' || hasActiveToolCalls) && (
+                    <div className="flex-1 min-w-0 relative ml-6">
+                      <div className="space-y-2 pr-16">
+                        {currentRunToolCalls.map((toolCall) => (
+                          <ToolCallCard key={toolCall.id} toolCall={toolCall} suppressAutoScroll={suppressAutoScroll} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* 思考阶段：右侧占位，保证布局稳定 */}
+                  {!isLastAIStreamingCurrent && shouldDisplayThinking && showThinkingIndicator && (
+                    <div className="flex-1 min-w-0 relative ml-6" />
+                  )}
+                </div>
               )}
 
-              {/* 独立的工具卡片 - 仅在不存在活动AI消息时显示（避免重复渲染） */}
-              {hasActiveToolCalls && messages.every((m) => !(m.role === 'AI' && m.isStreaming)) && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, ease: 'easeOut' }}
-                  className="py-6 flex items-start gap-4"
-                >
-                  <div className="w-8 flex-shrink-0">
-                    {/* 空白区域，与消息对齐 */}
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-2">
-                    {currentRunToolCalls.map((toolCall) => (
-                      <div key={toolCall.id} className="w-full min-w-0" />
-                    ))}
-                  </div>
-                </motion.div>
-              )}
+              {/* 工具卡片由统一活动行负责渲染 */}
             </div>
           </div>
         </motion.div>

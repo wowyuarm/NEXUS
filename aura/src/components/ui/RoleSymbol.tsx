@@ -20,14 +20,18 @@ export const RoleSymbol: React.FC<RoleSymbolProps> = ({ role, isThinking = false
 
   return (
     <motion.div
+      initial={false}
       className={cn(
         'flex items-center justify-center w-8 h-8 self-baseline translate-y-[2px]',
         'text-secondary-foreground text-[18px] leading-none font-mono select-none',
-        'flex-shrink-0', // 防止收缩
-        isThinking && 'animate-pulse'
+        'flex-shrink-0' // 防止收缩
       )}
-      animate={isThinking ? { opacity: [0.4, 1, 0.4] } : {}}
-      transition={isThinking ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : {}}
+      animate={isThinking ? { opacity: [0.4, 1, 0.4] } : { opacity: 1 }}
+      transition={
+        isThinking
+          ? { duration: 2, repeat: Infinity, ease: 'easeInOut' }
+          : { duration: 0.2, ease: 'easeOut' }
+      }
     >
       {symbols[role]}
     </motion.div>

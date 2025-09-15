@@ -34,13 +34,17 @@ interface ChatMessageProps {
   isLastMessage: boolean;
   currentRunStatus: RunStatus;
   suppressAutoScroll?: (durationMs?: number) => void;
+  // Render variant: 'normal' renders the full row (with RoleSymbol on the left),
+  // 'contentOnly' renders only the right content area, intended for use within a parent row that provides the persistent RoleSymbol.
+  variant?: 'normal' | 'contentOnly';
 }
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({
   message,
   isLastMessage,
   currentRunStatus,
-  suppressAutoScroll
+  suppressAutoScroll,
+  variant = 'normal',
 }) => {
   // Determine if this is the active AI message that should show dynamic states
   const isActiveAIMessage = message.role === 'AI' && isLastMessage;
@@ -139,41 +143,50 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     return renderInterleaved();
   };
 
-  // Don't render anything during thinking state - ChatView handles the breathing animation
-  if (shouldShowThinking) {
+  // In 'normal' variant, we hide the entire row during thinking.
+  // In 'contentOnly' variant, the parent row manages thinking display, so we allow rendering (but content will be empty via renderContent())
+  if (shouldShowThinking && variant === 'normal') {
     return null;
   }
 
-  return (
+  const ContentArea = (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      className="flex-1 min-w-0 relative ml-6"
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: 'easeOut' }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+    >
+      {/* Timestamp - hover to show, top right */}
+      <div className="absolute top-0 right-0">
+        <Timestamp
+          date={new Date(message.timestamp)}
+          format="smart"
+          showOnHover={true}
+        />
+      </div>
+
+      {/* Message content - dynamic rendering based on state */}
+      <div className="pr-16"> {/* Right margin for timestamp */}
+        {renderContent()}
+      </div>
+    </motion.div>
+  );
+
+  if (variant === 'contentOnly') {
+    return ContentArea;
+  }
+
+  return (
+    <div
       className="group relative py-6 flex items-baseline gap-2"
       data-message-id={message.id}
     >
-      {/* Left: Role symbol */}
+      {/* Left: Role symbol stays static without entrance animation */}
       <RoleSymbol
         role={message.role}
         isThinking={false} // Never show thinking animation here
       />
-
-      {/* Right: Message content area */}
-      <div className="flex-1 min-w-0 relative ml-6">
-        {/* Timestamp - hover to show, top right */}
-        <div className="absolute top-0 right-0">
-          <Timestamp
-            date={new Date(message.timestamp)}
-            format="smart"
-            showOnHover={true}
-          />
-        </div>
-
-        {/* Message content - dynamic rendering based on state */}
-        <div className="pr-16"> {/* Right margin for timestamp */}
-          {renderContent()}
-        </div>
-      </div>
-    </motion.div>
+      {ContentArea}
+    </div>
   );
 };
