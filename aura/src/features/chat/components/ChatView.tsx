@@ -45,9 +45,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onScrollToBottom,
   suppressAutoScroll,
 }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _toolCallHistory = toolCallHistory;
   // Computed values for cleaner render logic
-  const currentRunToolCalls = currentRunId ? toolCallHistory[currentRunId] || [] : [];
-  const hasActiveToolCalls = currentRunToolCalls.length > 0;
   // 是否已开始（是否已存在任意消息）
   const hasStarted = messages.length > 0;
 
@@ -61,8 +61,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (!currentRunId) return false;
     return messages.some((m) =>
       m.role === 'AI'
-      && (m.isStreaming || ((m as any).metadata?.isStreaming ?? false))
-      && (m as any).runId === currentRunId
+      && (m.isStreaming || ((m.metadata?.isStreaming ?? false)))
+      && m.runId === currentRunId
       && ((m.content?.length ?? 0) > 0)
     );
   }, [messages, currentRunId]);
@@ -117,7 +117,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         {/* 滚动消息区：根据 hasStarted 控制可见性与入场 */}
         <motion.div
           className="h-full overflow-y-auto pb-32"
-          style={{ scrollBehavior: 'auto', scrollbarGutter: 'stable both-edges', overflowAnchor: 'auto' as any }}
+          style={{ scrollBehavior: 'auto', scrollbarGutter: 'stable both-edges', overflowAnchor: 'auto' }}
           initial={{ opacity: 0 }}
           animate={{ opacity: hasStarted ? 1 : 0 }}
           transition={{ duration: 0.5, ease: cubicBezier(0.22, 1, 0.36, 1) }}

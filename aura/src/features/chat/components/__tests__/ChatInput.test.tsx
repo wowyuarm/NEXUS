@@ -13,7 +13,7 @@ import { ChatInput } from '@/features/chat/components/ChatInput';
 
 // Mock the UI components
 vi.mock('@/components/ui', () => ({
-  Button: ({ children, disabled, onClick, type, className, icon, iconOnly, ...props }: any) => (
+  Button: ({ children, disabled, onClick, type, className, icon, iconOnly, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { icon?: React.ReactNode; iconOnly?: boolean }) => (
     <button 
       type={type}
       disabled={disabled} 
@@ -25,17 +25,17 @@ vi.mock('@/components/ui', () => ({
       {iconOnly && icon ? icon : children}
     </button>
   ),
-  AutoResizeTextarea: React.forwardRef(({ 
-    value, 
-    onChange, 
-    onKeyDown, 
-    onCompositionStart, 
-    onCompositionEnd, 
-    disabled, 
+  AutoResizeTextarea: React.forwardRef(({
+    value,
+    onChange,
+    onKeyDown,
+    onCompositionStart,
+    onCompositionEnd,
+    disabled,
     placeholder,
     className,
-    ...props 
-  }: any, ref: any) => {
+    ...props
+  }: React.TextareaHTMLAttributes<HTMLTextAreaElement>, ref: React.Ref<HTMLTextAreaElement>) => {
     React.useImperativeHandle(ref, () => ({
       resetHeight: vi.fn()
     }));
@@ -67,7 +67,7 @@ vi.mock('lucide-react', () => ({
 
 // Mock utils
 vi.mock('@/lib/utils', () => ({
-  cn: (...classes: any[]) => classes.filter(Boolean).join(' ')
+  cn: (...classes: (string | undefined | null | false)[]) => classes.filter(Boolean).join(' ')
 }));
 
 describe('ChatInput', () => {

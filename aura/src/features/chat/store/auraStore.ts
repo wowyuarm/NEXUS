@@ -124,7 +124,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
 
   // ===== WebSocket Event Handlers =====
 
-  handleRunStarted: (_payload: RunStartedPayload) => {
+  handleRunStarted: (/* _payload: RunStartedPayload */) => {
     // Note: payload contains session_id and user_input from backend,
     // but we generate client-side run ID for UI state management
     const runId = uuidv4(); // Generate client-side run ID

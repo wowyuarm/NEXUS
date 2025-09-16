@@ -14,13 +14,13 @@ import type { ToolCall } from '@/features/chat/types';
 // Mock framer-motion to avoid animation complexities in tests
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, className, onClick, ...props }: any) => (
+    div: ({ children, className, onClick, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
       <div className={className} onClick={onClick} {...props}>
         {children}
       </div>
     )
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 // Mock lucide-react icons
@@ -38,7 +38,7 @@ vi.mock('lucide-react', () => ({
 
 // Mock utils
 vi.mock('@/lib/utils', () => ({
-  cn: (...classes: any[]) => classes.filter(Boolean).join(' ')
+  cn: (...classes: (string | undefined | null | false)[]) => classes.filter(Boolean).join(' ')
 }));
 
 describe('ToolCallCard', () => {

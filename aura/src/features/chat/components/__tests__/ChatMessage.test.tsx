@@ -28,7 +28,7 @@ vi.mock('@/components/ui/RoleSymbol', () => ({
 }));
 
 vi.mock('@/features/chat/components/ToolCallCard', () => ({
-  ToolCallCard: ({ toolCall }: { toolCall: any }) => (
+  ToolCallCard: ({ toolCall }: { toolCall: { id: string; toolName: string; status: string } }) => (
     <div data-testid="tool-call-card" data-tool-name={toolCall.toolName} data-status={toolCall.status}>
       Tool: {toolCall.toolName}
     </div>

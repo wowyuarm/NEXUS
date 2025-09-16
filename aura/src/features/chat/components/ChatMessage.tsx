@@ -26,8 +26,6 @@ import { useTypewriter } from '../hooks/useTypewriter';
 import type { Message } from '../types';
 import type { RunStatus } from '../store/auraStore';
 
-// How many characters before a tool insertion boundary we allow early reveal
-const EARLY_REVEAL_CHARS = 6 as const;
 
 interface ChatMessageProps {
   message: Message;
@@ -67,11 +65,6 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   });
 
   // Decide the content we should render right now
-  const toolCalls = message.toolCalls || [];
-  const minInsertIndex = toolCalls.reduce<number>((min, tc) => {
-    const idx = typeof tc.insertIndex === 'number' ? tc.insertIndex : Number.POSITIVE_INFINITY;
-    return Math.min(min, idx);
-  }, Number.POSITIVE_INFINITY);
 
   // Prefer typewriter output until it has fully caught up to message.content, to avoid sudden jump-to-full
   const shouldUseTypewriterOutput =
@@ -81,7 +74,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       isStreaming
     );
   const isActivelyTyping = shouldUseTypewriterOutput;
-  let contentForRender = shouldUseTypewriterOutput ? displayedContent : message.content;
+  const contentForRender = shouldUseTypewriterOutput ? displayedContent : message.content;
   // Strict gating: do not fast-forward. Cards will only appear after text up to their insertIndex has streamed.
 
   // Render tool calls interleaved by individual insertIndex
