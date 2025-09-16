@@ -30,28 +30,30 @@ MESSAGE_TYPE_USER_MESSAGE = "user_message"
 def _parse_client_message(data: str) -> Dict[str, Union[str, Dict]]:
     """
     Parse incoming client message data and extract relevant information.
-    
+
     Args:
         data: Raw JSON string data from WebSocket client
-        
+
     Returns:
         Dictionary containing parsed message data with standardized structure
-        
+
     Raises:
         json.JSONDecodeError: If data is not valid JSON
     """
     message_data = json.loads(data)
     message_type = message_data.get("type", "")
     payload = message_data.get("payload", {})
-    
+
     if message_type == MESSAGE_TYPE_PING:
         return {"type": message_type, "payload": payload}
     elif message_type == MESSAGE_TYPE_USER_MESSAGE:
         user_input = payload.get("content", "")
+        client_timestamp = payload.get("client_timestamp", "")
         return {
             "type": message_type,
-            "payload": {"content": user_input},
-            "user_input": user_input
+            "payload": {"content": user_input, "client_timestamp": client_timestamp},
+            "user_input": user_input,
+            "client_timestamp": client_timestamp
         }
     elif message_type == "":
         return {"type": "", "payload": payload}
@@ -186,6 +188,7 @@ class WebsocketInterface:
                             continue
                         elif message_type == MESSAGE_TYPE_USER_MESSAGE:
                             user_input = parsed_message.get("user_input", "")
+                            client_timestamp = parsed_message.get("client_timestamp", "")
 
                             if not user_input.strip():
                                 logger.warning(f"Empty user message received from session_id={session_id}")
@@ -197,19 +200,22 @@ class WebsocketInterface:
                         # Create a new run for this user input
                         run_id = self._generate_run_id()
 
-                        # Create the initial user message
+                        # Create the initial user message with client timestamp in metadata
                         user_message = Message(
                             run_id=run_id,
                             session_id=session_id,
                             role=Role.HUMAN,
-                            content=user_input
+                            content=user_input,
+                            metadata={"client_timestamp": client_timestamp} if client_timestamp else {}
                         )
 
-                        # Create Run object and add the initial message to its history
+                        # Create Run object with client timestamp in metadata and add the initial message to its history
+                        run_metadata = {"client_timestamp": client_timestamp} if client_timestamp else {}
                         run = Run(
                             id=run_id,
                             session_id=session_id,
-                            status=RunStatus.PENDING
+                            status=RunStatus.PENDING,
+                            metadata=run_metadata
                         )
                         run.history.append(user_message)
 

@@ -149,7 +149,13 @@ class TestContextServiceIntegration:
         assert messages[0]["role"] == "system"
         assert messages[0]["content"] == system_prompt
         assert messages[-1]["role"] == "user"
-        assert messages[-1]["content"] == "What is artificial intelligence?"
+        # The final message should now be in XML context format
+        expected_xml_context = """<Context>
+  <Human_Input>
+    What is artificial intelligence?
+  </Human_Input>
+</Context>"""
+        assert messages[-1]["content"] == expected_xml_context
         
         # Verify tools are included
         assert content["tools"] == expected_tools

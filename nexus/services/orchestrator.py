@@ -220,6 +220,9 @@ class OrchestratorService:
             # Extract current input from the first message in run history
             current_input = self._extract_user_input_from_run(run)
 
+            # Extract client timestamp from run metadata
+            client_timestamp = run.metadata.get("client_timestamp", "") if run.metadata else ""
+
             # Request context building
             context_request = Message(
                 run_id=run.id,
@@ -227,7 +230,8 @@ class OrchestratorService:
                 role=Role.SYSTEM,
                 content={
                     "current_input": current_input,
-                    "session_id": run.session_id
+                    "session_id": run.session_id,
+                    "client_timestamp": client_timestamp
                 }
             )
 

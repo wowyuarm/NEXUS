@@ -206,12 +206,13 @@ export class WebSocketManager {
       return;
     }
 
-    const message = createClientMessage(input, this.sessionId);
+    const clientTimestamp = new Date().toISOString();
+    const message = createClientMessage(input, this.sessionId, clientTimestamp);
     const messageStr = JSON.stringify(message);
-    
+
     try {
       this.ws.send(messageStr);
-      console.log('Sent message to NEXUS:', { input, sessionId: this.sessionId });
+      console.log('Sent message to NEXUS:', { input, sessionId: this.sessionId, clientTimestamp });
     } catch (error) {
       console.error('Failed to send message:', error);
     }

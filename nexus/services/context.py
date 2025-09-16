@@ -57,14 +57,15 @@ class ContextService:
         Handle context build requests.
 
         Args:
-            message: Message containing 'current_input' and 'run_id'
+            message: Message containing 'current_input', 'client_timestamp', and 'run_id'
         """
         try:
             logger.info(f"Handling context build request for run_id={message.run_id}")
 
-            # Extract current input from message content
+            # Extract current input and client timestamp from message content
             content = message.content
             current_input = content.get("current_input", "")
+            client_timestamp = content.get("client_timestamp", "")
             run_id = message.run_id
 
             if not current_input:
@@ -78,7 +79,8 @@ class ContextService:
             messages = await self._build_messages_with_history(
                 message.session_id,
                 system_prompt,
-                current_input
+                current_input,
+                client_timestamp
             )
 
             # Get all available tool definitions
@@ -162,17 +164,20 @@ class ContextService:
         self,
         system_prompt: str,
         history_from_db: List[Dict],
-        current_input: str
+        current_input: str,
+        client_timestamp: str = ""
     ) -> List[Dict]:
-        """Format LLM messages from system prompt, history data, and current input.
+        """Format LLM messages using the new context revolution paradigm.
 
-        This method handles all data transformation, role mapping, and message
-        concatenation logic. It is synchronous and purely focused on data processing.
+        This method implements the "thinking loop invariance" principle by keeping
+        the system prompt and history messages immutable, while injecting dynamic
+        context information in a structured XML format.
 
         Args:
-            system_prompt: The system prompt to include
-            history_from_db: List of historical message dictionaries from database
+            system_prompt: The system prompt to include (immutable)
+            history_from_db: List of historical message dictionaries from database (immutable)
             current_input: The current user input
+            client_timestamp: The client timestamp in ISO 8601 format
 
         Returns:
             List of message dictionaries formatted for LLM context
@@ -185,6 +190,7 @@ class ContextService:
         ]
 
         # Convert database messages to LLM format and add to context
+        # This preserves the "thinking loop invariance" - history is immutable
         for msg_data in reversed(history_from_db):  # Reverse to get chronological order
             role = msg_data.get("role", "").lower()
             content = msg_data.get("content", "")
@@ -215,15 +221,46 @@ class ContextService:
                     "content": content_str
                 })
 
-        # Add the current user input
+        # Build structured XML context for dynamic information
+        # This implements the "structured contextual input" principle
+        xml_context_parts = ["<Context>"]
+
+        # Add current time if timestamp is available
+        if client_timestamp:
+            try:
+                from datetime import datetime
+                import zoneinfo
+
+                # Parse ISO 8601 timestamp and convert to Beijing time
+                client_dt = datetime.fromisoformat(client_timestamp.replace('Z', '+00:00'))
+                beijing_tz = zoneinfo.ZoneInfo('Asia/Shanghai')
+                beijing_time = client_dt.astimezone(beijing_tz)
+                formatted_time = beijing_time.strftime('%Y-%m-%d %H:%M:%S Beijing Time')
+
+                xml_context_parts.append(f"  <Current_Time>{formatted_time}</Current_Time>")
+            except Exception as e:
+                logger.warning(f"Failed to parse client timestamp '{client_timestamp}': {e}")
+                # Fallback to raw timestamp
+                xml_context_parts.append(f"  <Current_Time>{client_timestamp}</Current_Time>")
+
+        # Add human input
+        xml_context_parts.append("  <Human_Input>")
+        xml_context_parts.append(f"    {current_input}")
+        xml_context_parts.append("  </Human_Input>")
+        xml_context_parts.append("</Context>")
+
+        structured_context = "\n".join(xml_context_parts)
+
+        # Add the structured context as the final user message
+        # This combines dynamic context with user input in a single message
         messages.append({
             "role": "user",
-            "content": current_input
+            "content": structured_context
         })
 
         return messages
 
-    async def _build_messages_with_history(self, session_id: str, system_prompt: str, current_input: str) -> List[Dict]:
+    async def _build_messages_with_history(self, session_id: str, system_prompt: str, current_input: str, client_timestamp: str = "") -> List[Dict]:
         """Build messages list with conversation history from database.
 
         This method focuses on async I/O operations and delegates message formatting
@@ -233,6 +270,7 @@ class ContextService:
             session_id: The session ID to load history for
             system_prompt: The system prompt to include
             current_input: The current user input
+            client_timestamp: The client timestamp in ISO 8601 format
 
         Returns:
             List of message dictionaries for LLM context
@@ -258,4 +296,4 @@ class ContextService:
                 history_from_db = []
 
         # Format and return the messages using the synchronous method
-        return self._format_llm_messages(system_prompt, history_from_db, current_input)
+        return self._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp)

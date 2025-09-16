@@ -173,7 +173,7 @@ class TestFormatLlmMessages:
         return ContextService(bus=mock_bus, tool_registry=mock_tool_registry)
 
     def test_formats_with_history(self, context_service):
-        """Test that _format_llm_messages correctly formats messages with conversation history."""
+        """Test that _format_llm_messages correctly formats messages with conversation history using new XML context structure."""
         # Arrange: Prepare test data
         system_prompt = "You are Xi, an AI assistant."
         history_from_db = [
@@ -189,20 +189,26 @@ class TestFormatLlmMessages:
 
         # Assert: Verify message structure, role mapping, and order
         # Note: history_from_db is reversed by _format_llm_messages, so the order is reversed
+        expected_xml_context = """<Context>
+  <Human_Input>
+    Can you help me with Python?
+  </Human_Input>
+</Context>"""
+
         expected_messages = [
             {"role": "system", "content": system_prompt},
             {"role": "assistant", "content": "I don't have access to current weather data, but I can help you find weather information."},
             {"role": "user", "content": "What's the weather like?"},
             {"role": "assistant", "content": "I'm doing well, thank you! How can I help you today?"},
             {"role": "user", "content": "Hello, how are you?"},
-            {"role": "user", "content": current_input}
+            {"role": "user", "content": expected_xml_context}
         ]
-        
+
         assert result == expected_messages
         assert len(result) == 6
         assert result[0]["role"] == "system"
         assert result[-1]["role"] == "user"
-        assert result[-1]["content"] == current_input
+        assert result[-1]["content"] == expected_xml_context
 
     def test_correctly_ignores_tool_messages(self, context_service):
         """Test that _format_llm_messages correctly ignores TOOL role messages."""
@@ -220,25 +226,31 @@ class TestFormatLlmMessages:
         # Act: Format messages
         result = context_service._format_llm_messages(system_prompt, history_from_db, current_input)
 
-        # Assert: Verify tool messages are excluded
+        # Assert: Verify tool messages are excluded and final message uses XML context
+        expected_xml_context = """<Context>
+  <Human_Input>
+    What about advanced topics?
+  </Human_Input>
+</Context>"""
+
         # Note: history_from_db is reversed by _format_llm_messages
         expected_messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": "Thanks!"},
             {"role": "assistant", "content": "Here are some great Python tutorials I found."},
             {"role": "user", "content": "Search for Python tutorials"},
-            {"role": "user", "content": current_input}
+            {"role": "user", "content": expected_xml_context}
         ]
-        
+
         assert result == expected_messages
         assert len(result) == 5
-        
+
         # Verify no tool messages are present
         for message in result:
             assert message["role"] != "tool"
 
     def test_formats_with_empty_history(self, context_service):
-        """Test that _format_llm_messages handles empty history correctly."""
+        """Test that _format_llm_messages handles empty history correctly using new XML context structure."""
         # Arrange: Prepare test data with empty history
         system_prompt = "You are Xi, an AI assistant."
         history_from_db = []
@@ -247,14 +259,21 @@ class TestFormatLlmMessages:
         # Act: Format messages
         result = context_service._format_llm_messages(system_prompt, history_from_db, current_input)
 
-        # Assert: Verify only system prompt and current input are present
+        # Assert: Verify system prompt and XML context with user input are present
+        expected_xml_context = """<Context>
+  <Human_Input>
+    Hello, this is my first message!
+  </Human_Input>
+</Context>"""
+
         expected_messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": current_input}
+            {"role": "user", "content": expected_xml_context}
         ]
-        
+
         assert result == expected_messages
         assert len(result) == 2
+        assert result[-1]["content"] == expected_xml_context
 
     def test_handles_none_content_gracefully(self, context_service):
         """Test that _format_llm_messages handles None content values gracefully."""
@@ -271,15 +290,21 @@ class TestFormatLlmMessages:
         # Act: Format messages
         result = context_service._format_llm_messages(system_prompt, history_from_db, current_input)
 
-        # Assert: Verify only non-empty messages are included
+        # Assert: Verify only non-empty messages are included and final message uses XML context
+        expected_xml_context = """<Context>
+  <Human_Input>
+    What can you do?
+  </Human_Input>
+</Context>"""
+
         # Note: history_from_db is reversed by _format_llm_messages
         # Empty and whitespace-only content is filtered out by content_str.strip()
         expected_messages = [
             {"role": "system", "content": system_prompt},
             {"role": "assistant", "content": "I can help you with that."},
-            {"role": "user", "content": current_input}
+            {"role": "user", "content": expected_xml_context}
         ]
-        
+
         assert result == expected_messages
         assert len(result) == 3
 
@@ -299,7 +324,13 @@ class TestFormatLlmMessages:
         # Act: Format messages
         result = context_service._format_llm_messages(system_prompt, history_from_db, current_input)
 
-        # Assert: Verify only valid roles are included
+        # Assert: Verify only valid roles are included and final message uses XML context
+        expected_xml_context = """<Context>
+  <Human_Input>
+    How are you?
+  </Human_Input>
+</Context>"""
+
         # Note: history_from_db is reversed by _format_llm_messages
         # "HUMAN" gets converted to lowercase "human" and is processed as valid
         expected_messages = [
@@ -307,9 +338,9 @@ class TestFormatLlmMessages:
             {"role": "user", "content": "Case sensitive test"},  # HUMAN -> human -> user
             {"role": "assistant", "content": "Hi there!"},
             {"role": "user", "content": "Hello"},
-            {"role": "user", "content": current_input}
+            {"role": "user", "content": expected_xml_context}
         ]
-        
+
         assert result == expected_messages
         assert len(result) == 5
 
@@ -328,26 +359,32 @@ class TestFormatLlmMessages:
         # Act: Format messages
         result = context_service._format_llm_messages(system_prompt, history_from_db, current_input)
 
-        # Assert: Verify messages are in correct chronological order
+        # Assert: Verify messages are in correct chronological order with XML context
+        expected_xml_context = """<Context>
+  <Human_Input>
+    Message 5 (current)
+  </Human_Input>
+</Context>"""
+
         expected_messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": "Message 1 (oldest)"},
             {"role": "assistant", "content": "Message 2"},
             {"role": "user", "content": "Message 3"},
             {"role": "assistant", "content": "Message 4 (newest)"},
-            {"role": "user", "content": current_input}
+            {"role": "user", "content": expected_xml_context}
         ]
-        
+
         assert result == expected_messages
-        
+
         # Verify the order is correct
         content_order = [msg["content"] for msg in result[1:]]  # Skip system message
         expected_order = [
             "Message 1 (oldest)",
-            "Message 2", 
+            "Message 2",
             "Message 3",
             "Message 4 (newest)",
-            "Message 5 (current)"
+            expected_xml_context
         ]
         assert content_order == expected_order
 
@@ -366,7 +403,13 @@ class TestFormatLlmMessages:
         # Act: Format messages
         result = context_service._format_llm_messages(system_prompt, history_from_db, current_input)
 
-        # Assert: Verify all content is converted to strings
+        # Assert: Verify all content is converted to strings and final message uses XML context
+        expected_xml_context = """<Context>
+  <Human_Input>
+    What about this?
+  </Human_Input>
+</Context>"""
+
         # Note: history_from_db is reversed by _format_llm_messages
         expected_messages = [
             {"role": "system", "content": system_prompt},
@@ -374,11 +417,160 @@ class TestFormatLlmMessages:
             {"role": "user", "content": "{'dict': 'content'}"},
             {"role": "assistant", "content": "['list', 'content']"},
             {"role": "user", "content": "123"},
-            {"role": "user", "content": current_input}
+            {"role": "user", "content": expected_xml_context}
         ]
-        
+
         assert result == expected_messages
-        
+
         # Verify all content values are strings
         for message in result:
             assert isinstance(message["content"], str)
+
+    def test_formats_with_client_timestamp(self, context_service):
+        """Test that _format_llm_messages includes client timestamp in XML context when provided."""
+        # Arrange: Prepare test data with timestamp
+        system_prompt = "You are Xi, an AI assistant."
+        history_from_db = []
+        current_input = "What time is it?"
+        client_timestamp = "2025-09-16T14:30:45Z"
+
+        # Act: Format messages with timestamp
+        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp)
+
+        # Assert: Verify timestamp is included in XML context
+        expected_xml_context = """<Context>
+  <Current_Time>2025-09-16 22:30:45 Beijing Time</Current_Time>
+  <Human_Input>
+    What time is it?
+  </Human_Input>
+</Context>"""
+
+        expected_messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": expected_xml_context}
+        ]
+
+        assert result == expected_messages
+        assert len(result) == 2
+        assert result[-1]["content"] == expected_xml_context
+        assert "<Current_Time>" in result[-1]["content"]
+        assert "<Human_Input>" in result[-1]["content"]
+
+    def test_formats_without_client_timestamp(self, context_service):
+        """Test that _format_llm_messages works without client timestamp."""
+        # Arrange: Prepare test data without timestamp
+        system_prompt = "You are Xi, an AI assistant."
+        history_from_db = []
+        current_input = "Hello"
+
+        # Act: Format messages without timestamp
+        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input)
+
+        # Assert: Verify context doesn't include timestamp
+        expected_xml_context = """<Context>
+  <Human_Input>
+    Hello
+  </Human_Input>
+</Context>"""
+
+        expected_messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": expected_xml_context}
+        ]
+
+        assert result == expected_messages
+        assert len(result) == 2
+        assert result[-1]["content"] == expected_xml_context
+        assert "<Current_Time>" not in result[-1]["content"]
+        assert "<Human_Input>" in result[-1]["content"]
+
+    def test_handles_invalid_client_timestamp(self, context_service):
+        """Test that _format_llm_messages handles invalid timestamp gracefully."""
+        # Arrange: Prepare test data with invalid timestamp
+        system_prompt = "You are Xi, an AI assistant."
+        history_from_db = []
+        current_input = "Test message"
+        client_timestamp = "invalid-timestamp-format"
+
+        # Act: Format messages with invalid timestamp
+        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp)
+
+        # Assert: Verify invalid timestamp is included as-is in XML context
+        expected_xml_context = """<Context>
+  <Current_Time>invalid-timestamp-format</Current_Time>
+  <Human_Input>
+    Test message
+  </Human_Input>
+</Context>"""
+
+        expected_messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": expected_xml_context}
+        ]
+
+        assert result == expected_messages
+        assert len(result) == 2
+        assert result[-1]["content"] == expected_xml_context
+
+    def test_xml_context_escaping(self, context_service):
+        """Test that XML context properly escapes special characters in user input."""
+        # Arrange: Prepare test data with special characters
+        system_prompt = "You are Xi, an AI assistant."
+        history_from_db = []
+        current_input = "Can you help me with <script>alert('test')</script>?"
+        client_timestamp = "2025-09-16T14:30:45Z"
+
+        # Act: Format messages with special characters
+        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp)
+
+        # Assert: Verify special characters are preserved (not escaped in this implementation)
+        expected_xml_context = """<Context>
+  <Current_Time>2025-09-16 22:30:45 Beijing Time</Current_Time>
+  <Human_Input>
+    Can you help me with <script>alert('test')</script>?
+  </Human_Input>
+</Context>"""
+
+        expected_messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": expected_xml_context}
+        ]
+
+        assert result == expected_messages
+        assert len(result) == 2
+        assert result[-1]["content"] == expected_xml_context
+
+    def test_thinking_loop_invariance(self, context_service):
+        """Test that system prompt and history remain immutable (thinking loop invariance principle)."""
+        # Arrange: Prepare test data
+        system_prompt = "You are Xi, an AI assistant."
+        history_from_db = [
+            {"role": "human", "content": "First message"},
+            {"role": "ai", "content": "First response"}
+        ]
+        current_input = "Second message"
+        client_timestamp = "2025-09-16T14:30:45Z"
+
+        # Act: Format messages
+        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp)
+
+        # Assert: Verify system prompt is unchanged and history order is preserved
+        expected_xml_context = """<Context>
+  <Current_Time>2025-09-16 22:30:45 Beijing Time</Current_Time>
+  <Human_Input>
+    Second message
+  </Human_Input>
+</Context>"""
+
+        expected_messages = [
+            {"role": "system", "content": system_prompt},  # Immutable
+            {"role": "assistant", "content": "First response"},  # From history, in correct order
+            {"role": "user", "content": "First message"},  # From history, in correct order
+            {"role": "user", "content": expected_xml_context}  # New structured context
+        ]
+
+        assert result == expected_messages
+        assert len(result) == 4
+        assert result[0]["content"] == system_prompt  # System prompt unchanged
+        assert result[1]["content"] == "First response"  # History preserved
+        assert result[2]["content"] == "First message"  # History preserved
