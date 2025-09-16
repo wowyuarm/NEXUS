@@ -37,6 +37,7 @@ vi.mock('@/components/ui', () => ({
     ...props
   }: React.TextareaHTMLAttributes<HTMLTextAreaElement>, ref: React.Ref<HTMLTextAreaElement>) => {
     React.useImperativeHandle(ref, () => ({
+      ...document.createElement('textarea'),
       resetHeight: vi.fn()
     }));
     

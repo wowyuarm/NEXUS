@@ -38,15 +38,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
   messages,
   currentRunStatus,
   currentRunId,
-  toolCallHistory,
+  toolCallHistory: _toolCallHistory, // eslint-disable-line @typescript-eslint/no-unused-vars
   onSendMessage,
   scrollContainerRef,
   showScrollButton,
   onScrollToBottom,
   suppressAutoScroll,
 }) => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _toolCallHistory = toolCallHistory;
+  // Note: toolCallHistory prop is reserved for future tool history implementation
   // Computed values for cleaner render logic
   // 是否已开始（是否已存在任意消息）
   const hasStarted = messages.length > 0;
