@@ -263,3 +263,76 @@
 所有测试都必须遵循`pytest`的最佳实践，并使用`mocker`进行依赖隔离。
 
 **任务开始。**
+
+---
+---
+
+为AURA的核心状态管理与UI组件编写单元和组件测试。
+---
+
+#### **第一部分：上下文学习 (Contextual Learning)**
+
+**在编写任何代码之前，你必须首先阅读并完全理解以下文件：**
+
+1.  **`tests/README.md`**: **（强制阅读）** 再次确认我们“以组件测试为核心”的前端测试战略，以及TDD的工作流程。
+2.  **`aura/src/features/chat/store/auraStore.ts`**: 深入理解所有`actions`是如何改变`state`的，特别是`currentRun`对象的状态转换逻辑。
+3.  **`aura/src/features/chat/components/ChatMessage.tsx`**: 深入理解其复杂的条件渲染逻辑。
+4.  **`aura/src/features/chat/components/ToolCallCard.tsx`**: 理解其如何根据`status` prop渲染不同的视觉状态。
+5.  **`aura/src/features/chat/components/ChatInput.tsx`**: 理解其输入、提交和禁用状态的逻辑。
+
+#### **第二部分：任务目标 (Objective)**
+
+你的任务是创建四个新的测试文件(**强调，测试文件均位于tests/)，为AURA的核心逻辑和UI提供坚实的测试覆盖：
+1.  **`auraStore`单元测试**: 验证所有状态转换的正确性。
+2.  **`ChatMessage`组件测试**: 验证其在不同`Run`状态下的渲染行为。
+3.  **`ToolCallCard`组件测试**: 验证其不同状态的视觉表现。
+4.  **`ChatInput`组件测试**: 验证用户的核心输入交互。
+
+#### **第三部分：文件与核心指令 (Files & Core Instructions)**
+
+你将创建以下四个新的测试文件，并将它们放置在**被测文件旁边**。
+
+**1. 新文件: `tests/aura/store/auraStore.test.ts`**
+*   **测试目标**: 对`auraStore`进行单元测试。
+*   **核心指令**:
+    *   **Setup**: 在每个测试之前，使用`useAuraStore.setState(initialState)`来重置store。
+    *   **测试用例**:
+        *   `test_handleRunStarted`: 调用`handleRunStarted`，断言`currentRun.status`变为`'thinking'`，并且`messages`数组中增加了一个AI消息占位符。
+        *   `test_handleToolCallStarted`: 先调用`handleRunStarted`，然后调用`handleToolCallStarted`，断言`currentRun.status`变为`'tool_running'`，并且`activeToolCalls`数组中包含了一个新的、状态为`'running'`的工具。
+        *   `test_handleToolCallFinished`: 继续上一个测试的状态，调用`handleToolCallFinished`，断言`activeToolCalls`中对应工具的`status`变为`'completed'`或`'error'`。
+        *   `test_handleTextChunk`: 调用`handleRunStarted`后，调用`handleTextChunk`，断言`currentRun.status`变为`'streaming_text'`，并且AI消息占位符的`content`被正确追加。
+        *   `test_handleRunFinished`: 调用`handleRunStarted`后，调用`handleRunFinished`，断言`isInputDisabled`变回`false`，并且在短暂延迟后`currentRun.status`变回`'idle'`（需要使用`vitest.useFakeTimers()`来测试`setTimeout`）。
+
+**2. 新文件: `tests/aura/components/ChatMessage.test.tsx`**
+*   **测试目标**: 对`ChatMessage`进行组件测试。
+*   **核心指令**:
+    *   使用`@testing-library/react`的`render`函数。
+    *   **测试用例**:
+        *   `test_renders_human_message_correctly`: 提供`role: 'HUMAN'`的`message` prop，断言屏幕上出现了正确的文本和`▲`符号。
+        *   `test_renders_thinking_state`: 提供AI消息占位符，并将`currentRunStatus` prop设为`'thinking'`，断言`RoleSymbol`组件被渲染并带有“呼吸”动画相关的属性/类名，但**没有**渲染任何文本或`ToolCallCard`。
+        *   `test_renders_tool_running_state`: 将`currentRunStatus`设为`'tool_running'`并提供`activeToolCalls`，断言`ToolCallCard`组件被渲染。
+
+**3. 新文件: `tests/aura/components/ToolCallCard.test.tsx`**
+*   **测试目标**: 对`ToolCallCard`进行组件测试。
+*   **核心指令**:
+    *   **测试用例**:
+        *   `test_renders_running_state`: 传入`status: 'running'`的`toolCall` prop，断言屏幕上出现了“Executing...”文本和加载动画。
+        *   `test_renders_completed_state`: 传入`status: 'completed'`，断言屏幕上出现了“Completed”文本和成功图标。
+
+**4. 新文件: `tests/aura/components/ChatInput.test.tsx`**
+*   **测试目标**: 对`ChatInput`进行组件测试。
+*   **核心指令**:
+    *   使用`@testing-library/react`的`render`和`@testing-library/user-event`。
+    *   **测试用例**:
+        *   `test_sends_message_on_submit`:
+            *   **Arrange**: 创建一个`vitest.fn()`来模拟`onSendMessage` prop。
+            *   **Act**: 使用`userEvent.type`在输入框中输入文字，然后使用`userEvent.click`点击发送按钮。
+            *   **Assert**: 断言`onSendMessage`被以正确的参数调用了一次。
+        *   `test_button_is_disabled_when_input_is_empty`: 断言在输入框为空时，发送按钮有`disabled`属性。
+        *   `test_input_is_disabled_while_thinking`: 传入`isInputDisabled={true}` prop，断言输入框和按钮都有`disabled`属性。
+
+---
+**交付要求：**
+你必须提供四个新测试文件 (`auraStore.test.ts`, `ChatMessage.test.tsx`, `ToolCallCard.test.tsx`, `ChatInput.test.tsx`) 的完整代码。所有测试都必须遵循《测试宪章》中定义的前端测试策略和最佳实践。
+
+**任务开始。**

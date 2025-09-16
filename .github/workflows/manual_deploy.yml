@@ -1,0 +1,35 @@
+name: Manual Deploy to Render
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Which service to deploy'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - backend
+          - frontend
+
+jobs:
+  deploy:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Trigger Backend Deploy
+      if: github.event.inputs.target == 'all' || github.event.inputs.target == 'backend'
+      run: |
+        echo "Triggering backend deployment..."
+        curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}"
+
+    - name: Trigger Frontend Deploy
+      if: github.event.inputs.target == 'all' || github.event.inputs.target == 'frontend'
+      run: |
+        echo "Triggering frontend deployment..."
+        curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}"
