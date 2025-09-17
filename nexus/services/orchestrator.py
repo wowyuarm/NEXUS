@@ -221,7 +221,6 @@ class OrchestratorService:
             current_input = self._extract_user_input_from_run(run)
 
             # Extract client timestamp from run metadata
-            client_timestamp = run.metadata.get("client_timestamp", "") if run.metadata else ""
             client_timestamp_utc = run.metadata.get("client_timestamp_utc", "") if run.metadata else ""
             client_timezone_offset = run.metadata.get("client_timezone_offset", 0) if run.metadata else 0
 
@@ -233,7 +232,6 @@ class OrchestratorService:
                 content={
                     "current_input": current_input,
                     "session_id": run.session_id,
-                    "client_timestamp": client_timestamp,
                     "client_timestamp_utc": client_timestamp_utc,
                     "client_timezone_offset": client_timezone_offset
                 }

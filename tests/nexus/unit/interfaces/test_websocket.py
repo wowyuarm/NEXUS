@@ -25,9 +25,9 @@ class TestParseClientMessage:
         result = _parse_client_message(valid_user_message)
 
         assert result["type"] == "user_message"
-        assert result["payload"] == {"content": "Hello, world!", "client_timestamp": "", "client_timestamp_utc": "", "client_timezone_offset": 0}
+        assert result["payload"] == {"content": "Hello, world!", "client_timestamp_utc": "", "client_timezone_offset": 0}
         assert result["user_input"] == "Hello, world!"
-        assert result["client_timestamp"] == ""
+        assert result["client_timestamp_utc"] == ""
         
     def test_parse_client_message_valid_user_message_empty_content(self):
         """Test parsing a user message with empty content."""
@@ -41,9 +41,9 @@ class TestParseClientMessage:
         result = _parse_client_message(message_with_empty_content)
 
         assert result["type"] == "user_message"
-        assert result["payload"] == {"content": "", "client_timestamp": "", "client_timestamp_utc": "", "client_timezone_offset": 0}
+        assert result["payload"] == {"content": "", "client_timestamp_utc": "", "client_timezone_offset": 0}
         assert result["user_input"] == ""
-        assert result["client_timestamp"] == ""
+        assert result["client_timestamp_utc"] == ""
         
     def test_parse_client_message_valid_user_message_no_payload(self):
         """Test parsing a user message with no payload."""
@@ -54,9 +54,9 @@ class TestParseClientMessage:
         result = _parse_client_message(message_no_payload)
 
         assert result["type"] == "user_message"
-        assert result["payload"] == {"content": "", "client_timestamp": "", "client_timestamp_utc": "", "client_timezone_offset": 0}
+        assert result["payload"] == {"content": "", "client_timestamp_utc": "", "client_timezone_offset": 0}
         assert result["user_input"] == ""
-        assert result["client_timestamp"] == ""
+        assert result["client_timestamp_utc"] == ""
         
     def test_parse_client_message_valid_ping(self):
         """Test parsing a valid ping message."""
@@ -183,9 +183,9 @@ class TestParseClientMessage:
         result = _parse_client_message(message_with_extra_fields)
         
         assert result["type"] == "user_message"
-        assert result["payload"] == {"content": "Hello, world!", "client_timestamp": "", "client_timestamp_utc": "", "client_timezone_offset": 0}
+        assert result["payload"] == {"content": "Hello, world!", "client_timestamp_utc": "", "client_timezone_offset": 0}
         assert result["user_input"] == "Hello, world!"
-        assert result["client_timestamp"] == ""
+        assert result["client_timestamp_utc"] == ""
         # Extra fields should not appear in the result
         assert "extra_field" not in result
         assert "another_field" not in result

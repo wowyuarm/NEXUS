@@ -426,22 +426,23 @@ class TestFormatLlmMessages:
         for message in result:
             assert isinstance(message["content"], str)
 
-    def test_formats_with_client_timestamp(self, context_service):
-        """Test that _format_llm_messages includes client timestamp in XML context when provided."""
-        # Arrange: Prepare test data with timestamp
+    def test_formats_with_timezone_aware_timestamp(self, context_service):
+        """Test that _format_llm_messages includes timezone-aware timestamp in XML context when provided."""
+        # Arrange: Prepare test data with timezone-aware timestamp
         system_prompt = "You are Xi, an AI assistant."
         history_from_db = []
-        current_input = "What time is it?"
-        client_timestamp = "2025-09-16T14:30:45Z"
+        current_input = "What time is it in New York?"
+        client_timestamp_utc = "2025-09-16T14:30:45Z"
+        client_timezone_offset = 300  # -5 hours in minutes (New York)
 
-        # Act: Format messages with timestamp
-        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp)
+        # Act: Format messages with timezone-aware timestamp
+        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp_utc, client_timezone_offset)
 
-        # Assert: Verify timestamp is included in XML context
+        # Assert: Verify timezone-aware timestamp is included in XML context
         expected_xml_context = """<Context>
-  <Current_Time>2025-09-16 14:30:45 UTC</Current_Time>
+  <Current_Time>2025-09-16 09:30:45-05:00</Current_Time>
   <Human_Input>
-    What time is it?
+    What time is it in New York?
   </Human_Input>
 </Context>"""
 
@@ -456,8 +457,8 @@ class TestFormatLlmMessages:
         assert "<Current_Time>" in result[-1]["content"]
         assert "<Human_Input>" in result[-1]["content"]
 
-    def test_formats_without_client_timestamp(self, context_service):
-        """Test that _format_llm_messages works without client timestamp."""
+    def test_formats_without_timestamp(self, context_service):
+        """Test that _format_llm_messages works without timestamp information."""
         # Arrange: Prepare test data without timestamp
         system_prompt = "You are Xi, an AI assistant."
         history_from_db = []
@@ -484,18 +485,19 @@ class TestFormatLlmMessages:
         assert "<Current_Time>" not in result[-1]["content"]
         assert "<Human_Input>" in result[-1]["content"]
 
-    def test_handles_invalid_client_timestamp(self, context_service):
-        """Test that _format_llm_messages handles invalid timestamp gracefully."""
-        # Arrange: Prepare test data with invalid timestamp
+    def test_handles_invalid_timezone_timestamp(self, context_service):
+        """Test that _format_llm_messages handles invalid timezone-aware timestamp gracefully."""
+        # Arrange: Prepare test data with invalid timezone-aware timestamp
         system_prompt = "You are Xi, an AI assistant."
         history_from_db = []
         current_input = "Test message"
-        client_timestamp = "invalid-timestamp-format"
+        client_timestamp_utc = "invalid-timestamp-format"
+        client_timezone_offset = 300
 
-        # Act: Format messages with invalid timestamp
-        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp)
+        # Act: Format messages with invalid timezone-aware timestamp
+        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp_utc, client_timezone_offset)
 
-        # Assert: Verify invalid timestamp is included as-is in XML context
+        # Assert: Verify invalid timestamp is included as-is in XML context (fallback)
         expected_xml_context = """<Context>
   <Current_Time>invalid-timestamp-format</Current_Time>
   <Human_Input>
@@ -518,14 +520,15 @@ class TestFormatLlmMessages:
         system_prompt = "You are Xi, an AI assistant."
         history_from_db = []
         current_input = "Can you help me with <script>alert('test')</script>?"
-        client_timestamp = "2025-09-16T14:30:45Z"
+        client_timestamp_utc = "2025-09-16T14:30:45Z"
+        client_timezone_offset = 0  # UTC
 
         # Act: Format messages with special characters
-        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp)
+        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp_utc, client_timezone_offset)
 
         # Assert: Verify special characters are preserved (not escaped in this implementation)
         expected_xml_context = """<Context>
-  <Current_Time>2025-09-16 14:30:45 UTC</Current_Time>
+  <Current_Time>2025-09-16 14:30:45+00:00</Current_Time>
   <Human_Input>
     Can you help me with <script>alert('test')</script>?
   </Human_Input>
@@ -549,14 +552,15 @@ class TestFormatLlmMessages:
             {"role": "ai", "content": "First response"}
         ]
         current_input = "Second message"
-        client_timestamp = "2025-09-16T14:30:45Z"
+        client_timestamp_utc = "2025-09-16T14:30:45Z"
+        client_timezone_offset = 0  # UTC
 
         # Act: Format messages
-        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp)
+        result = context_service._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp_utc, client_timezone_offset)
 
         # Assert: Verify system prompt is unchanged and history order is preserved
         expected_xml_context = """<Context>
-  <Current_Time>2025-09-16 14:30:45 UTC</Current_Time>
+  <Current_Time>2025-09-16 14:30:45+00:00</Current_Time>
   <Human_Input>
     Second message
   </Human_Input>

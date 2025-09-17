@@ -57,7 +57,7 @@ class ContextService:
         Handle context build requests.
 
         Args:
-            message: Message containing 'current_input', 'client_timestamp', and 'run_id'
+            message: Message containing 'current_input', 'client_timestamp_utc', 'client_timezone_offset', and 'run_id'
         """
         try:
             logger.info(f"Handling context build request for run_id={message.run_id}")
@@ -65,7 +65,6 @@ class ContextService:
             # Extract current input and client timestamp from message content
             content = message.content
             current_input = content.get("current_input", "")
-            client_timestamp = content.get("client_timestamp", "")
             client_timestamp_utc = content.get("client_timestamp_utc", "")
             client_timezone_offset = content.get("client_timezone_offset", 0)
             run_id = message.run_id
@@ -82,7 +81,6 @@ class ContextService:
                 message.session_id,
                 system_prompt,
                 current_input,
-                client_timestamp,
                 client_timestamp_utc,
                 client_timezone_offset
             )
@@ -169,7 +167,6 @@ class ContextService:
         system_prompt: str,
         history_from_db: List[Dict],
         current_input: str,
-        client_timestamp: str = "",
         client_timestamp_utc: str = "",
         client_timezone_offset: int = 0
     ) -> List[Dict]:
@@ -232,7 +229,7 @@ class ContextService:
         xml_context_parts = ["<Context>"]
 
         # Add current time if timestamp is available
-        if client_timestamp_utc and client_timezone_offset != 0:
+        if client_timestamp_utc:
             # Use timezone-aware calculation when both UTC and offset are provided
             try:
                 from datetime import datetime, timedelta
@@ -258,20 +255,8 @@ class ContextService:
                 logger.warning(f"Failed to parse timezone-aware timestamp '{client_timestamp_utc}' with offset '{client_timezone_offset}': {e}")
                 # Fallback to raw UTC timestamp
                 xml_context_parts.append(f"  <Current_Time>{client_timestamp_utc}</Current_Time>")
-        elif client_timestamp:
-            # Fallback to UTC formatting for backward compatibility
-            try:
-                from datetime import datetime
-
-                # Parse ISO 8601 timestamp and format as UTC
-                client_dt = datetime.fromisoformat(client_timestamp.replace('Z', '+00:00'))
-                formatted_time = client_dt.strftime('%Y-%m-%d %H:%M:%S UTC')
-
-                xml_context_parts.append(f"  <Current_Time>{formatted_time}</Current_Time>")
-            except Exception as e:
-                logger.warning(f"Failed to parse client timestamp '{client_timestamp}': {e}")
-                # Fallback to raw timestamp
-                xml_context_parts.append(f"  <Current_Time>{client_timestamp}</Current_Time>")
+        # No timestamp information available
+        pass
 
         # Add human input
         xml_context_parts.append("  <Human_Input>")
@@ -290,7 +275,7 @@ class ContextService:
 
         return messages
 
-    async def _build_messages_with_history(self, session_id: str, system_prompt: str, current_input: str, client_timestamp: str = "", client_timestamp_utc: str = "", client_timezone_offset: int = 0) -> List[Dict]:
+    async def _build_messages_with_history(self, session_id: str, system_prompt: str, current_input: str, client_timestamp_utc: str = "", client_timezone_offset: int = 0) -> List[Dict]:
         """Build messages list with conversation history from database.
 
         This method focuses on async I/O operations and delegates message formatting
@@ -300,7 +285,8 @@ class ContextService:
             session_id: The session ID to load history for
             system_prompt: The system prompt to include
             current_input: The current user input
-            client_timestamp: The client timestamp in ISO 8601 format
+            client_timestamp_utc: The client timestamp in ISO 8601 format
+            client_timezone_offset: The client timezone offset in minutes
 
         Returns:
             List of message dictionaries for LLM context
@@ -326,4 +312,4 @@ class ContextService:
                 history_from_db = []
 
         # Format and return the messages using the synchronous method
-        return self._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp, client_timestamp_utc, client_timezone_offset)
+        return self._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp_utc, client_timezone_offset)

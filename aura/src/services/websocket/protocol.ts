@@ -160,7 +160,6 @@ export interface ClientMessage {
   payload: {
     content: string;
     session_id: string;
-    client_timestamp: string;
     client_timestamp_utc: string;
     client_timezone_offset: number;
   };
@@ -174,7 +173,6 @@ export function createClientMessage(input: string, sessionId: string, timestamp?
     payload: {
       content: input,
       session_id: sessionId,
-      client_timestamp: clientTimestamp,
       client_timestamp_utc: clientTimestamp,
       client_timezone_offset: clientTimezoneOffset
     }
