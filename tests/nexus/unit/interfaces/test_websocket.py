@@ -25,7 +25,7 @@ class TestParseClientMessage:
         result = _parse_client_message(valid_user_message)
 
         assert result["type"] == "user_message"
-        assert result["payload"] == {"content": "Hello, world!", "client_timestamp": ""}
+        assert result["payload"] == {"content": "Hello, world!", "client_timestamp": "", "client_timestamp_utc": "", "client_timezone_offset": 0}
         assert result["user_input"] == "Hello, world!"
         assert result["client_timestamp"] == ""
         
@@ -41,7 +41,7 @@ class TestParseClientMessage:
         result = _parse_client_message(message_with_empty_content)
 
         assert result["type"] == "user_message"
-        assert result["payload"] == {"content": "", "client_timestamp": ""}
+        assert result["payload"] == {"content": "", "client_timestamp": "", "client_timestamp_utc": "", "client_timezone_offset": 0}
         assert result["user_input"] == ""
         assert result["client_timestamp"] == ""
         
@@ -54,7 +54,7 @@ class TestParseClientMessage:
         result = _parse_client_message(message_no_payload)
 
         assert result["type"] == "user_message"
-        assert result["payload"] == {"content": "", "client_timestamp": ""}
+        assert result["payload"] == {"content": "", "client_timestamp": "", "client_timestamp_utc": "", "client_timezone_offset": 0}
         assert result["user_input"] == ""
         assert result["client_timestamp"] == ""
         
@@ -183,7 +183,7 @@ class TestParseClientMessage:
         result = _parse_client_message(message_with_extra_fields)
         
         assert result["type"] == "user_message"
-        assert result["payload"] == {"content": "Hello, world!", "client_timestamp": ""}
+        assert result["payload"] == {"content": "Hello, world!", "client_timestamp": "", "client_timestamp_utc": "", "client_timezone_offset": 0}
         assert result["user_input"] == "Hello, world!"
         assert result["client_timestamp"] == ""
         # Extra fields should not appear in the result

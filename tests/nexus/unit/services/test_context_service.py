@@ -439,7 +439,7 @@ class TestFormatLlmMessages:
 
         # Assert: Verify timestamp is included in XML context
         expected_xml_context = """<Context>
-  <Current_Time>2025-09-16 22:30:45 Beijing Time</Current_Time>
+  <Current_Time>2025-09-16 14:30:45 UTC</Current_Time>
   <Human_Input>
     What time is it?
   </Human_Input>
@@ -525,7 +525,7 @@ class TestFormatLlmMessages:
 
         # Assert: Verify special characters are preserved (not escaped in this implementation)
         expected_xml_context = """<Context>
-  <Current_Time>2025-09-16 22:30:45 Beijing Time</Current_Time>
+  <Current_Time>2025-09-16 14:30:45 UTC</Current_Time>
   <Human_Input>
     Can you help me with <script>alert('test')</script>?
   </Human_Input>
@@ -556,7 +556,7 @@ class TestFormatLlmMessages:
 
         # Assert: Verify system prompt is unchanged and history order is preserved
         expected_xml_context = """<Context>
-  <Current_Time>2025-09-16 22:30:45 Beijing Time</Current_Time>
+  <Current_Time>2025-09-16 14:30:45 UTC</Current_Time>
   <Human_Input>
     Second message
   </Human_Input>

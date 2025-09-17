@@ -161,17 +161,22 @@ export interface ClientMessage {
     content: string;
     session_id: string;
     client_timestamp: string;
+    client_timestamp_utc: string;
+    client_timezone_offset: number;
   };
 }
 
 export function createClientMessage(input: string, sessionId: string, timestamp?: string): ClientMessage {
   const clientTimestamp = timestamp || new Date().toISOString();
+  const clientTimezoneOffset = new Date().getTimezoneOffset();
   return {
     type: 'user_message',
     payload: {
       content: input,
       session_id: sessionId,
-      client_timestamp: clientTimestamp
+      client_timestamp: clientTimestamp,
+      client_timestamp_utc: clientTimestamp,
+      client_timezone_offset: clientTimezoneOffset
     }
   };
 }

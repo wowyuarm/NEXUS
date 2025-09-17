@@ -49,11 +49,20 @@ def _parse_client_message(data: str) -> Dict[str, Union[str, Dict]]:
     elif message_type == MESSAGE_TYPE_USER_MESSAGE:
         user_input = payload.get("content", "")
         client_timestamp = payload.get("client_timestamp", "")
+        client_timestamp_utc = payload.get("client_timestamp_utc", "")
+        client_timezone_offset = payload.get("client_timezone_offset", 0)
         return {
             "type": message_type,
-            "payload": {"content": user_input, "client_timestamp": client_timestamp},
+            "payload": {
+                "content": user_input,
+                "client_timestamp": client_timestamp,
+                "client_timestamp_utc": client_timestamp_utc,
+                "client_timezone_offset": client_timezone_offset
+            },
             "user_input": user_input,
-            "client_timestamp": client_timestamp
+            "client_timestamp": client_timestamp,
+            "client_timestamp_utc": client_timestamp_utc,
+            "client_timezone_offset": client_timezone_offset
         }
     elif message_type == "":
         return {"type": "", "payload": payload}
@@ -189,6 +198,8 @@ class WebsocketInterface:
                         elif message_type == MESSAGE_TYPE_USER_MESSAGE:
                             user_input = parsed_message.get("user_input", "")
                             client_timestamp = parsed_message.get("client_timestamp", "")
+                            client_timestamp_utc = parsed_message.get("client_timestamp_utc", "")
+                            client_timezone_offset = parsed_message.get("client_timezone_offset", 0)
 
                             if not user_input.strip():
                                 logger.warning(f"Empty user message received from session_id={session_id}")
@@ -201,16 +212,31 @@ class WebsocketInterface:
                         run_id = self._generate_run_id()
 
                         # Create the initial user message with client timestamp in metadata
+                        user_message_metadata = {}
+                        if client_timestamp:
+                            user_message_metadata["client_timestamp"] = client_timestamp
+                        if client_timestamp_utc:
+                            user_message_metadata["client_timestamp_utc"] = client_timestamp_utc
+                        if client_timezone_offset != 0:
+                            user_message_metadata["client_timezone_offset"] = client_timezone_offset
+
                         user_message = Message(
                             run_id=run_id,
                             session_id=session_id,
                             role=Role.HUMAN,
                             content=user_input,
-                            metadata={"client_timestamp": client_timestamp} if client_timestamp else {}
+                            metadata=user_message_metadata
                         )
 
                         # Create Run object with client timestamp in metadata and add the initial message to its history
-                        run_metadata = {"client_timestamp": client_timestamp} if client_timestamp else {}
+                        run_metadata = {}
+                        if client_timestamp:
+                            run_metadata["client_timestamp"] = client_timestamp
+                        if client_timestamp_utc:
+                            run_metadata["client_timestamp_utc"] = client_timestamp_utc
+                        if client_timezone_offset != 0:
+                            run_metadata["client_timezone_offset"] = client_timezone_offset
+
                         run = Run(
                             id=run_id,
                             session_id=session_id,
