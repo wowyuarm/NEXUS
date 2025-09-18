@@ -55,4 +55,5 @@ This is the design and implementation of our current stage.
     2.  **Action**: The `Orchestrator` receives the `tool_calls`, dispatches requests to the `ToolExecutor`, and enters a `AWAITING_TOOL_RESULT` state.
     3.  **Observation**: The `ToolExecutor` runs the tool and publishes the result.
     4.  **Synthesis**: The `Orchestrator` receives the tool result, appends it to the conversation history, and **loops back** by sending the updated history to the LLM for the next step.
+-   **Core Principle: The Immutable Loop Context**: A critical architectural principle governing the loop is **context immutability**. Within a single `Run` (from user input to final response), the foundational context—the System Prompt and the historical `Message` list—**must remain unchanged** across multiple iterations of the loop. All new information (like tool results) is appended for the next LLM call. This immutability is key to leveraging LLM provider-side caching and ensuring logical consistency.
 -   **Key Insight**: The `Agentic Loop` is the mechanism that elevates NEXUS from a simple conversational AI to a true, autonomous problem-solving agent.

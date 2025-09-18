@@ -28,6 +28,12 @@ Services (`Orchestrator`, `ToolExecutor`, etc.) are independent "organs," each w
 ### 4. **Clarity Over Cleverness**
 The code must transparently reflect the flow of `Message` events. A complex algorithm hidden in a clever class is less valuable than a simple, observable sequence of events broadcast across the bus. We architect for observability and comprehensibility above all else.
 
+### 5. **Database as Configuration: The Living Blueprint**
+The system's "source of truth" for its behavior is not static code or files, but a dynamic configuration stored in the database. This allows NEXUS to be a "living" system, whose parameters can be adjusted in real-time without requiring restarts, laying the groundwork for future self-evolution.
+
+### 6. **Test-Driven Development (TDD) as a Mandate**
+All logical evolution of the system **must** be driven by tests. We write tests first to define a clear, verifiable contract for what the code must do. This enforces discipline, guarantees quality, and transforms our test suite into a living, executable specification of the entire system.
+
 ---
 
 ## Part II: The Philosophy of AURA (The Expression & Interface)

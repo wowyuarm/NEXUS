@@ -19,7 +19,7 @@ The NEXUS backend is composed of several key services, each playing a critical r
 
 -   **`OrchestratorService`**: The **Central Nervous System / Prefrontal Cortex**. This is the brain of the operation. It does not perform any business logic itself. Its only job is to listen to events from other services and, based on the current state of a `Run`, decide which event to publish next. It is the master conductor of the entire conversational symphony.
 
--   **`ContextService`**: The **Cognitive Preparation Area**. Before the main "thinking" can happen, this service gathers all necessary information. It loads historical conversations from memory, injects personality and tool instructions from prompts, and prepares the complete context for the LLM.
+-   **`ContextService`**: The **Cognitive Preparation Area**. Before the main "thinking" can happen, this service gathers all necessary information. It loads historical conversations from memory and injects personality from prompts. Crucially, it transforms all dynamic, real-time information (like the current client-side time) and the user's input into a structured XML format, ensuring that the context provided to the LLM is both rich and cache-friendly.
 
 -   **`LLMService`**: The **Language Center**. This service is the sole bridge to the Large Language Model (e.g., Google's Gemini). It receives requests from the `Orchestrator`, formats them for the LLM API, and publishes the LLM's raw response back to the bus.
 
@@ -29,7 +29,7 @@ The NEXUS backend is composed of several key services, each playing a critical r
 
 -   **`DatabaseService`**: The **Memory Storage Interface**. An abstraction layer that provides asynchronous methods for interacting with the database (e.g., MongoDB), decoupling the rest of the system from the specific database technology.
 
--   **`ConfigService`**: The **System's DNA**. A centralized service that loads and provides all configuration parameters, ensuring the system's behavior is consistent and easily managed.
+-   **`ConfigService`**: The **System's Living DNA**. This is a centralized service that provides all configuration parameters. Its defining feature is its **database-driven and environment-aware nature**. On startup, it connects to the database and loads the configuration specific to the current running environment (development or production), falling back to a safe, in-code default only in case of catastrophic failure. This allows for dynamic, real-time configuration changes without requiring a service restart
 
 ## III. The Flow of a Thought: A Complete Interaction Lifecycle
 

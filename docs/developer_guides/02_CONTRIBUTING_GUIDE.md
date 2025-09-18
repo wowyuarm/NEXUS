@@ -20,6 +20,14 @@ We follow a standard Git workflow:
 5.  Push your branch and open a Pull Request against `main`.
 6.  Ensure all automated checks (CI, tests) pass.
 
+We follow a strict Test-Driven Development (TDD) workflow. Any new feature or bug fix must begin with a test.
+
+1.  **RED**: Create a new branch. Write a failing test that precisely defines the new requirement or replicates the bug.
+2.  **GREEN**: Write the absolute minimum amount of production code required to make the test pass.
+3.  **REFACTOR**: Clean up both the production and test code for clarity and adherence to our principles, ensuring tests continue to pass.
+4.  **COMMIT**: Commit your changes with a clear message.
+5.  **PULL REQUEST**: Push your branch and open a Pull Request. Ensure all automated CI checks pass.
+
 ## III. Common Development Scenarios
 
 This section provides recipes for the most common types of contributions.
