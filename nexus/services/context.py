@@ -82,7 +82,8 @@ class ContextService:
                 system_prompt,
                 current_input,
                 client_timestamp_utc,
-                client_timezone_offset
+                client_timezone_offset,
+                run_id
             )
 
             # Get all available tool definitions
@@ -168,7 +169,8 @@ class ContextService:
         history_from_db: List[Dict],
         current_input: str,
         client_timestamp_utc: str = "",
-        client_timezone_offset: int = 0
+        client_timezone_offset: int = 0,
+        current_run_id: str = ""
     ) -> List[Dict]:
         """Format LLM messages using the new context revolution paradigm.
 
@@ -181,6 +183,8 @@ class ContextService:
             history_from_db: List of historical message dictionaries from database (immutable)
             current_input: The current user input
             client_timestamp: The client timestamp in ISO 8601 format
+            client_timezone_offset: The client timezone offset in minutes
+            current_run_id: The current run ID for deduplication purposes
 
         Returns:
             List of message dictionaries formatted for LLM context
@@ -192,9 +196,18 @@ class ContextService:
             }
         ]
 
+        # Filter out messages from the current run to prevent duplicate input
+        # This implements run_id-based deduplication to ensure clean context
+        filtered_history = history_from_db
+        if current_run_id:
+            filtered_history = [
+                msg for msg in history_from_db
+                if msg.get('run_id') != current_run_id
+            ]
+
         # Convert database messages to LLM format and add to context
         # This preserves the "thinking loop invariance" - history is immutable
-        for msg_data in reversed(history_from_db):  # Reverse to get chronological order
+        for msg_data in reversed(filtered_history):  # Reverse to get chronological order
             role = msg_data.get("role", "").lower()
             content = msg_data.get("content", "")
 
@@ -275,7 +288,7 @@ class ContextService:
 
         return messages
 
-    async def _build_messages_with_history(self, session_id: str, system_prompt: str, current_input: str, client_timestamp_utc: str = "", client_timezone_offset: int = 0) -> List[Dict]:
+    async def _build_messages_with_history(self, session_id: str, system_prompt: str, current_input: str, client_timestamp_utc: str = "", client_timezone_offset: int = 0, current_run_id: str = "") -> List[Dict]:
         """Build messages list with conversation history from database.
 
         This method focuses on async I/O operations and delegates message formatting
@@ -312,4 +325,4 @@ class ContextService:
                 history_from_db = []
 
         # Format and return the messages using the synchronous method
-        return self._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp_utc, client_timezone_offset)
+        return self._format_llm_messages(system_prompt, history_from_db, current_input, client_timestamp_utc, client_timezone_offset, current_run_id)

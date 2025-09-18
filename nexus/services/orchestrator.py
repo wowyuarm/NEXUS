@@ -233,7 +233,8 @@ class OrchestratorService:
                     "current_input": current_input,
                     "session_id": run.session_id,
                     "client_timestamp_utc": client_timestamp_utc,
-                    "client_timezone_offset": client_timezone_offset
+                    "client_timezone_offset": client_timezone_offset,
+                    "run_id": run.id
                 }
             )
 
