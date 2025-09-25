@@ -56,7 +56,6 @@ export const ChatContainer = () => {
       messages={messages}
       currentRunStatus={currentRun.status}
       currentRunId={currentRun.runId}
-      toolCallHistory={toolCallHistory}
       onSendMessage={handleSendMessage}
       scrollContainerRef={scrollContainerRef}
       showScrollButton={showScrollButton}

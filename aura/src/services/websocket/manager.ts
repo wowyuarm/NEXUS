@@ -12,12 +12,12 @@
  * - Handles connection errors and automatic reconnection
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import {
   parseNexusEvent,
   createClientMessage
 } from './protocol';
 import { nexusConfig } from '../../config/nexus';
+import { IdentityService } from '../identity/identity';
 
 // ===== Event Emitter Implementation =====
 
@@ -77,7 +77,7 @@ export class WebSocketManager {
   private ws: WebSocket | null = null;
   private config: Required<Omit<WebSocketManagerConfig, 'url'>>;
   private emitter: EventEmitter = new EventEmitter();
-  private sessionId: string;
+  publicKey: string;
   private baseUrl: string;
   private isConnected: boolean = false;
   private reconnectAttempts: number = 0;
@@ -86,7 +86,7 @@ export class WebSocketManager {
 
   constructor(config: WebSocketManagerConfig = {}) {
     this.baseUrl = this._getBaseUrl();
-    this.sessionId = this._getSessionId();
+    this.publicKey = this._getPublicKey();
     this.config = {
       heartbeatInterval: config.heartbeatInterval ?? 30000, // 30 seconds
       reconnectInterval: config.reconnectInterval ?? 5000,   // 5 seconds
@@ -103,21 +103,13 @@ export class WebSocketManager {
     return wsUrl;
   }
 
-  // ===== Private Session Management =====
+  // ===== Private Identity Management =====
 
-  private _getSessionId(): string {
-    const STORAGE_KEY = 'nexus_session_id';
-
-    // Try to get existing session_id from localStorage
-    const existingSessionId = localStorage.getItem(STORAGE_KEY);
-    if (existingSessionId) {
-      return existingSessionId;
-    }
-
-    // Generate new session_id and store it
-    const newSessionId = uuidv4();
-    localStorage.setItem(STORAGE_KEY, newSessionId);
-    return newSessionId;
+  private _getPublicKey(): string {
+    // Get or create user identity and return the public key
+    const identity = IdentityService.getIdentity();
+    console.log('🔑 Using Public Key for identity:', identity.publicKey);
+    return identity.publicKey;
   }
 
   // ===== Public API =====
@@ -128,19 +120,19 @@ export class WebSocketManager {
       return;
     }
 
-    // Get persistent session_id and construct full WebSocket URL
-    this.sessionId = this._getSessionId();
-    const fullUrl = `${this.baseUrl}/${this.sessionId}`;
+    // Get persistent public key and construct full WebSocket URL
+    this.publicKey = this._getPublicKey();
+    const fullUrl = `${this.baseUrl}/${this.publicKey}`;
 
     // Debug information
-    const isDevelopment = window.location.hostname === 'localhost' || 
+    const isDevelopment = window.location.hostname === 'localhost' ||
                          window.location.hostname === '127.0.0.1';
-    console.log('🔌 Connecting to WebSocket:', {
+    console.log('🔌 Connecting to WebSocket with Public Key:', {
       environment: isDevelopment ? 'development' : 'production',
       hostname: window.location.hostname,
       baseUrl: this.baseUrl,
       fullUrl: fullUrl,
-      sessionId: this.sessionId
+      publicKey: this.publicKey
     });
 
     return new Promise((resolve, reject) => {
@@ -152,7 +144,7 @@ export class WebSocketManager {
           this.isConnected = true;
           this.reconnectAttempts = 0;
           this.startHeartbeat();
-          this.emitter.emit('connected', { sessionId: this.sessionId });
+          this.emitter.emit('connected', { publicKey: this.publicKey });
           resolve();
         };
 
@@ -175,6 +167,7 @@ export class WebSocketManager {
             hostname: window.location.hostname,
             baseUrl: this.baseUrl,
             fullUrl: fullUrl,
+            publicKey: this.publicKey,
             readyState: this.ws?.readyState
           });
           this.emitter.emit('error', { error });
@@ -207,12 +200,12 @@ export class WebSocketManager {
     }
 
     const clientTimestamp = new Date().toISOString();
-    const message = createClientMessage(input, this.sessionId, clientTimestamp);
+    const message = createClientMessage(input, this.publicKey, clientTimestamp);
     const messageStr = JSON.stringify(message);
 
     try {
       this.ws.send(messageStr);
-      console.log('Sent message to NEXUS:', { input, sessionId: this.sessionId, clientTimestamp });
+      console.log('Sent message to NEXUS:', { input, publicKey: this.publicKey, clientTimestamp });
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -294,8 +287,8 @@ export class WebSocketManager {
     return this.isConnected;
   }
 
-  get currentSessionId(): string {
-    return this.sessionId;
+  get currentPublicKey(): string {
+    return this.publicKey;
   }
 }
 

@@ -165,14 +165,14 @@ export interface ClientMessage {
   };
 }
 
-export function createClientMessage(input: string, sessionId: string, timestamp?: string): ClientMessage {
+export function createClientMessage(input: string, publicKey: string, timestamp?: string): ClientMessage {
   const clientTimestamp = timestamp || new Date().toISOString();
   const clientTimezoneOffset = new Date().getTimezoneOffset();
   return {
     type: 'user_message',
     payload: {
       content: input,
-      session_id: sessionId,
+      session_id: publicKey, // Semantic replacement: field name remains, content is public key
       client_timestamp_utc: clientTimestamp,
       client_timezone_offset: clientTimezoneOffset
     }

@@ -54,7 +54,7 @@ export interface AuraState {
 
   // Connection State
   isConnected: boolean;
-  sessionId: string | null;
+  publicKey: string | null;
 
   // UI State
   isInputDisabled: boolean;
@@ -76,7 +76,7 @@ export interface AuraActions {
   handleError: (payload: ErrorPayload) => void;
   
   // Connection Handlers
-  handleConnected: (sessionId: string) => void;
+  handleConnected: (publicKey: string) => void;
   handleDisconnected: () => void;
   
   // User Actions
@@ -117,7 +117,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     activeToolCalls: []
   },
   isConnected: false,
-  sessionId: null,
+  publicKey: null,
   isInputDisabled: false,
   lastError: null,
   toolCallHistory: {},
@@ -400,10 +400,10 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
 
   // ===== Connection Handlers =====
 
-  handleConnected: (sessionId: string) => {
+  handleConnected: (publicKey: string) => {
     set({
       isConnected: true,
-      sessionId,
+      publicKey,
       lastError: null
     });
 

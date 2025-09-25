@@ -15,7 +15,7 @@
 
 import React, { useMemo, useEffect, useState } from 'react';
 import { motion, cubicBezier } from 'framer-motion';
-import type { Message, ToolCall } from '../types';
+import type { Message } from '../types';
 import type { RunStatus } from '../store/auraStore';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
@@ -26,7 +26,6 @@ interface ChatViewProps {
   messages: Message[];
   currentRunStatus: RunStatus;
   currentRunId: string | null;
-  toolCallHistory: Record<string, ToolCall[]>;
   onSendMessage: (message: string) => void;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
   showScrollButton: boolean;
@@ -38,7 +37,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
   messages,
   currentRunStatus,
   currentRunId,
-  toolCallHistory: _toolCallHistory, // eslint-disable-line @typescript-eslint/no-unused-vars
   onSendMessage,
   scrollContainerRef,
   showScrollButton,

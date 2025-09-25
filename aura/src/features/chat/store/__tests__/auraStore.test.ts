@@ -32,7 +32,7 @@ describe('auraStore', () => {
       activeToolCalls: []
     },
     isConnected: false,
-    sessionId: null,
+    publicKey: null,
     isInputDisabled: false,
     lastError: null,
     toolCallHistory: {}

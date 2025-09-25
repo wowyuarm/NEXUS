@@ -104,8 +104,8 @@ export function useAura(): UseAuraReturn {
     handleError(payload);
   }, [handleError]);
 
-  const onConnected = useCallback((data: { sessionId: string }) => {
-    handleConnected(data.sessionId);
+  const onConnected = useCallback((data: { publicKey: string }) => {
+    handleConnected(data.publicKey);
   }, [handleConnected]);
 
   const onDisconnected = useCallback(() => {
