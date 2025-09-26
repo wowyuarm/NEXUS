@@ -24,6 +24,7 @@ class Role(str, Enum):
     AI = "AI"
     SYSTEM = "SYSTEM"
     TOOL = "TOOL"
+    COMMAND = "COMMAND"
 
 
 class RunStatus(str, Enum):

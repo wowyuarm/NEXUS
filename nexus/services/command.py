@@ -1,0 +1,304 @@
+"""
+Command Service for NEXUS.
+
+Provides a deterministic command processing engine with auto-discovery capabilities.
+This service handles command execution, error handling, and result publishing
+through the event bus system.
+"""
+
+import logging
+import importlib
+import pkgutil
+from typing import Dict, Any, Callable, Awaitable
+
+from nexus.core.bus import NexusBus
+from nexus.core.models import Message, Role
+from nexus.core.topics import Topics
+
+logger = logging.getLogger(__name__)
+
+
+class CommandService:
+    """
+    Command processing engine with auto-discovery and deterministic execution.
+
+    This service is responsible for:
+    - Auto-discovering command definitions from the commands/definition directory
+    - Registering command handlers for execution
+    - Processing command requests through the event bus
+    - Publishing command results back to the bus
+    - Handling errors gracefully with informative responses
+    """
+
+    def __init__(self, bus: NexusBus, **services: Any) -> None:
+        """
+        Initialize the CommandService with required dependencies.
+
+        Args:
+            bus: The NexusBus instance for event communication
+            **services: Additional services to inject into command contexts
+        """
+        self.bus = bus
+        self.services = services
+
+        # Registry for command execution functions
+        self._command_registry: Dict[str, Callable[[Dict[str, Any]], Awaitable[Dict[str, Any]]]] = {}
+
+        # Registry for command metadata (definitions)
+        self._command_definitions: Dict[str, Dict[str, Any]] = {}
+
+        # Auto-discover and register commands
+        self._discover_and_register_commands()
+
+        # Subscribe to command requests
+        self.bus.subscribe(Topics.SYSTEM_COMMAND, self.handle_command)
+
+        logger.info(f"CommandService initialized with {len(self._command_registry)} commands")
+
+    def _discover_and_register_commands(self) -> None:
+        """
+        Automatically discover and register commands from the commands definition directory.
+
+        This method scans the nexus.commands.definition package for modules containing
+        command definitions and registers them for execution.
+        """
+        try:
+            logger.info("Starting command discovery in nexus.commands.definition")
+
+            package = importlib.import_module('nexus.commands.definition')
+            if not hasattr(package, '__path__'):
+                logger.warning("nexus.commands.definition has no __path__ attribute")
+                return
+
+            # Discover and register commands from each module
+            for _, modname, ispkg in pkgutil.iter_modules(package.__path__):
+                if not ispkg:  # Skip sub-packages
+                    full_module_name = f"nexus.commands.definition.{modname}"
+                    self._process_module_for_commands(full_module_name)
+
+            # Also process the root module itself
+            try:
+                self._process_module_for_commands('nexus.commands.definition')
+            except Exception:
+                # Don't fail discovery if root processing has issues
+                pass
+
+            logger.info(f"Command discovery completed. Registered {len(self._command_registry)} commands")
+
+        except Exception as e:
+            logger.error(f"Error during command discovery: {e}")
+            raise
+
+    def _process_module_for_commands(self, module_name: str) -> None:
+        """
+        Process a single module to discover and register commands.
+
+        Args:
+            module_name: Full module name to process
+        """
+        logger.debug(f"Examining command module: {module_name}")
+
+        try:
+            module = importlib.import_module(module_name)
+            command_definitions = self._extract_command_definitions(module)
+
+            for cmd_def_name, cmd_definition in command_definitions.items():
+                self._register_command_from_definition(module, module_name, cmd_def_name, cmd_definition)
+
+        except Exception as e:
+            logger.error(f"Error importing command module {module_name}: {e}")
+
+    def _extract_command_definitions(self, module) -> Dict[str, Dict]:
+        """
+        Extract command definitions from a module.
+
+        Args:
+            module: The module to search for command definitions
+
+        Returns:
+            Dictionary of command definition name to definition
+        """
+        command_definitions = {}
+        for attr_name in dir(module):
+            if attr_name == 'COMMAND_DEFINITION' and not attr_name.startswith('_'):
+                attr_value = getattr(module, attr_name)
+                if isinstance(attr_value, dict):
+                    command_definitions[attr_name] = attr_value
+                    logger.debug(f"Found command definition: {attr_name}")
+        return command_definitions
+
+    def _register_command_from_definition(self, module, module_name: str, cmd_def_name: str, cmd_definition: Dict) -> None:
+        """
+        Register a command from its definition and corresponding execute function.
+
+        Args:
+            module: The module containing the command
+            module_name: Name of the module
+            cmd_def_name: Name of the command definition variable
+            cmd_definition: The command definition dictionary
+        """
+        try:
+            # Validate command definition structure
+            if "name" not in cmd_definition:
+                logger.warning(f"Invalid command definition {cmd_def_name}: missing name")
+                return
+
+            command_name = cmd_definition["name"]
+
+            # Find and validate the execute function
+            if hasattr(module, "execute"):
+                execute_function = getattr(module, "execute")
+                if callable(execute_function):
+                    # Register the command
+                    self._command_registry[command_name] = execute_function
+                    self._command_definitions[command_name] = cmd_definition
+                    logger.info(f"Registered command: {command_name} from {module_name}")
+                else:
+                    logger.warning(f"Found execute function in {module_name} but it's not callable")
+            else:
+                logger.warning(f"Execute function not found in {module_name}")
+
+        except Exception as e:
+            logger.error(f"Error processing command definition {cmd_def_name} in {module_name}: {e}")
+
+    async def handle_command(self, message: Message) -> None:
+        """
+        Handle incoming command requests from the event bus.
+
+        This method parses the command, executes it, and publishes the result.
+
+        Args:
+            message: The command request message
+        """
+        try:
+            logger.info(f"Handling command request: {message.content}")
+
+            # Parse the command
+            command_name = self._parse_command_name(message.content)
+
+            # Find the command executor
+            executor = self._command_registry.get(command_name)
+            if executor is None:
+                # Command not found
+                result = {
+                    "status": "error",
+                    "message": f"Unknown command: {command_name}. Type '/help' for available commands."
+                }
+                await self._publish_result(message, result)
+                return
+
+            # Build execution context
+            context = self._build_execution_context(command_name)
+
+            # Execute the command
+            try:
+                result = await executor(context)
+                await self._publish_result(message, result)
+                logger.info(f"Command '{command_name}' executed successfully")
+
+            except Exception as e:
+                # Command execution failed
+                error_result = {
+                    "status": "error",
+                    "message": f"Command execution failed: {str(e)}"
+                }
+                await self._publish_result(message, error_result)
+                logger.error(f"Command '{command_name}' execution failed: {e}")
+
+        except Exception as e:
+            # General error handling
+            error_result = {
+                "status": "error",
+                "message": f"Command processing error: {str(e)}"
+            }
+            await self._publish_result(message, error_result)
+            logger.error(f"Command processing error: {e}")
+
+    def _parse_command_name(self, content: str) -> str:
+        """
+        Parse the command name from the message content.
+
+        Args:
+            content: The raw command string (e.g., "/ping" or "ping")
+
+        Returns:
+            The parsed command name
+
+        Raises:
+            ValueError: If command name is empty or invalid
+        """
+        if not content or not isinstance(content, str):
+            raise ValueError("Command content must be a non-empty string")
+
+        # Remove leading slash and whitespace
+        command = content.strip().lstrip('/')
+
+        if not command:
+            raise ValueError("Command name cannot be empty")
+
+        return command
+
+    def _build_execution_context(self, command_name: str) -> Dict[str, Any]:
+        """
+        Build the execution context for a command.
+
+        Args:
+            command_name: Name of the command being executed
+
+        Returns:
+            Dictionary containing all required context for command execution
+        """
+        context = {
+            'command_name': command_name,
+            'command_definitions': self._command_definitions,
+            **self.services  # Inject all available services
+        }
+
+        logger.debug(f"Built execution context for command '{command_name}'")
+        return context
+
+    async def _publish_result(self, original_message: Message, result: Dict[str, Any]) -> None:
+        """
+        Publish the result of command execution to the event bus.
+
+        Args:
+            original_message: The original command request message
+            result: The command execution result
+        """
+        # Create result message
+        result_message = Message(
+            run_id=original_message.run_id,
+            session_id=original_message.session_id,
+            role=Role.SYSTEM,
+            content=result,
+            metadata={
+                "command": original_message.content,
+                "source": "CommandService"
+            }
+        )
+
+        # Publish to command result topic
+        await self.bus.publish(Topics.COMMAND_RESULT, result_message)
+
+        logger.info(f"Published command result for run_id={original_message.run_id}")
+
+    def get_registered_commands(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get all registered command definitions.
+
+        Returns:
+            Dictionary mapping command names to their definitions
+        """
+        return self._command_definitions.copy()
+
+    def is_command_registered(self, command_name: str) -> bool:
+        """
+        Check if a command is registered.
+
+        Args:
+            command_name: Name of the command to check
+
+        Returns:
+            True if command is registered, False otherwise
+        """
+        return command_name in self._command_registry

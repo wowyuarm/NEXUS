@@ -68,3 +68,16 @@ class Topics:
     Message content: {"event": str, "run_id": str, "payload": Dict}
     """
 
+    # --- Command System Topics ---
+    SYSTEM_COMMAND = "system.command"
+    """
+    Published by interfaces when a user issues a command.
+    Message content: Command string (e.g., "/ping", "/help")
+    """
+
+    COMMAND_RESULT = "command.result"
+    """
+    Published by CommandService with the result of command execution.
+    Message content: {"status": "success"|"error", "message": str}
+    """
+

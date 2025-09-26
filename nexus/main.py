@@ -20,6 +20,7 @@ from nexus.services.tool_executor import ToolExecutorService
 from nexus.services.context import ContextService
 from nexus.services.orchestrator import OrchestratorService
 from nexus.services.persistence import PersistenceService
+from nexus.services.command import CommandService
 from nexus.tools.registry import ToolRegistry
 
 
@@ -88,6 +89,9 @@ async def main() -> None:
     # Context service now depends on config and persistence services
     context_service = ContextService(bus, tool_registry, config_service, persistence_service)
 
+    # Command service for deterministic command processing
+    command_service = CommandService(bus, database_service=database_service)
+
     # Orchestrator and interface services
     orchestrator_service = OrchestratorService(bus, config_service)
     websocket_interface = WebsocketInterface(bus, database_service)
@@ -98,6 +102,7 @@ async def main() -> None:
         llm_service,
         tool_executor_service,
         context_service,
+        command_service,
         orchestrator_service,
         websocket_interface,
     ]
