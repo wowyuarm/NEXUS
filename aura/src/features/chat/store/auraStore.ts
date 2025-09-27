@@ -20,6 +20,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { websocketManager } from '../../../services/websocket/manager';
+import { COMMANDS } from '../../../features/command/commands';
 import type { Message, ToolCall } from '../types';
 import type {
   RunStartedPayload,
@@ -27,7 +28,8 @@ import type {
   ToolCallFinishedPayload,
   TextChunkPayload,
   RunFinishedPayload,
-  ErrorPayload
+  ErrorPayload,
+  CommandResultPayload
 } from '../../../services/websocket/protocol';
 
 // ===== Core Data Types =====
@@ -62,6 +64,15 @@ export interface AuraState {
 
   // Tool Call History - organized by runId
   toolCallHistory: Record<string, ToolCall[]>;
+
+  // Command List State
+  isCommandListOpen: boolean;
+  commandQuery: string;
+  selectedCommandIndex: number;
+  availableCommands: Array<{
+    name: string;
+    description: string;
+  }>;
 }
 
 // ===== Store Actions Interface =====
@@ -74,15 +85,23 @@ export interface AuraActions {
   handleTextChunk: (payload: TextChunkPayload) => void;
   handleRunFinished: (payload: RunFinishedPayload) => void;
   handleError: (payload: ErrorPayload) => void;
-  
+  handleCommandResult: (payload: CommandResultPayload) => void;
+
   // Connection Handlers
   handleConnected: (publicKey: string) => void;
   handleDisconnected: () => void;
-  
+
   // User Actions
   sendMessage: (content: string) => void;
   clearMessages: () => void;
   clearError: () => void;
+
+  // Command Actions
+  openCommandList: () => void;
+  closeCommandList: () => void;
+  setCommandQuery: (query: string) => void;
+  setSelectedCommandIndex: (index: number) => void;
+  executeCommand: (command: string) => void;
 }
 
 // ===== Store Implementation =====
@@ -121,6 +140,12 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
   isInputDisabled: false,
   lastError: null,
   toolCallHistory: {},
+
+  // ===== Command List State =====
+  isCommandListOpen: false,
+  commandQuery: '',
+  selectedCommandIndex: 0,
+  availableCommands: COMMANDS,
 
   // ===== WebSocket Event Handlers =====
 
@@ -398,6 +423,46 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     console.error('NEXUS error:', payload);
   },
 
+  handleCommandResult: (payload: CommandResultPayload) => {
+    const { command, result } = payload;
+
+    set((state) => {
+      // Find the pending message for this command
+      const messageIndex = state.messages.findIndex(
+        msg => msg.role === 'SYSTEM' &&
+               msg.content === command &&
+               msg.metadata?.status === 'pending'
+      );
+
+      if (messageIndex >= 0) {
+        // Update the existing message
+        const updatedMessages = [...state.messages];
+        updatedMessages[messageIndex] = {
+          ...updatedMessages[messageIndex],
+          content: result.message || 'Command completed',
+          metadata: {
+            ...updatedMessages[messageIndex].metadata,
+            status: 'completed',
+            commandResult: result
+          }
+        };
+
+        return { messages: updatedMessages };
+      } else {
+        // No pending message found, create a new one
+        const newMessage: Message = {
+          id: uuidv4(),
+          role: 'SYSTEM',
+          content: result.message || 'Command completed',
+          timestamp: new Date(),
+          metadata: { status: 'completed', commandResult: result }
+        };
+
+        return { messages: [...state.messages, newMessage] };
+      }
+    });
+  },
+
   // ===== Connection Handlers =====
 
   handleConnected: (publicKey: string) => {
@@ -454,5 +519,69 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
 
   clearError: () => {
     set({ lastError: null });
-  }
+  },
+
+  // ===== Command Actions =====
+
+  openCommandList: () => {
+    set({ isCommandListOpen: true, commandQuery: '', selectedCommandIndex: 0 });
+  },
+
+  closeCommandList: () => {
+    set({ isCommandListOpen: false, commandQuery: '', selectedCommandIndex: 0 });
+  },
+
+  setCommandQuery: (query: string) => {
+    set({ commandQuery: query, selectedCommandIndex: 0 });
+  },
+
+  setSelectedCommandIndex: (index: number) => {
+    set({ selectedCommandIndex: index });
+  },
+
+  executeCommand: (command: string) => {
+    if (!websocketManager.connected) {
+      console.error('Cannot execute command: not connected to NEXUS');
+      return;
+    }
+
+    // Handle help command locally (no backend communication needed)
+    if (command === '/help') {
+      const helpMessage: Message = {
+        id: uuidv4(),
+        role: 'SYSTEM',
+        content: `Available commands:\n\n${COMMANDS.map(cmd => `- **/${cmd.name}**: ${cmd.description}`).join('\n')}`,
+        timestamp: new Date(),
+        metadata: { status: 'completed' }
+      };
+
+      set((state) => ({
+        messages: [...state.messages, helpMessage],
+        isCommandListOpen: false,
+        commandQuery: '',
+        selectedCommandIndex: 0
+      }));
+      return;
+    }
+
+    // Create pending system message immediately
+    const pendingMessage: Message = {
+      id: uuidv4(),
+      role: 'SYSTEM',
+      content: command,
+      timestamp: new Date(),
+      metadata: { status: 'pending' }
+    };
+
+    set((state) => ({
+      messages: [...state.messages, pendingMessage],
+      isCommandListOpen: false,
+      commandQuery: '',
+      selectedCommandIndex: 0
+    }));
+
+    // Send command to backend
+    websocketManager.sendCommand(command);
+  },
+
 }));

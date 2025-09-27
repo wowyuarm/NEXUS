@@ -25,26 +25,39 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
     """
     Execute the ping command.
 
-    This command responds with a simple 'pong' message to indicate that the
-    command processing system is functioning correctly.
+    This command responds with a structured 'pong' message containing
+    system information and latency data.
 
     Args:
         context: Execution context containing system services and state (unused)
 
     Returns:
-        Dict with status and message indicating successful execution
+        Dict with status, message, and system data
 
     Raises:
         RuntimeError: If command execution fails
     """
     try:
+        import time
         logger.info("Ping command executed")
 
-        # Return the classic ping-pong response
+        # Record start time for latency calculation
+        start_time = time.time()
+
+        # Return the enhanced ping-pong response
         result = {
             "status": "success",
-            "message": "pong"
+            "message": "pong",
+            "data": {
+                "latency_ms": 1,  # Placeholder for actual latency calculation
+                "nexus_version": "0.2.0",
+                "timestamp": time.time()
+            }
         }
+
+        # Calculate actual latency
+        end_time = time.time()
+        result["data"]["latency_ms"] = round((end_time - start_time) * 1000, 2)
 
         logger.info("Ping command completed successfully")
         return result

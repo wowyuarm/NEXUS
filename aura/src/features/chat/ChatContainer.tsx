@@ -25,7 +25,16 @@ export const ChatContainer = () => {
     messages,
     currentRun,
     toolCallHistory,
-    sendMessage
+    isCommandListOpen,
+    commandQuery,
+    selectedCommandIndex,
+    availableCommands,
+    sendMessage,
+    openCommandList,
+    closeCommandList,
+    setCommandQuery,
+    setSelectedCommandIndex,
+    executeCommand
   } = useAura();
 
   // Auto-scroll functionality - depends on messages and current run state
@@ -61,6 +70,16 @@ export const ChatContainer = () => {
       showScrollButton={showScrollButton}
       onScrollToBottom={handleScrollToBottom}
       suppressAutoScroll={suppressAutoScroll}
+      // Command props
+      isCommandListOpen={isCommandListOpen}
+      commandQuery={commandQuery}
+      availableCommands={availableCommands}
+      selectedCommandIndex={selectedCommandIndex}
+      onOpenCommandList={openCommandList}
+      onCloseCommandList={closeCommandList}
+      onSetCommandQuery={setCommandQuery}
+      onSetSelectedCommandIndex={setSelectedCommandIndex}
+      onExecuteCommand={executeCommand}
     />
   );
 };

@@ -7,7 +7,10 @@ correctly handles different message types and edge cases.
 
 import pytest
 import json
-from nexus.interfaces.websocket import _parse_client_message, MESSAGE_TYPE_PING, MESSAGE_TYPE_USER_MESSAGE
+from unittest.mock import Mock, AsyncMock, patch
+from nexus.interfaces.websocket import WebsocketInterface, _parse_client_message, MESSAGE_TYPE_PING, MESSAGE_TYPE_USER_MESSAGE
+from nexus.core.models import Message, Role
+from nexus.core.topics import Topics
 
 
 class TestParseClientMessage:
@@ -189,3 +192,95 @@ class TestParseClientMessage:
         # Extra fields should not appear in the result
         assert "extra_field" not in result
         assert "another_field" not in result
+
+    def test_parse_client_message_system_command(self):
+        """Test parsing system_command messages."""
+        # Test valid system_command message
+        data = json.dumps({
+            "type": "system_command",
+            "payload": {
+                "command": "/ping",
+                "session_id": "test_session"
+            }
+        })
+
+        result = _parse_client_message(data)
+
+        assert result["type"] == "system_command"
+        assert result["payload"]["command"] == "/ping"
+        assert result["payload"]["session_id"] == "test_session"
+
+
+class TestWebSocketCommandHandling:
+    """Test WebSocket interface command handling functionality."""
+
+    @pytest.fixture
+    def mock_bus(self):
+        """Create a mock NexusBus."""
+        bus = Mock()
+        bus.publish = AsyncMock()
+        return bus
+
+    @pytest.fixture
+    def mock_database_service(self):
+        """Create a mock DatabaseService."""
+        return Mock()
+
+    @pytest.fixture
+    def websocket_interface(self, mock_bus, mock_database_service):
+        """Create a WebsocketInterface instance with mocked dependencies."""
+        return WebsocketInterface(mock_bus, mock_database_service)
+
+    @pytest.mark.asyncio
+    async def test_handle_command_result(self, websocket_interface):
+        """Test handling command result messages."""
+        # Mock WebSocket connection
+        mock_websocket = AsyncMock()
+        session_id = "test_session"
+        websocket_interface.connections[session_id] = mock_websocket
+
+        # Create a command result message
+        command_result = {
+            "status": "success",
+            "message": "pong",
+            "data": {"latency_ms": 1}
+        }
+
+        result_message = Message(
+            run_id="test_run",
+            session_id=session_id,
+            role=Role.SYSTEM,
+            content=command_result,
+            metadata={"command": "/ping", "source": "CommandService"}
+        )
+
+        # Call handle_command_result
+        await websocket_interface.handle_command_result(result_message)
+
+        # Verify the UI event was sent
+        expected_event = {
+            "event": "command_result",
+            "run_id": "test_run",
+            "payload": command_result
+        }
+
+        mock_websocket.send_text.assert_called_once_with(json.dumps(expected_event))
+
+    @pytest.mark.asyncio
+    async def test_handle_command_result_no_connection(self, websocket_interface):
+        """Test handling command result when no WebSocket connection exists."""
+        # Create a command result message for non-existent session
+        command_result = {"status": "success", "message": "test"}
+
+        result_message = Message(
+            run_id="test_run",
+            session_id="non_existent_session",
+            role=Role.SYSTEM,
+            content=command_result
+        )
+
+        # This should not raise an exception
+        await websocket_interface.handle_command_result(result_message)
+
+        # No WebSocket send should be attempted
+        assert len(websocket_interface.connections) == 0

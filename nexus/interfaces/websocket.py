@@ -25,6 +25,7 @@ ERROR_MSG_PROCESSING = "Error processing message"
 # Constants for message types
 MESSAGE_TYPE_PING = "ping"
 MESSAGE_TYPE_USER_MESSAGE = "user_message"
+MESSAGE_TYPE_SYSTEM_COMMAND = "system_command"
 
 
 def _parse_client_message(data: str) -> Dict[str, Union[str, Dict]]:
@@ -61,6 +62,15 @@ def _parse_client_message(data: str) -> Dict[str, Union[str, Dict]]:
             "client_timestamp_utc": client_timestamp_utc,
             "client_timezone_offset": client_timezone_offset
         }
+    elif message_type == MESSAGE_TYPE_SYSTEM_COMMAND:
+        command = payload.get("command", "")
+        session_id = payload.get("session_id", "")
+        return {
+            "type": message_type,
+            "payload": payload,
+            "command": command,
+            "session_id": session_id
+        }
     elif message_type == "":
         return {"type": "", "payload": payload}
     else:
@@ -91,6 +101,7 @@ class WebsocketInterface:
     def subscribe_to_bus(self) -> None:
         """Subscribe to UI events for sending messages to frontend."""
         self.bus.subscribe(Topics.UI_EVENTS, self.handle_ui_event)
+        self.bus.subscribe(Topics.COMMAND_RESULT, self.handle_command_result)
         logger.info("WebsocketInterface subscribed to NexusBus")
 
     async def handle_ui_event(self, message: Message) -> None:
@@ -125,6 +136,42 @@ class WebsocketInterface:
 
         except Exception as e:
             logger.error(f"Error handling UI event: {e}")
+
+    async def handle_command_result(self, message: Message) -> None:
+        """
+        Handle command result messages and send them to the appropriate WebSocket connection.
+
+        Args:
+            message: Message containing command result data
+        """
+        try:
+            run_id = message.run_id
+            session_id = message.session_id
+            content = message.content
+
+            logger.info(f"Handling command result for session_id={session_id}, run_id={run_id}")
+
+            # Find the WebSocket connection for this session
+            websocket = self.connections.get(session_id)
+            if not websocket:
+                logger.warning(f"No WebSocket connection found for session_id={session_id}")
+                return
+
+            # Create standardized UI event for command result
+            ui_event = {
+                "event": "command_result",
+                "run_id": run_id,
+                "payload": content
+            }
+
+            # Send the UI event to frontend
+            standardized_event_json = json.dumps(ui_event)
+            await websocket.send_text(standardized_event_json)
+
+            logger.info(f"Forwarded command result to session_id={session_id}")
+
+        except Exception as e:
+            logger.error(f"Error handling command result: {e}")
 
     async def run_forever(self, host: str, port: int) -> FastAPI:
         """
@@ -200,6 +247,26 @@ class WebsocketInterface:
                             if not user_input.strip():
                                 logger.warning(f"Empty user message received from session_id={session_id}")
                                 continue
+                        elif message_type == MESSAGE_TYPE_SYSTEM_COMMAND:
+                            command = parsed_message.get("command", "")
+                            logger.info(f"Received system command from session_id={session_id}: {command}")
+
+                            if not command.strip():
+                                logger.warning(f"Empty command received from session_id={session_id}")
+                                continue
+
+                            # Create command message
+                            command_message = Message(
+                                run_id=self._generate_run_id(),
+                                session_id=session_id,
+                                role=Role.COMMAND,
+                                content=command
+                            )
+
+                            # Publish to system command topic
+                            await self.bus.publish(Topics.SYSTEM_COMMAND, command_message)
+                            logger.info(f"Published system command for session_id={session_id}: {command}")
+                            continue
                         else:
                             logger.warning(f"Received unknown message type '{message_type}' from session_id={session_id}")
                             continue

@@ -7,9 +7,32 @@ import { Button, AutoResizeTextarea, type AutoResizeTextareaRef } from '@/compon
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   disabled?: boolean;
+  // Command props
+  isCommandListOpen: boolean;
+  commandQuery: string;
+  availableCommands: Array<{ name: string; description: string }>;
+  selectedCommandIndex: number;
+  onOpenCommandList: () => void;
+  onCloseCommandList: () => void;
+  onSetCommandQuery: (query: string) => void;
+  onSetSelectedCommandIndex: (index: number) => void;
+  onExecuteCommand: (command: string) => void;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = false }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({
+  onSendMessage,
+  disabled = false,
+  // Command props
+  isCommandListOpen,
+  commandQuery,
+  availableCommands,
+  selectedCommandIndex,
+  onOpenCommandList,
+  onCloseCommandList,
+  onSetCommandQuery,
+  onSetSelectedCommandIndex,
+  onExecuteCommand,
+}) => {
   const [message, setMessage] = useState('');
   const [isComposing, setIsComposing] = useState(false);
   const textareaRef = useRef<AutoResizeTextareaRef>(null);
@@ -17,7 +40,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !disabled && !isComposing) {
-      onSendMessage(message.trim());
+      // Check if this is a command (starts with /)
+      if (message.trim().startsWith('/')) {
+        onExecuteCommand(message.trim());
+      } else {
+        onSendMessage(message.trim());
+      }
       setMessage('');
 
       // 重置 textarea 高度
@@ -26,13 +54,67 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = 
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
+    if (isCommandListOpen) {
+      switch (e.key) {
+        case 'Escape':
+          e.preventDefault();
+          onCloseCommandList();
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          onSetSelectedCommandIndex(
+            selectedCommandIndex > 0 ? selectedCommandIndex - 1 : availableCommands.length - 1
+          );
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          onSetSelectedCommandIndex(
+            selectedCommandIndex < availableCommands.length - 1 ? selectedCommandIndex + 1 : 0
+          );
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (availableCommands[selectedCommandIndex]) {
+            onExecuteCommand(`/${availableCommands[selectedCommandIndex].name}`);
+          }
+          break;
+        default:
+          // Allow normal typing
+          break;
+      }
+    } else if (e.key === 'Enter' && !e.shiftKey && !isComposing) {
       e.preventDefault();
       handleSubmit(e);
     }
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setMessage(value);
+
+    // Handle command list logic - only activate when / is the first character
+    if (value.startsWith('/') && value.length === 1) {
+      // Only open command list when / is the first and only character
+      if (!isCommandListOpen) {
+        onOpenCommandList();
+        onSetSelectedCommandIndex(0);
+      }
+      onSetCommandQuery('');
+    } else if (value.startsWith('/') && value.length > 1) {
+      // Continue filtering commands as user types after /
+      const query = value.slice(1);
+      onSetCommandQuery(query);
+      onSetSelectedCommandIndex(0); // Reset selection when query changes
+    } else if (isCommandListOpen) {
+      // Close command list if user deletes the / or types non-command text
+      onCloseCommandList();
+    }
+  };
+
   const canSend = message.trim().length > 0 && !disabled;
+
+  // Dynamic placeholder based on command mode
+  const placeholder = isCommandListOpen ? '/' : '继续探索...';
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -46,11 +128,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, disabled = 
           <AutoResizeTextarea
             ref={textareaRef}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleChange}
             onKeyDown={handleKeyDown}
             onCompositionStart={() => setIsComposing(true)}
             onCompositionEnd={() => setIsComposing(false)}
-            placeholder="继续探索..."
+            placeholder={placeholder}
             disabled={disabled}
             maxHeightMultiplier={2}
             minRows={3}

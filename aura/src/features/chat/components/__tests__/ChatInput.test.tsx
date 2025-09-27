@@ -11,6 +11,21 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChatInput } from '@/features/chat/components/ChatInput';
 
+// Helper function to create default props for testing
+const createTestProps = (overrides = {}) => ({
+  onSendMessage: vi.fn(),
+  isCommandListOpen: false,
+  commandQuery: '',
+  availableCommands: [],
+  selectedCommandIndex: 0,
+  onOpenCommandList: vi.fn(),
+  onCloseCommandList: vi.fn(),
+  onSetCommandQuery: vi.fn(),
+  onSetSelectedCommandIndex: vi.fn(),
+  onExecuteCommand: vi.fn(),
+  ...overrides
+});
+
 // Mock the UI components
 vi.mock('@/components/ui', () => ({
   Button: ({ children, disabled, onClick, type, className, icon, iconOnly, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { icon?: React.ReactNode; iconOnly?: boolean }) => (
@@ -82,7 +97,8 @@ describe('ChatInput', () => {
 
   describe('Message sending', () => {
     it('sends message on submit when input has content', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
       const sendButton = screen.getByTestId('send-button');
@@ -98,7 +114,8 @@ describe('ChatInput', () => {
     });
 
     it('sends message on Enter key press', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
 
@@ -110,7 +127,8 @@ describe('ChatInput', () => {
     });
 
     it('does not send message on Shift+Enter', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
 
@@ -122,7 +140,8 @@ describe('ChatInput', () => {
     });
 
     it('clears input after sending message', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input') as HTMLTextAreaElement;
       const sendButton = screen.getByTestId('send-button');
@@ -135,7 +154,8 @@ describe('ChatInput', () => {
     });
 
     it('trims whitespace from message before sending', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
       const sendButton = screen.getByTestId('send-button');
@@ -150,7 +170,8 @@ describe('ChatInput', () => {
 
   describe('Button disabled state', () => {
     it('disables send button when input is empty', () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const sendButton = screen.getByTestId('send-button');
       
@@ -158,7 +179,8 @@ describe('ChatInput', () => {
     });
 
     it('enables send button when input has content', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
       const sendButton = screen.getByTestId('send-button');
@@ -169,7 +191,8 @@ describe('ChatInput', () => {
     });
 
     it('disables send button when input contains only whitespace', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
       const sendButton = screen.getByTestId('send-button');
@@ -180,7 +203,8 @@ describe('ChatInput', () => {
     });
 
     it('re-disables send button after clearing input', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
       const sendButton = screen.getByTestId('send-button');
@@ -197,7 +221,8 @@ describe('ChatInput', () => {
 
   describe('Input disabled state', () => {
     it('disables input and button when disabled prop is true', () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} disabled={true} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props}  disabled={true} />);
 
       const input = screen.getByTestId('message-input');
       const sendButton = screen.getByTestId('send-button');
@@ -207,7 +232,8 @@ describe('ChatInput', () => {
     });
 
     it('does not send message when disabled', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} disabled={true} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props}  disabled={true} />);
 
       const input = screen.getByTestId('message-input');
 
@@ -221,7 +247,8 @@ describe('ChatInput', () => {
     });
 
     it('prevents submission during composition (IME input)', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
 
@@ -245,7 +272,8 @@ describe('ChatInput', () => {
 
   describe('Form submission', () => {
     it('handles form submission event', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
       const form = input.closest('form')!;
@@ -258,7 +286,8 @@ describe('ChatInput', () => {
     });
 
     it('prevents default form submission behavior', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
       const form = input.closest('form')!;
@@ -276,7 +305,8 @@ describe('ChatInput', () => {
 
   describe('Accessibility and UX', () => {
     it('renders with correct placeholder text', () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
       
@@ -284,14 +314,16 @@ describe('ChatInput', () => {
     });
 
     it('renders arrow up icon in send button', () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       expect(screen.getByTestId('arrow-up-icon')).toBeInTheDocument();
       expect(screen.getByTestId('arrow-up-icon')).toHaveAttribute('data-size', '18');
     });
 
     it('applies correct CSS classes for styling', () => {
-      const { container } = render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      const { container } = render(<ChatInput {...props} />);
 
       const wrapper = container.querySelector('.w-full.max-w-2xl.mx-auto');
       expect(wrapper).toBeInTheDocument();
@@ -303,7 +335,8 @@ describe('ChatInput', () => {
 
   describe('Edge cases', () => {
     it('handles rapid successive submissions', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
       const sendButton = screen.getByTestId('send-button');
@@ -322,7 +355,8 @@ describe('ChatInput', () => {
     });
 
     it('handles empty string after trim', async () => {
-      render(<ChatInput onSendMessage={mockOnSendMessage} />);
+      const props = createTestProps({ onSendMessage: mockOnSendMessage });
+      render(<ChatInput {...props} />);
 
       const input = screen.getByTestId('message-input');
       const sendButton = screen.getByTestId('send-button');

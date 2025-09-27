@@ -23,7 +23,8 @@ import type {
   ToolCallFinishedPayload,
   TextChunkPayload,
   RunFinishedPayload,
-  ErrorPayload
+  ErrorPayload,
+  CommandResultPayload
 } from '../../../services/websocket/protocol';
 
 // ===== Hook Return Type =====
@@ -37,10 +38,23 @@ export interface UseAuraReturn {
   lastError: string | null;
   toolCallHistory: Record<string, import('../types').ToolCall[]>;
 
+  // Command State
+  isCommandListOpen: boolean;
+  commandQuery: string;
+  selectedCommandIndex: number;
+  availableCommands: Array<{ name: string; description: string }>;
+
   // Actions
   sendMessage: (content: string) => void;
   clearMessages: () => void;
   clearError: () => void;
+
+  // Command Actions
+  openCommandList: () => void;
+  closeCommandList: () => void;
+  setCommandQuery: (query: string) => void;
+  setSelectedCommandIndex: (index: number) => void;
+  executeCommand: (command: string) => void;
 
   // Connection Management
   connect: () => Promise<void>;
@@ -65,15 +79,25 @@ export function useAura(): UseAuraReturn {
     isInputDisabled,
     lastError,
     toolCallHistory,
+    isCommandListOpen,
+    commandQuery,
+    selectedCommandIndex,
+    availableCommands,
     sendMessage,
     clearMessages,
     clearError,
+    openCommandList,
+    closeCommandList,
+    setCommandQuery,
+    setSelectedCommandIndex,
+    executeCommand,
     handleRunStarted,
     handleToolCallStarted,
     handleToolCallFinished,
     handleTextChunk,
     handleRunFinished,
     handleError,
+    handleCommandResult,
     handleConnected,
     handleDisconnected
   } = useAuraStore();
@@ -104,6 +128,10 @@ export function useAura(): UseAuraReturn {
     handleError(payload);
   }, [handleError]);
 
+  const onCommandResult = useCallback((payload: CommandResultPayload) => {
+    handleCommandResult(payload);
+  }, [handleCommandResult]);
+
   const onConnected = useCallback((data: { publicKey: string }) => {
     handleConnected(data.publicKey);
   }, [handleConnected]);
@@ -128,6 +156,7 @@ export function useAura(): UseAuraReturn {
     websocketManager.on('text_chunk', onTextChunk);
     websocketManager.on('run_finished', onRunFinished);
     websocketManager.on('error', onError);
+    websocketManager.on('command_result', onCommandResult);
     websocketManager.on('connected', onConnected);
     websocketManager.on('disconnected', onDisconnected);
 
@@ -141,6 +170,7 @@ export function useAura(): UseAuraReturn {
       websocketManager.off('text_chunk', onTextChunk);
       websocketManager.off('run_finished', onRunFinished);
       websocketManager.off('error', onError);
+      websocketManager.off('command_result', onCommandResult);
       websocketManager.off('connected', onConnected);
       websocketManager.off('disconnected', onDisconnected);
 
@@ -153,6 +183,7 @@ export function useAura(): UseAuraReturn {
     onTextChunk,
     onRunFinished,
     onError,
+    onCommandResult,
     onConnected,
     onDisconnected,
 
@@ -208,10 +239,23 @@ export function useAura(): UseAuraReturn {
     lastError,
     toolCallHistory,
 
+    // Command State
+    isCommandListOpen,
+    commandQuery,
+    selectedCommandIndex,
+    availableCommands,
+
     // Actions
     sendMessage,
     clearMessages,
     clearError,
+
+    // Command Actions
+    openCommandList,
+    closeCommandList,
+    setCommandQuery,
+    setSelectedCommandIndex,
+    executeCommand,
 
     // Connection Management
     connect,

@@ -14,7 +14,8 @@
 
 import {
   parseNexusEvent,
-  createClientMessage
+  createClientMessage,
+  createSystemCommandMessage
 } from './protocol';
 import { nexusConfig } from '../../config/nexus';
 import { IdentityService } from '../identity/identity';
@@ -208,6 +209,23 @@ export class WebSocketManager {
       console.log('Sent message to NEXUS:', { input, publicKey: this.publicKey, clientTimestamp });
     } catch (error) {
       console.error('Failed to send message:', error);
+    }
+  }
+
+  sendCommand(command: string): void {
+    if (!this.isConnected || !this.ws) {
+      console.error('Cannot send command: WebSocket not connected');
+      return;
+    }
+
+    const message = createSystemCommandMessage(command, this.publicKey);
+    const messageStr = JSON.stringify(message);
+
+    try {
+      this.ws.send(messageStr);
+      console.log('Sent command to NEXUS:', { command, publicKey: this.publicKey });
+    } catch (error) {
+      console.error('Failed to send command:', error);
     }
   }
 

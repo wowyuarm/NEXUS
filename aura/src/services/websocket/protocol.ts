@@ -55,6 +55,15 @@ export interface ErrorPayload {
   details?: string;
 }
 
+export interface CommandResultPayload {
+  command: string;
+  result: {
+    status: 'success' | 'error';
+    message: string;
+    data?: Record<string, unknown>;
+  };
+}
+
 // ===== Specific Event Types =====
 
 export type RunStartedEvent = BaseNexusEvent<'run_started', RunStartedPayload>;
@@ -63,6 +72,7 @@ export type ToolCallFinishedEvent = BaseNexusEvent<'tool_call_finished', ToolCal
 export type TextChunkEvent = BaseNexusEvent<'text_chunk', TextChunkPayload>;
 export type RunFinishedEvent = BaseNexusEvent<'run_finished', RunFinishedPayload>;
 export type ErrorEvent = BaseNexusEvent<'error', ErrorPayload>;
+export type CommandResultEvent = BaseNexusEvent<'command_result', CommandResultPayload>;
 
 // ===== Union Type for All Events =====
 
@@ -72,7 +82,8 @@ export type NexusEvent =
   | ToolCallFinishedEvent
   | TextChunkEvent
   | RunFinishedEvent
-  | ErrorEvent;
+  | ErrorEvent
+  | CommandResultEvent;
 
 // ===== Event Type String Union =====
 
@@ -104,6 +115,10 @@ export function isErrorEvent(event: NexusEvent): event is ErrorEvent {
   return event.event === 'error';
 }
 
+export function isCommandResultEvent(event: NexusEvent): event is CommandResultEvent {
+  return event.event === 'command_result';
+}
+
 // ===== Protocol Validation =====
 
 export function validateNexusEvent(data: unknown): data is NexusEvent {
@@ -126,11 +141,12 @@ export function validateNexusEvent(data: unknown): data is NexusEvent {
   // Check if event type is valid
   const validEventTypes: EventType[] = [
     'run_started',
-    'tool_call_started', 
+    'tool_call_started',
     'tool_call_finished',
     'text_chunk',
     'run_finished',
-    'error'
+    'error',
+    'command_result'
   ];
 
   return validEventTypes.includes(obj.event as EventType);
@@ -165,6 +181,14 @@ export interface ClientMessage {
   };
 }
 
+export interface SystemCommandMessage {
+  type: 'system_command';
+  payload: {
+    command: string;
+    session_id: string;
+  };
+}
+
 export function createClientMessage(input: string, publicKey: string, timestamp?: string): ClientMessage {
   const clientTimestamp = timestamp || new Date().toISOString();
   const clientTimezoneOffset = new Date().getTimezoneOffset();
@@ -175,6 +199,16 @@ export function createClientMessage(input: string, publicKey: string, timestamp?
       session_id: publicKey, // Semantic replacement: field name remains, content is public key
       client_timestamp_utc: clientTimestamp,
       client_timezone_offset: clientTimezoneOffset
+    }
+  };
+}
+
+export function createSystemCommandMessage(command: string, publicKey: string): SystemCommandMessage {
+  return {
+    type: 'system_command',
+    payload: {
+      command,
+      session_id: publicKey
     }
   };
 }

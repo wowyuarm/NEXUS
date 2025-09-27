@@ -21,6 +21,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
+import { CommandList } from '@/features/command/components/CommandList';
 
 interface ChatViewProps {
   messages: Message[];
@@ -31,6 +32,16 @@ interface ChatViewProps {
   showScrollButton: boolean;
   onScrollToBottom: () => void;
   suppressAutoScroll?: (durationMs?: number) => void;
+  // Command props
+  isCommandListOpen: boolean;
+  commandQuery: string;
+  availableCommands: Array<{ name: string; description: string }>;
+  selectedCommandIndex: number;
+  onOpenCommandList: () => void;
+  onCloseCommandList: () => void;
+  onSetCommandQuery: (query: string) => void;
+  onSetSelectedCommandIndex: (index: number) => void;
+  onExecuteCommand: (command: string) => void;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -42,6 +53,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
   showScrollButton,
   onScrollToBottom,
   suppressAutoScroll,
+  // Command props
+  isCommandListOpen,
+  commandQuery,
+  availableCommands,
+  selectedCommandIndex,
+  onOpenCommandList,
+  onCloseCommandList,
+  onSetCommandQuery,
+  onSetSelectedCommandIndex,
+  onExecuteCommand,
 }) => {
   // Note: toolCallHistory prop is reserved for future tool history implementation
   // Computed values for cleaner render logic
@@ -166,9 +187,30 @@ export const ChatView: React.FC<ChatViewProps> = ({
           className="absolute left-0 right-0 bottom-0 flex justify-center p-6"
           {...inputMotion}
         >
-          <div className="w-full max-w-2xl">
+          <div className="w-full max-w-2xl relative">
+            {/* 命令列表 - 直接集成在输入框上方 */}
+            <CommandList
+              isOpen={isCommandListOpen}
+              query={commandQuery}
+              availableCommands={availableCommands}
+              selectedIndex={selectedCommandIndex}
+              onClose={onCloseCommandList}
+              onExecute={onExecuteCommand}
+              onSelectIndex={onSetSelectedCommandIndex}
+            />
+
             <ChatInput
               onSendMessage={onSendMessage}
+              // Command props
+              isCommandListOpen={isCommandListOpen}
+              commandQuery={commandQuery}
+              availableCommands={availableCommands}
+              selectedCommandIndex={selectedCommandIndex}
+              onOpenCommandList={onOpenCommandList}
+              onCloseCommandList={onCloseCommandList}
+              onSetCommandQuery={onSetCommandQuery}
+              onSetSelectedCommandIndex={onSetSelectedCommandIndex}
+              onExecuteCommand={onExecuteCommand}
             />
           </div>
         </motion.div>

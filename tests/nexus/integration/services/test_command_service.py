@@ -65,10 +65,12 @@ class TestCommandServiceIntegration:
         # Check the message structure
         result_message = call_args[0][1]
         assert result_message.role == Role.SYSTEM
-        assert result_message.content == {
-            "status": "success",
-            "message": "pong"
-        }
+        assert result_message.content["status"] == "success"
+        assert result_message.content["message"] == "pong"
+        assert "data" in result_message.content
+        assert "latency_ms" in result_message.content["data"]
+        assert "nexus_version" in result_message.content["data"]
+        assert "timestamp" in result_message.content["data"]
         assert result_message.run_id == "test-run-123"
         assert result_message.session_id == "test-session-456"
 
