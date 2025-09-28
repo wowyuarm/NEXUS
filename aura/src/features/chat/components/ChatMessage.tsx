@@ -24,7 +24,7 @@ import { RoleSymbol } from '@/components/ui/RoleSymbol';
 import { ToolCallCard } from './ToolCallCard';
 import { useTypewriter } from '../hooks/useTypewriter';
 import type { Message } from '../types';
-import type { RunStatus } from '../store/auraStore';
+import type { RunStatus } from '../store/chatStore';
 
 
 interface ChatMessageProps {

@@ -294,3 +294,105 @@
 ---
 
 工程师AI，请严格按照此重构指令执行。我们的目标不是一个“能用”的功能，而是一个在美学和功能上都无可挑剔的、真正代表YX Nexus设计哲学的核心交互体验。
+
+---
+---
+
+重构AURA前端的状态管理层。我们将从`auraStore`中剥离所有与指令系统相关的状态和逻辑，并将其封装到一个全新的、独立的`commandStore`中。此任务是后续所有指令系统开发的前提，必须确保其架构的纯粹性和独立性。
+
+---
+
+#### **一、讨论背景与哲学**
+
+一个健康的系统，其器官必须各司其职。`auraStore`负责“对话记忆”，而新生的`commandStore`将负责“系统控制中枢”。此次分离，是为了确保每个功能域都能在自己的边界内健康、独立地成长，避免产生混乱的“上帝Store”，从而维护我们前端架构的长期清晰度和可维护性。
+
+#### **二、最终方案选择**
+
+1.  **创建新的`commandStore.ts`:**
+    *   在`src/features/command/`目录下，创建一个新的`store/`子目录。
+    *   在`src/features/command/store/`中，创建`commandStore.ts`文件。
+
+2.  **定义`CommandStore`的State和Actions:**
+    *   `commandStore.ts`将包含以下内容：
+        ```typescript
+        // src/features/command/store/commandStore.ts
+        import { create } from 'zustand';
+        
+        // (从之前讨论的types.ts中引入)
+        export interface Command {
+          name: string;
+          description: string;
+          type: 'client' | 'server';
+          // ... 其他元数据
+        }
+        
+        interface CommandState {
+          isPaletteOpen: boolean;
+          query: string;
+          availableCommands: Command[];
+          isLoading: boolean; // 用于/help指令加载
+          selectedCommandIndex: number;
+        }
+        
+        interface CommandActions {
+          openPalette: () => void;
+          closePalette: () => void;
+          setQuery: (query: string) => void;
+          setCommands: (commands: Command[]) => void;
+          setLoading: (loading: boolean) => void;
+          selectNextCommand: () => void;
+          selectPrevCommand: () => void;
+          resetSelection: () => void;
+          // executeCommand action将在后续任务中与auraStore交互
+        }
+        
+        export const useCommandStore = create<CommandState & CommandActions>((set, get) => ({
+          // 初始状态
+          isPaletteOpen: false,
+          query: '',
+          availableCommands: [],
+          isLoading: false,
+          selectedCommandIndex: -1,
+          
+          // Actions
+          openPalette: () => set({ isPaletteOpen: true, query: '', selectedCommandIndex: -1 }),
+          closePalette: () => set({ isPaletteOpen: false }),
+          setQuery: (query) => set({ query, selectedCommandIndex: -1 }), // 查询变化时重置选择
+          setCommands: (commands) => set({ availableCommands: commands }),
+          setLoading: (loading) => set({ isLoading: loading }),
+          
+          selectNextCommand: () => {
+            const { availableCommands, selectedCommandIndex } = get();
+            const filteredCommands = /* ... 过滤逻辑 ... */; // 需要根据query过滤
+            const newIndex = Math.min(selectedCommandIndex + 1, filteredCommands.length - 1);
+            set({ selectedCommandIndex: newIndex });
+          },
+          
+          selectPrevCommand: () => {
+            const { selectedCommandIndex } = get();
+            const newIndex = Math.max(selectedCommandIndex - 1, 0);
+            set({ selectedCommandIndex: newIndex });
+          },
+          
+          resetSelection: () => set({ selectedCommandIndex: -1 }),
+        }));
+        ```
+
+3.  **重构`auraStore.ts`，将其重命名为chatStore.ts:**
+    *   **移除**所有与`isCommandPaletteOpen`, `commandQuery`, `availableCommands`相关的`state`和`actions`。
+    *   `auraStore`将回归其核心职责：管理`messages`, `currentRun`, `isConnected`等对话状态。
+
+4.  **TDD 原则:**
+    *   **创建`src/features/command/store/__tests__/commandStore.test.ts`，当前已存在src/features/chat/store/__tests__下，进行合理重构与迁移**
+    *   将之前为指令状态编写的测试从`auraStore.command.test.ts`**迁移**并**适配**到这个新文件中。
+    *   为新增的`selectNext/PrevCommand`等`actions`编写新的测试用例。
+    *   确保`commandStore`的测试套件是独立的、完整的。
+
+#### **三、原则与规范**
+
+*   **纯粹性:** `commandStore`必须只包含与指令面板UI和指令生命周期管理相关的状态。**不应**包含任何关于消息渲染或WebSocket连接的逻辑。
+*   **隔离性:** 此任务严格限定在`store`层的重构。**不要**在此任务中修改任何UI组件（如`ChatInput`）。UI组件的适配将在下一个任务（`REFACTOR-1.1`）中进行。
+*   **接口明确:** 此次重构完成后，`chatStore`和`commandStore`将成为两个清晰的、独立的、可通过其`actions`进行交互的状态模块。
+
+**注意：代码仅作参考，以你实际的探索为规范。你必须了解本次的核心思想、合理规划并自主完成。**
+---

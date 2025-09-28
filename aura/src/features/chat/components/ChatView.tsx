@@ -16,7 +16,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { motion, cubicBezier } from 'framer-motion';
 import type { Message } from '../types';
-import type { RunStatus } from '../store/auraStore';
+import type { RunStatus } from '../store/chatStore';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ScrollToBottomButton } from './ScrollToBottomButton';

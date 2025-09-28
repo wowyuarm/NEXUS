@@ -1,4 +1,4 @@
-## CONFIG-API-SUITE：构建 NEXUS 的动态配置管理 API 套件
+1. ## CONFIG-API-SUITE：构建 NEXUS 的动态配置管理 API 套件
 
 ### 出发点
 
@@ -48,7 +48,7 @@
 ---
 ---
 
-## 计划项：将“近期工具结果”以 Markdown 文本注入到 system prompt（tools.md 之后）
+2. ## 将“近期工具结果”以 Markdown 文本注入到 system prompt（tools.md 之后）
 
 本计划暂不实施，仅进行方案沉淀，待后续把 prompts 迁移至数据库后统一推进。
 
@@ -81,21 +81,21 @@
 ---
 
 
-## **未来扩展点: `AURA-COMMAND-CORE` - 构建AURA的“意识命令行”**
+3. ##  `AURA-COMMAND-CORE` - 构建AURA的“意识命令行”
 
-### **出发点 (The Why)**
+### 出发点 (The Why)
 
 当前AURA的交互是单一的：所有输入都被视为对话内容。同时，我们面临着一个关键的用户体验问题：`session_id`作为用户“记忆连续体”的唯一凭证，与浏览器“源”绑定，导致在不同设备或域名下访问时“失忆”。我们需要一种更强大、更统一的交互范式，来解决这些问题并为未来扩展奠定基础。
 
-### **项目进展 (Current State)**
+### 项目进展 (Current State)
 
 AURA目前拥有一个功能完备的对话界面，但缺乏除对话外的任何系统级交互能力。
 
-### **如何扩展 (The Plan)**
+### 如何扩展 (The Plan)
 
 我们将借鉴经典命令行和现代代码编辑器的“命令面板”思想，将AURA的输入框升级为一个**双模态的“意识命令行”**。这将遵循我们《AURA宪章》中“**输入即核心**”的根本原则。
 
-#### **阶段一：基础架构 (`COMMANDS-FOUNDATION`)**
+#### 阶段一：基础架构 (`COMMANDS-FOUNDATION`)
 
 -   **目标**: 在AURA前端，搭建起能够解析、注册和执行指令的核心架构。
 -   **实现**:
@@ -130,3 +130,15 @@ AURA目前拥有一个功能完备的对话界面，但缺乏除对话外的任�
 
 ---
 ---
+
+4. ### System Agent
+
+*   **拓展点名称:** `SYSTEM_AGENT_CONVERSATIONAL_CORE`
+*   **出发点:** 当前的确定性指令系统虽然高效可靠，但缺乏灵活性。用户必须记忆精确的指令语法。
+*   **项目进展:** 我们已经构建了强大的、事件驱动的后端架构，可以支持并行运行多个Agent。同时，我们拥有了一个`CommandService`，可以作为未来`SystemAgent`激活的入口（例如，通过一个特殊的`/s`或`/system`指令）。
+*   **如何扩展:**
+    1.  创建一个并行的`SystemOrchestrator`和`SystemContextService`，使用专门为系统管理任务设计的、功能性的System Prompt。
+    2.  创建一个`SystemToolRegistry`，注册可以操作NEXUS系统本身的内部工具（如`set_config`, `backup_history`）。
+    3.  `CommandService`增加一个“智能模式”的入口指令（如`/s`）。当收到此指令时，它将用户的自然语言请求路由到`SystemAgent`的事件循环中。
+    4.  `SystemAgent`通过LLM的意图识别，调用相应的系统工具，并通过`COMMAND_RESULT`返回其执行结果。
+*   **扩展效果:** 用户将能够通过自然语言与系统核心进行对话式交互，例如输入`/s 帮我把曦的模型切换到最新的deepseek`，系统将能理解并执行该操作。这将是YX Nexus交互范式的终极形态。

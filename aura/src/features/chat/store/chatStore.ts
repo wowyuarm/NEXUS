@@ -1,26 +1,7 @@
-/**
- * AURA Zustand Store - The Single Source of Truth
- *
- * This store precisely mirrors the NEXUS backend state and provides
- * atomic actions for updating the UI state based on WebSocket events.
- *
- * Architecture:
- * - State reflects NEXUS Run lifecycle and status
- * - Actions correspond 1:1 with NEXUS UI events
- * - Maintains message history and persistent tool call history
- * - Tool calls are organized by runId for proper UI rendering
- * - Provides clean interface for UI components
- *
- * Key Features:
- * - Real-time streaming text chunk handling
- * - Persistent tool call history that survives run completion
- * - Atomic state updates for consistent UI behavior
- */
-
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { websocketManager } from '../../../services/websocket/manager';
-import { COMMANDS } from '../../../features/command/commands';
+import { websocketManager } from '@/services/websocket/manager';
+import { executeHelpCommand, COMMANDS } from '@/features/command/commands';
 import type { Message, ToolCall } from '../types';
 import type {
   RunStartedPayload,
@@ -30,9 +11,7 @@ import type {
   RunFinishedPayload,
   ErrorPayload,
   CommandResultPayload
-} from '../../../services/websocket/protocol';
-
-// ===== Core Data Types =====
+} from '@/services/websocket/protocol';
 
 export type RunStatus = 'idle' | 'thinking' | 'tool_running' | 'streaming_text' | 'completed' | 'error';
 
@@ -41,44 +20,20 @@ export interface CurrentRun {
   status: RunStatus;
   startTime?: Date;
   endTime?: Date;
-  // 当前运行的工具调用 - 独立管理，不与消息关联
   activeToolCalls: ToolCall[];
 }
 
-// ===== Store State Interface =====
-
-export interface AuraState {
-  // Message History
+export interface ChatState {
   messages: Message[];
-
-  // Current Run State
   currentRun: CurrentRun;
-
-  // Connection State
   isConnected: boolean;
   publicKey: string | null;
-
-  // UI State
   isInputDisabled: boolean;
   lastError: string | null;
-
-  // Tool Call History - organized by runId
   toolCallHistory: Record<string, ToolCall[]>;
-
-  // Command List State
-  isCommandListOpen: boolean;
-  commandQuery: string;
-  selectedCommandIndex: number;
-  availableCommands: Array<{
-    name: string;
-    description: string;
-  }>;
 }
 
-// ===== Store Actions Interface =====
-
-export interface AuraActions {
-  // WebSocket Event Handlers
+export interface ChatActions {
   handleRunStarted: (payload: RunStartedPayload) => void;
   handleToolCallStarted: (payload: ToolCallStartedPayload) => void;
   handleToolCallFinished: (payload: ToolCallFinishedPayload) => void;
@@ -87,28 +42,17 @@ export interface AuraActions {
   handleError: (payload: ErrorPayload) => void;
   handleCommandResult: (payload: CommandResultPayload) => void;
 
-  // Connection Handlers
   handleConnected: (publicKey: string) => void;
   handleDisconnected: () => void;
 
-  // User Actions
   sendMessage: (content: string) => void;
   clearMessages: () => void;
   clearError: () => void;
 
-  // Command Actions
-  openCommandList: () => void;
-  closeCommandList: () => void;
-  setCommandQuery: (query: string) => void;
-  setSelectedCommandIndex: (index: number) => void;
   executeCommand: (command: string) => void;
 }
 
-// ===== Store Implementation =====
-
-export type AuraStore = AuraState & AuraActions;
-
-// ===== Helper Functions =====
+export type ChatStore = ChatState & ChatActions;
 
 const updateToolCallStatus = (
   toolCall: ToolCall,
@@ -127,8 +71,7 @@ const updateToolCallStatus = (
   return toolCall;
 };
 
-export const useAuraStore = create<AuraStore>((set, get) => ({
-  // ===== Initial State =====
+export const useChatStore = create<ChatStore>((set, get) => ({
   messages: [],
   currentRun: {
     runId: null,
@@ -141,23 +84,11 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
   lastError: null,
   toolCallHistory: {},
 
-  // ===== Command List State =====
-  isCommandListOpen: false,
-  commandQuery: '',
-  selectedCommandIndex: 0,
-  availableCommands: COMMANDS,
-
-  // ===== WebSocket Event Handlers =====
-
-  handleRunStarted: (/* _payload: RunStartedPayload */) => {
-    // Note: payload contains session_id and user_input from backend,
-    // but we generate client-side run ID for UI state management
-    const runId = uuidv4(); // Generate client-side run ID
+  handleRunStarted: () => {
+    const runId = uuidv4();
     const now = new Date();
 
     set((state) => {
-      // Bind any existing streaming AI placeholder (created before run_started)
-      // to this new runId to prevent multiple bubbles.
       const reboundMessages = state.messages.map((msg) => {
         if (msg.role === 'AI' && msg.isStreaming && !msg.runId) {
           return { ...msg, runId };
@@ -191,7 +122,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     };
 
     set((state) => {
-      // Find the latest streaming AI message regardless of runId to ensure a single bubble
       let streamingAIMessageIndex = state.messages
         .map((msg, idx) => ({ msg, idx }))
         .filter(({ msg }) => msg.role === 'AI' && msg.isStreaming)
@@ -199,14 +129,12 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
         .pop() ?? -1;
 
       if (streamingAIMessageIndex < 0) {
-        // Fallback by runId
         streamingAIMessageIndex = state.messages.findIndex(
           msg => msg.role === 'AI' && msg.runId === currentRun.runId && msg.isStreaming
         );
       }
 
       if (streamingAIMessageIndex >= 0) {
-        // Add tool call to the existing streaming AI message and record insertion index
         const messagesWithToolCall = state.messages.map((msg, index) => {
           if (index === streamingAIMessageIndex) {
             const currentLength = msg.content.length;
@@ -215,7 +143,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
               ...msg,
               runId: msg.runId || currentRun.runId || msg.runId,
               toolCalls: [...(msg.toolCalls || []), tcWithIndex],
-              // Keep a legacy split index for backward compatibility with older renderers
               toolInsertIndex: (msg as Message).toolInsertIndex ?? currentLength,
             } as Message;
           }
@@ -239,16 +166,14 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
           }
         };
       } else {
-        // No existing AI message found: create a new AI message placeholder to hold the tool call
-        // This ensures that subsequent text chunks will find this message and append to it
         const aiMessage: Message = {
           id: uuidv4(),
           role: 'AI',
-          content: '', // Empty content initially, will be filled by text chunks
+          content: '',
           timestamp: new Date(),
           runId: currentRun.runId || undefined,
           isStreaming: true,
-          toolCalls: [{ ...toolCall, insertIndex: 0 }], // Add the tool call to the new message
+          toolCalls: [{ ...toolCall, insertIndex: 0 }],
           toolInsertIndex: 0,
         };
 
@@ -257,7 +182,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
 
         return {
           ...state,
-          messages: [...state.messages, aiMessage], // Add the new AI message
+          messages: [...state.messages, aiMessage],
           currentRun: {
             ...state.currentRun,
             status: 'tool_running',
@@ -276,7 +201,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     const { currentRun } = get();
 
     set((state) => {
-      // Find the AI message for this run and update its tool calls
       const aiMessageIndex = state.messages.findIndex(
         msg => msg.role === 'AI' && msg.runId === currentRun.runId
       );
@@ -297,7 +221,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
         );
       }
 
-      // Also update activeToolCalls and toolCallHistory for backward compatibility
       const runId = currentRun.runId || 'unknown';
       const updatedActiveToolCalls = state.currentRun.activeToolCalls.map(tool =>
         updateToolCallStatus(tool, payload.tool_name, payload.status, payload.result)
@@ -326,7 +249,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     const { currentRun } = get();
 
     set((state) => {
-      // Prefer the latest streaming AI message regardless of runId to avoid splitting
       let existingMessageIndex = state.messages
         .map((msg, idx) => ({ msg, idx }))
         .filter(({ msg }) => msg.role === 'AI' && msg.isStreaming)
@@ -334,7 +256,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
         .pop() ?? -1;
 
       if (existingMessageIndex < 0) {
-        // Fallback: try to find by current runId if any
         existingMessageIndex = state.messages.findIndex(
           msg => msg.runId === currentRun.runId && msg.role === 'AI' && msg.isStreaming
         );
@@ -344,14 +265,12 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
       let newStatus: RunStatus = 'streaming_text';
 
       if (existingMessageIndex >= 0) {
-        // Update existing streaming message placeholder
         updatedMessages = state.messages.map((msg, index) =>
           index === existingMessageIndex
             ? { ...msg, runId: msg.runId || currentRun.runId || msg.runId, content: msg.content + payload.chunk }
             : msg
         );
       } else {
-        // First text chunk: create new AI message placeholder
         const aiMessage: Message = {
           id: uuidv4(),
           role: 'AI',
@@ -361,8 +280,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
           isStreaming: true
         };
         updatedMessages = [...state.messages, aiMessage];
-
-        // Transition from thinking to streaming_text
         newStatus = 'streaming_text';
       }
 
@@ -378,7 +295,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
 
   handleRunFinished: (payload: RunFinishedPayload) => {
     set((state) => {
-      // Mark the streaming message as complete
       const updatedMessages = state.messages.map(msg =>
         msg.runId === state.currentRun.runId && msg.isStreaming
           ? { ...msg, isStreaming: false }
@@ -396,18 +312,15 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
       };
     });
 
-    // Reset to idle after a brief delay
     setTimeout(() => {
       set(() => ({
         currentRun: {
           runId: null,
           status: 'idle',
-          activeToolCalls: [] // Clear active tool calls since they're now in history
+          activeToolCalls: []
         }
       }));
     }, 1000);
-
-
   },
 
   handleError: (payload: ErrorPayload) => {
@@ -419,7 +332,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
       lastError: payload.message,
       isInputDisabled: false
     }));
-
     console.error('NEXUS error:', payload);
   },
 
@@ -427,15 +339,11 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     const { command, result } = payload;
 
     set((state) => {
-      // Find the pending message for this command
       const messageIndex = state.messages.findIndex(
-        msg => msg.role === 'SYSTEM' &&
-               msg.content === command &&
-               msg.metadata?.status === 'pending'
+        msg => msg.role === 'SYSTEM' && msg.content === command && msg.metadata?.status === 'pending'
       );
 
       if (messageIndex >= 0) {
-        // Update the existing message
         const updatedMessages = [...state.messages];
         updatedMessages[messageIndex] = {
           ...updatedMessages[messageIndex],
@@ -446,10 +354,8 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
             commandResult: result
           }
         };
-
         return { messages: updatedMessages };
       } else {
-        // No pending message found, create a new one
         const newMessage: Message = {
           id: uuidv4(),
           role: 'SYSTEM',
@@ -457,13 +363,10 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
           timestamp: new Date(),
           metadata: { status: 'completed', commandResult: result }
         };
-
         return { messages: [...state.messages, newMessage] };
       }
     });
   },
-
-  // ===== Connection Handlers =====
 
   handleConnected: (publicKey: string) => {
     set({
@@ -471,7 +374,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
       publicKey,
       lastError: null
     });
-
   },
 
   handleDisconnected: () => {
@@ -484,10 +386,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
         activeToolCalls: []
       }
     });
-
   },
-
-  // ===== User Actions =====
 
   sendMessage: (content: string) => {
     if (!websocketManager.connected) {
@@ -495,7 +394,6 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
       return;
     }
 
-    // Add user message to history immediately
     const userMessage: Message = {
       id: uuidv4(),
       role: 'HUMAN',
@@ -508,9 +406,7 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
       lastError: null
     }));
 
-    // Send to backend
     websocketManager.sendMessage(content);
-
   },
 
   clearMessages: () => {
@@ -521,50 +417,28 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     set({ lastError: null });
   },
 
-  // ===== Command Actions =====
-
-  openCommandList: () => {
-    set({ isCommandListOpen: true, commandQuery: '', selectedCommandIndex: 0 });
-  },
-
-  closeCommandList: () => {
-    set({ isCommandListOpen: false, commandQuery: '', selectedCommandIndex: 0 });
-  },
-
-  setCommandQuery: (query: string) => {
-    set({ commandQuery: query, selectedCommandIndex: 0 });
-  },
-
-  setSelectedCommandIndex: (index: number) => {
-    set({ selectedCommandIndex: index });
-  },
-
   executeCommand: (command: string) => {
     if (!websocketManager.connected) {
       console.error('Cannot execute command: not connected to NEXUS');
       return;
     }
 
-    // Handle help command locally (no backend communication needed)
     if (command === '/help') {
+      const helpContent = executeHelpCommand(COMMANDS);
       const helpMessage: Message = {
         id: uuidv4(),
         role: 'SYSTEM',
-        content: `Available commands:\n\n${COMMANDS.map(cmd => `- **/${cmd.name}**: ${cmd.description}`).join('\n')}`,
+        content: helpContent,
         timestamp: new Date(),
         metadata: { status: 'completed' }
       };
 
       set((state) => ({
-        messages: [...state.messages, helpMessage],
-        isCommandListOpen: false,
-        commandQuery: '',
-        selectedCommandIndex: 0
+        messages: [...state.messages, helpMessage]
       }));
       return;
     }
 
-    // Create pending system message immediately
     const pendingMessage: Message = {
       id: uuidv4(),
       role: 'SYSTEM',
@@ -574,14 +448,11 @@ export const useAuraStore = create<AuraStore>((set, get) => ({
     };
 
     set((state) => ({
-      messages: [...state.messages, pendingMessage],
-      isCommandListOpen: false,
-      commandQuery: '',
-      selectedCommandIndex: 0
+      messages: [...state.messages, pendingMessage]
     }));
 
-    // Send command to backend
     websocketManager.sendCommand(command);
-  },
-
+  }
 }));
+
+

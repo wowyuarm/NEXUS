@@ -14,9 +14,10 @@
 
 import { useEffect, useCallback, useMemo } from 'react';
 import { websocketManager } from '../../../services/websocket/manager';
-import { useAuraStore } from '../store/auraStore';
+import { useChatStore } from '../store/chatStore';
+import { useCommandStore } from '@/features/command/store/commandStore';
 import type { Message } from '../types';
-import type { CurrentRun } from '../store/auraStore';
+import type { CurrentRun } from '../store/chatStore';
 import type {
   RunStartedPayload,
   ToolCallStartedPayload,
@@ -79,18 +80,9 @@ export function useAura(): UseAuraReturn {
     isInputDisabled,
     lastError,
     toolCallHistory,
-    isCommandListOpen,
-    commandQuery,
-    selectedCommandIndex,
-    availableCommands,
     sendMessage,
     clearMessages,
     clearError,
-    openCommandList,
-    closeCommandList,
-    setCommandQuery,
-    setSelectedCommandIndex,
-    executeCommand,
     handleRunStarted,
     handleToolCallStarted,
     handleToolCallFinished,
@@ -100,7 +92,19 @@ export function useAura(): UseAuraReturn {
     handleCommandResult,
     handleConnected,
     handleDisconnected
-  } = useAuraStore();
+  } = useChatStore();
+
+  const {
+    isCommandListOpen,
+    commandQuery,
+    selectedCommandIndex,
+    availableCommands,
+    openCommandList,
+    closeCommandList,
+    setCommandQuery,
+    setLoading,
+    resetSelection
+  } = useCommandStore();
 
   // ===== WebSocket Event Handlers =====
 
@@ -254,8 +258,23 @@ export function useAura(): UseAuraReturn {
     openCommandList,
     closeCommandList,
     setCommandQuery,
-    setSelectedCommandIndex,
-    executeCommand,
+    setSelectedCommandIndex: (index: number) => {
+      // keep compatibility with existing UI passing absolute index
+      // selection logic is managed in commandStore's selectNext/Prev when used by keyboard
+      resetSelection();
+      // then re-apply explicit index if valid within filtered list
+      // we do not compute here to keep UI behavior simple
+      useCommandStore.setState({ selectedCommandIndex: index });
+    },
+    executeCommand: (command: string) => {
+      // Delegate to chat store for execution side-effects
+      useChatStore.getState().executeCommand(command);
+      // After execution, close palette and reset query/selection to keep UI consistent
+      closeCommandList();
+      setCommandQuery('');
+      useCommandStore.setState({ selectedCommandIndex: 0 });
+      setLoading(false);
+    },
 
     // Connection Management
     connect,

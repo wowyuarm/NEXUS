@@ -1,12 +1,12 @@
 /**
- * AURA Store Unit Tests
+ * Chat Store Unit Tests
  * 
- * Tests for the core state management logic in auraStore.ts
+ * Tests for the core state management logic in chatStore.ts
  * Following TDD principles and component-focused testing strategy
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { useAuraStore } from '@/features/chat/store/auraStore';
+import { useChatStore } from '@/features/chat/store/chatStore';
 import type { 
   RunStartedPayload, 
   ToolCallStartedPayload, 
@@ -23,7 +23,7 @@ vi.mock('@/services/websocket/manager', () => ({
   }
 }));
 
-describe('auraStore', () => {
+describe('chatStore', () => {
   const initialState = {
     messages: [],
     currentRun: {
@@ -40,7 +40,7 @@ describe('auraStore', () => {
 
   beforeEach(() => {
     // Reset store to initial state before each test
-    useAuraStore.setState(initialState);
+    useChatStore.setState(initialState);
     vi.clearAllTimers();
     vi.useFakeTimers();
   });
@@ -56,10 +56,10 @@ describe('auraStore', () => {
         user_input: 'test input'
       };
 
-      const { handleRunStarted } = useAuraStore.getState();
+      const { handleRunStarted } = useChatStore.getState();
       handleRunStarted(payload);
 
-      const state = useAuraStore.getState();
+      const state = useChatStore.getState();
       
       expect(state.currentRun.status).toBe('thinking');
       expect(state.currentRun.runId).toBeTruthy();
@@ -69,7 +69,7 @@ describe('auraStore', () => {
 
     it('should rebound existing streaming AI messages to new runId', () => {
       // Setup: Add an existing streaming AI message without runId
-      useAuraStore.setState({
+      useChatStore.setState({
         ...initialState,
         messages: [{
           id: 'existing-msg',
@@ -85,10 +85,10 @@ describe('auraStore', () => {
         user_input: 'test input'
       };
 
-      const { handleRunStarted } = useAuraStore.getState();
+      const { handleRunStarted } = useChatStore.getState();
       handleRunStarted(payload);
 
-      const state = useAuraStore.getState();
+      const state = useChatStore.getState();
       const aiMessage = state.messages.find(msg => msg.role === 'AI');
       
       expect(aiMessage?.runId).toBe(state.currentRun.runId);
@@ -102,17 +102,17 @@ describe('auraStore', () => {
         session_id: 'test-session',
         user_input: 'test input'
       };
-      useAuraStore.getState().handleRunStarted(runPayload);
+      useChatStore.getState().handleRunStarted(runPayload);
 
       const toolPayload: ToolCallStartedPayload = {
         tool_name: 'test_tool',
         args: { param: 'value' }
       };
 
-      const { handleToolCallStarted } = useAuraStore.getState();
+      const { handleToolCallStarted } = useChatStore.getState();
       handleToolCallStarted(toolPayload);
 
-      const state = useAuraStore.getState();
+      const state = useChatStore.getState();
       
       expect(state.currentRun.status).toBe('tool_running');
       expect(state.currentRun.activeToolCalls).toHaveLength(1);
@@ -124,7 +124,7 @@ describe('auraStore', () => {
     it('should add tool call to existing streaming AI message', () => {
       // Setup: Add streaming AI message
       const runId = 'test-run-id';
-      useAuraStore.setState({
+      useChatStore.setState({
         ...initialState,
         currentRun: {
           runId,
@@ -146,10 +146,10 @@ describe('auraStore', () => {
         args: { param: 'value' }
       };
 
-      const { handleToolCallStarted } = useAuraStore.getState();
+      const { handleToolCallStarted } = useChatStore.getState();
       handleToolCallStarted(toolPayload);
 
-      const state = useAuraStore.getState();
+      const state = useChatStore.getState();
       const aiMessage = state.messages.find(msg => msg.role === 'AI');
       
       expect(aiMessage?.toolCalls).toHaveLength(1);
@@ -159,7 +159,7 @@ describe('auraStore', () => {
 
     it('should create new AI message placeholder when no existing message found', () => {
       // Setup: Start run without existing AI message
-      useAuraStore.setState({
+      useChatStore.setState({
         ...initialState,
         currentRun: {
           runId: 'test-run-id',
@@ -173,10 +173,10 @@ describe('auraStore', () => {
         args: { param: 'value' }
       };
 
-      const { handleToolCallStarted } = useAuraStore.getState();
+      const { handleToolCallStarted } = useChatStore.getState();
       handleToolCallStarted(toolPayload);
 
-      const state = useAuraStore.getState();
+      const state = useChatStore.getState();
       
       expect(state.messages).toHaveLength(1);
       expect(state.messages[0].role).toBe('AI');
@@ -190,7 +190,7 @@ describe('auraStore', () => {
     it('should update tool call status to completed', () => {
       // Setup: Start run and tool call
       const runId = 'test-run-id';
-      useAuraStore.setState({
+      useChatStore.setState({
         ...initialState,
         currentRun: {
           runId,
@@ -226,10 +226,10 @@ describe('auraStore', () => {
         result: 'Tool completed successfully'
       };
 
-      const { handleToolCallFinished } = useAuraStore.getState();
+      const { handleToolCallFinished } = useChatStore.getState();
       handleToolCallFinished(finishPayload);
 
-      const state = useAuraStore.getState();
+      const state = useChatStore.getState();
       
       expect(state.currentRun.activeToolCalls[0].status).toBe('completed');
       expect(state.currentRun.activeToolCalls[0].result).toBe('Tool completed successfully');
@@ -242,7 +242,7 @@ describe('auraStore', () => {
     it('should update tool call status to error on failure', () => {
       // Setup: Start run and tool call
       const runId = 'test-run-id';
-      useAuraStore.setState({
+      useChatStore.setState({
         ...initialState,
         currentRun: {
           runId,
@@ -263,10 +263,10 @@ describe('auraStore', () => {
         result: 'Tool failed with error'
       };
 
-      const { handleToolCallFinished } = useAuraStore.getState();
+      const { handleToolCallFinished } = useChatStore.getState();
       handleToolCallFinished(finishPayload);
 
-      const state = useAuraStore.getState();
+      const state = useChatStore.getState();
       
       expect(state.currentRun.activeToolCalls[0].status).toBe('error');
       expect(state.currentRun.activeToolCalls[0].result).toBe('Tool failed with error');
@@ -277,7 +277,7 @@ describe('auraStore', () => {
     it('should transition to streaming_text state and append content to AI message', () => {
       // Setup: Start run
       const runId = 'test-run-id';
-      useAuraStore.setState({
+      useChatStore.setState({
         ...initialState,
         currentRun: {
           runId,
@@ -290,10 +290,10 @@ describe('auraStore', () => {
         chunk: 'Hello '
       };
 
-      const { handleTextChunk } = useAuraStore.getState();
+      const { handleTextChunk } = useChatStore.getState();
       handleTextChunk(chunkPayload);
 
-      const state = useAuraStore.getState();
+      const state = useChatStore.getState();
       
       expect(state.currentRun.status).toBe('streaming_text');
       expect(state.messages).toHaveLength(1);
@@ -305,7 +305,7 @@ describe('auraStore', () => {
     it('should append to existing streaming AI message', () => {
       // Setup: Add existing streaming AI message
       const runId = 'test-run-id';
-      useAuraStore.setState({
+      useChatStore.setState({
         ...initialState,
         currentRun: {
           runId,
@@ -326,10 +326,10 @@ describe('auraStore', () => {
         chunk: 'world!'
       };
 
-      const { handleTextChunk } = useAuraStore.getState();
+      const { handleTextChunk } = useChatStore.getState();
       handleTextChunk(chunkPayload);
 
-      const state = useAuraStore.getState();
+      const state = useChatStore.getState();
       const aiMessage = state.messages.find(msg => msg.role === 'AI');
       
       expect(aiMessage?.content).toBe('Hello world!');
@@ -340,7 +340,7 @@ describe('auraStore', () => {
     it('should disable input, mark messages as complete, and reset to idle after delay', () => {
       // Setup: Run with streaming message
       const runId = 'test-run-id';
-      useAuraStore.setState({
+      useChatStore.setState({
         ...initialState,
         currentRun: {
           runId,
@@ -362,10 +362,10 @@ describe('auraStore', () => {
         status: 'completed'
       };
 
-      const { handleRunFinished } = useAuraStore.getState();
+      const { handleRunFinished } = useChatStore.getState();
       handleRunFinished(finishPayload);
 
-      let state = useAuraStore.getState();
+      let state = useChatStore.getState();
       
       // Immediately after handleRunFinished
       expect(state.isInputDisabled).toBe(false);
@@ -378,7 +378,7 @@ describe('auraStore', () => {
       // After timeout
       vi.advanceTimersByTime(1000);
       
-      state = useAuraStore.getState();
+      state = useChatStore.getState();
       expect(state.currentRun.status).toBe('idle');
       expect(state.currentRun.runId).toBeNull();
       expect(state.currentRun.activeToolCalls).toHaveLength(0);
@@ -387,7 +387,7 @@ describe('auraStore', () => {
     it('should handle error status', () => {
       // Setup: Run in progress
       const runId = 'test-run-id';
-      useAuraStore.setState({
+      useChatStore.setState({
         ...initialState,
         currentRun: {
           runId,
@@ -401,10 +401,10 @@ describe('auraStore', () => {
         status: 'error'
       };
 
-      const { handleRunFinished } = useAuraStore.getState();
+      const { handleRunFinished } = useChatStore.getState();
       handleRunFinished(finishPayload);
 
-      const state = useAuraStore.getState();
+      const state = useChatStore.getState();
       
       expect(state.currentRun.status).toBe('error');
       expect(state.isInputDisabled).toBe(false);
