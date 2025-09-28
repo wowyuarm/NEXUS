@@ -57,7 +57,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
       setMessage('');
 
-      // 重置 textarea 高度
+      // Reset textarea height
       textareaRef.current?.resetHeight();
     }
   };
@@ -89,6 +89,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           e.preventDefault();
           if (filteredCommands[selectedCommandIndex]) {
             onExecuteCommand(`/${filteredCommands[selectedCommandIndex].name}`);
+            // After executing the command, clear the input and reset the height
+            setMessage('');
+            textareaRef.current?.resetHeight();
           }
           break;
         default:
