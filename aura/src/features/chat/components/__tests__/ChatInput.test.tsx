@@ -373,4 +373,90 @@ describe('ChatInput', () => {
       expect(mockOnSendMessage).not.toHaveBeenCalled();
     });
   });
+
+  describe('Command mode - smart selection', () => {
+    it('executes filtered command on Enter prioritizing query over selection', async () => {
+      const onExecuteCommand = vi.fn();
+      const props = createTestProps({
+        isCommandListOpen: true,
+        commandQuery: 'help',
+        availableCommands: [
+          { name: 'ping', description: '' },
+          { name: 'help', description: '' },
+          { name: 'identity', description: '' }
+        ],
+        selectedCommandIndex: 0,
+        onExecuteCommand
+      });
+      render(<ChatInput {...props} />);
+      const input = screen.getByTestId('message-input');
+      await user.click(input);
+      await user.keyboard('{Enter}');
+      expect(onExecuteCommand).toHaveBeenCalledWith('/help');
+    });
+
+    it('navigates within filtered commands length', async () => {
+      const onSetSelectedCommandIndex = vi.fn();
+      const props = createTestProps({
+        isCommandListOpen: true,
+        commandQuery: 'h',
+        availableCommands: [
+          { name: 'ping', description: '' },
+          { name: 'help', description: '' },
+          { name: 'identity', description: '' }
+        ],
+        selectedCommandIndex: 0,
+        onSetSelectedCommandIndex
+      });
+      render(<ChatInput {...props} />);
+      const input = screen.getByTestId('message-input');
+      await user.click(input);
+      await user.keyboard('{ArrowDown}');
+      expect(onSetSelectedCommandIndex).toHaveBeenCalledWith(0);
+      await user.keyboard('{ArrowUp}');
+      expect(onSetSelectedCommandIndex).toHaveBeenCalledWith(0);
+    });
+
+    it('smart-selects exact match when typing after slash', async () => {
+      const onSetSelectedCommandIndex = vi.fn();
+      const onOpenCommandList = vi.fn();
+      const onSetCommandQuery = vi.fn();
+      const props = createTestProps({
+        onSetSelectedCommandIndex,
+        onOpenCommandList,
+        onSetCommandQuery,
+        availableCommands: [
+          { name: 'ping', description: '' },
+          { name: 'help', description: '' },
+          { name: 'identity', description: '' }
+        ]
+      });
+      render(<ChatInput {...props} />);
+      await user.type(screen.getByTestId('message-input'), '/help');
+      expect(onOpenCommandList).toHaveBeenCalled();
+      expect(onSetCommandQuery).toHaveBeenCalledWith('help');
+      expect(onSetSelectedCommandIndex).toHaveBeenLastCalledWith(0);
+    });
+
+    it('sets selection to -1 when no match exists', async () => {
+      const onSetSelectedCommandIndex = vi.fn();
+      const onOpenCommandList = vi.fn();
+      const onSetCommandQuery = vi.fn();
+      const props = createTestProps({
+        onSetSelectedCommandIndex,
+        onOpenCommandList,
+        onSetCommandQuery,
+        availableCommands: [
+          { name: 'ping', description: '' },
+          { name: 'help', description: '' },
+          { name: 'identity', description: '' }
+        ]
+      });
+      render(<ChatInput {...props} />);
+      await user.type(screen.getByTestId('message-input'), '/x');
+      expect(onOpenCommandList).toHaveBeenCalled();
+      expect(onSetCommandQuery).toHaveBeenCalledWith('x');
+      expect(onSetSelectedCommandIndex).toHaveBeenLastCalledWith(-1);
+    });
+  });
 });

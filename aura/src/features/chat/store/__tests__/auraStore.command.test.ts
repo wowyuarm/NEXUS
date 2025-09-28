@@ -99,6 +99,32 @@ describe('AURA Store Command Functionality', () => {
       expect(messages[0].metadata?.status).toBe('pending');
     });
 
+    it('should handle /help locally without sending over websocket', () => {
+      const store = useAuraStore.getState();
+
+      store.openCommandList();
+      store.setCommandQuery('help');
+
+      store.executeCommand('/help');
+
+      // Should not send websocket command
+      expect(mockSendCommand).not.toHaveBeenCalled();
+
+      // Should close command list and reset query/index
+      const state = useAuraStore.getState();
+      expect(state.isCommandListOpen).toBe(false);
+      expect(state.commandQuery).toBe('');
+      expect(state.selectedCommandIndex).toBe(0);
+
+      // Should add a completed SYSTEM message with help content
+      const messages = state.messages;
+      expect(messages).toHaveLength(1);
+      expect(messages[0].role).toBe('SYSTEM');
+      expect(messages[0].metadata?.status).toBe('completed');
+      expect(messages[0].content).toContain('Available commands:');
+      expect(messages[0].content).toContain('/help');
+    });
+
     it('should handle command result and update message', () => {
       const store = useAuraStore.getState();
 

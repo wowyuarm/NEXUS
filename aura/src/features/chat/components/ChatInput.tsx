@@ -1,6 +1,6 @@
 // src/features/chat/components/ChatInput.tsx
 import { ArrowUp } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button, AutoResizeTextarea, type AutoResizeTextareaRef } from '@/components/ui';
 
@@ -37,6 +37,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [isComposing, setIsComposing] = useState(false);
   const textareaRef = useRef<AutoResizeTextareaRef>(null);
 
+  // Filter commands by current query for navigation and execution
+  const filteredCommands = useMemo(() => {
+    const query = (commandQuery || '').toLowerCase();
+    if (!query) return availableCommands;
+    return availableCommands.filter(cmd =>
+      cmd.name.toLowerCase().startsWith(query)
+    );
+  }, [availableCommands, commandQuery]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !disabled && !isComposing) {
@@ -62,20 +71,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           break;
         case 'ArrowUp':
           e.preventDefault();
-          onSetSelectedCommandIndex(
-            selectedCommandIndex > 0 ? selectedCommandIndex - 1 : availableCommands.length - 1
-          );
+          if (filteredCommands.length > 0) {
+            onSetSelectedCommandIndex(
+              selectedCommandIndex > 0 ? selectedCommandIndex - 1 : filteredCommands.length - 1
+            );
+          }
           break;
         case 'ArrowDown':
           e.preventDefault();
-          onSetSelectedCommandIndex(
-            selectedCommandIndex < availableCommands.length - 1 ? selectedCommandIndex + 1 : 0
-          );
+          if (filteredCommands.length > 0) {
+            onSetSelectedCommandIndex(
+              selectedCommandIndex < filteredCommands.length - 1 ? selectedCommandIndex + 1 : 0
+            );
+          }
           break;
         case 'Enter':
           e.preventDefault();
-          if (availableCommands[selectedCommandIndex]) {
-            onExecuteCommand(`/${availableCommands[selectedCommandIndex].name}`);
+          if (filteredCommands[selectedCommandIndex]) {
+            onExecuteCommand(`/${filteredCommands[selectedCommandIndex].name}`);
           }
           break;
         default:
@@ -104,7 +117,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       // Continue filtering commands as user types after /
       const query = value.slice(1);
       onSetCommandQuery(query);
-      onSetSelectedCommandIndex(0); // Reset selection when query changes
+      // Smart selection: prefer exact match if present, otherwise first item
+      const lower = query.toLowerCase();
+      const matching = availableCommands.filter(cmd => cmd.name.toLowerCase().startsWith(lower));
+      if (matching.length === 0) {
+        onSetSelectedCommandIndex(-1);
+      } else {
+        const exactIdx = matching.findIndex(cmd => cmd.name.toLowerCase() === lower);
+        onSetSelectedCommandIndex(exactIdx >= 0 ? exactIdx : 0);
+      }
     } else if (isCommandListOpen) {
       // Close command list if user deletes the / or types non-command text
       onCloseCommandList();
