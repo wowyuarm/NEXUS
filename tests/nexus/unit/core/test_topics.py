@@ -64,7 +64,9 @@ class TestTopicsIntegrity:
             "llm.results",
             "tools.requests",
             "tools.results",
-            "ui.events"
+            "ui.events",
+            "system.command",
+            "command.result"
         ]
         
         for expected_topic in expected_topics:
@@ -92,3 +94,85 @@ class TestTopicsIntegrity:
         # The Topics class is a namespace, but Python allows instantiation
         topics_instance = Topics()
         assert topics_instance is not None
+        
+    def test_specific_topic_constants_exist(self):
+        """Test that specific topic constants are properly defined."""
+        # Test run lifecycle topics
+        assert hasattr(Topics, 'RUNS_NEW')
+        assert Topics.RUNS_NEW == "runs.new"
+        
+        # Test context building topics
+        assert hasattr(Topics, 'CONTEXT_BUILD_REQUEST')
+        assert Topics.CONTEXT_BUILD_REQUEST == "context.build.request"
+        assert hasattr(Topics, 'CONTEXT_BUILD_RESPONSE')
+        assert Topics.CONTEXT_BUILD_RESPONSE == "context.build.response"
+        
+        # Test LLM interaction topics
+        assert hasattr(Topics, 'LLM_REQUESTS')
+        assert Topics.LLM_REQUESTS == "llm.requests"
+        assert hasattr(Topics, 'LLM_RESULTS')
+        assert Topics.LLM_RESULTS == "llm.results"
+        
+        # Test tool execution topics
+        assert hasattr(Topics, 'TOOLS_REQUESTS')
+        assert Topics.TOOLS_REQUESTS == "tools.requests"
+        assert hasattr(Topics, 'TOOLS_RESULTS')
+        assert Topics.TOOLS_RESULTS == "tools.results"
+        
+        # Test UI topics
+        assert hasattr(Topics, 'UI_EVENTS')
+        assert Topics.UI_EVENTS == "ui.events"
+        
+        # Test command system topics
+        assert hasattr(Topics, 'SYSTEM_COMMAND')
+        assert Topics.SYSTEM_COMMAND == "system.command"
+        assert hasattr(Topics, 'COMMAND_RESULT')
+        assert Topics.COMMAND_RESULT == "command.result"
+        
+    def test_topic_constants_are_class_attributes(self):
+        """Test that all topic constants are class attributes, not instance attributes."""
+        # All topics should be accessible without instantiation
+        assert Topics.RUNS_NEW == "runs.new"
+        assert Topics.CONTEXT_BUILD_REQUEST == "context.build.request"
+        assert Topics.CONTEXT_BUILD_RESPONSE == "context.build.response"
+        assert Topics.LLM_REQUESTS == "llm.requests"
+        assert Topics.LLM_RESULTS == "llm.results"
+        assert Topics.TOOLS_REQUESTS == "tools.requests"
+        assert Topics.TOOLS_RESULTS == "tools.results"
+        assert Topics.UI_EVENTS == "ui.events"
+        assert Topics.SYSTEM_COMMAND == "system.command"
+        assert Topics.COMMAND_RESULT == "command.result"
+        
+    def test_topic_grouping_by_prefix(self):
+        """Test that topics are properly grouped by their prefix."""
+        # Collect all topics by prefix
+        topic_groups = {}
+        
+        for attr_name in dir(Topics):
+            if not attr_name.startswith('_') and not callable(getattr(Topics, attr_name)):
+                attr_value = getattr(Topics, attr_name)
+                if isinstance(attr_value, str) and '.' in attr_value:
+                    prefix = attr_value.split('.')[0]
+                    if prefix not in topic_groups:
+                        topic_groups[prefix] = []
+                    topic_groups[prefix].append(attr_value)
+        
+        # Verify expected topic groups exist
+        expected_prefixes = ['runs', 'context', 'llm', 'tools', 'ui', 'system', 'command']
+        
+        for expected_prefix in expected_prefixes:
+            assert expected_prefix in topic_groups, (
+                f"Topic group '{expected_prefix}' not found. Available groups: {list(topic_groups.keys())}"
+            )
+        
+        # Verify specific groups have expected topics
+        assert "runs.new" in topic_groups['runs']
+        assert "context.build.request" in topic_groups['context']
+        assert "context.build.response" in topic_groups['context']
+        assert "llm.requests" in topic_groups['llm']
+        assert "llm.results" in topic_groups['llm']
+        assert "tools.requests" in topic_groups['tools']
+        assert "tools.results" in topic_groups['tools']
+        assert "ui.events" in topic_groups['ui']
+        assert "system.command" in topic_groups['system']
+        assert "command.result" in topic_groups['command']
