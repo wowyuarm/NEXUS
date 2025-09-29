@@ -396,3 +396,53 @@
 
 **注意：代码仅作参考，以你实际的探索为规范。你必须了解本次的核心思想、合理规划并自主完成。**
 ---
+
+---
+---
+
+将指令系统的“事实来源”完全统一到NEXUS后端。前端必须废弃静态指令列表，改为通过向后端查询来动态发现可用指令。同时，必须在架构层面明确区分“客户端指令”和“服务器端指令”的处理流程。
+
+---
+
+#### **一、后端 (NEXUS) 的职责：成为能力的“昭示者”**
+
+*   **1.1 强化指令定义 (`nexus/commands/definition/`):**
+    *   **每一个指令**都必须拥有一个`.py`文件。
+    *   **`COMMAND_DEFINITION`** 必须增加一个新字段 `execution_target: 'client' | 'server'`。
+        *   `ping.py` 和 `identity.py` (未来) 将是 `'server'`。
+        *   `help.py` 将是 `'server'`，因为它的职责是查询后端注册表。
+        *   创建一个新的`clear.py`，其`execution_target`将是`'client'`。
+*   **1.2 强化`help.py`:**
+    *   其`execute`函数**必须**读取`CommandService`中注册的所有指令的`COMMAND_DEFINITION`，并将这个完整的元数据列表（包含`name`, `description`, `execution_target`等）作为结果返回。
+*   **1.3 TDD 原则:**
+    *   更新`test_command_service.py`，确保对`/help`的测试会断言返回结果中包含了正确的`execution_target`字段。
+
+#### **二、前端 (AURA) 的职责：成为动态的“发现者”**
+
+*   **2.1 废弃静态列表:**
+    *   **彻底删除 `aura/src/features/command/commands.ts` 文件。** 指令的定义不再硬编码于前端。
+*   **2.2 动态指令加载 (`useCommandLoader.ts` - 新增Hook):**
+    *   在`src/features/command/hooks/`下创建一个新的Hook `useCommandLoader.ts`。
+    *   这个Hook的职责是：在应用加载时（或者`CommandPalette`首次打开时），**只执行一次**向后端发送`/help`指令的逻辑。
+    *   它将从后端获取的指令列表，存入`commandStore`的`availableCommands`状态中。
+    *   **Fallback机制:** 如果`/help`指令调用失败（例如网络问题），为了避免UI完全失效，该Hook应在一个`catch`块中，向`commandStore`注入一个最小化的、包含`/ping`和`/help`的**应急指令列表 (fallback commands)**。这确保了即使用户离线，也能尝试ping通服务器。
+*   **2.3 区分指令执行 (`CommandPalette.tsx` / `ChatInput.tsx`):**
+    *   指令的执行逻辑需要重构。当用户选择一个指令并执行时：
+        1.  从`commandStore`中获取该指令的完整定义对象（包含`type`字段，前端对应后端的`execution_target`）。
+        2.  **检查 `command.type`:**
+            *   如果为`'client'` (例如`/clear`)，则直接调用对应的`chatStore.clearMessages()` action，**不发送任何WebSocket消息**。
+            *   如果为`'server'` (例如`/ping`)，则调用`chatStore.executeCommand(command.name)`，将指令发送到后端。
+*   **2.4 `help`指令的客户端化:**
+    *   `/help`指令的**执行**现在是纯客户端的。当用户在`CommandPalette`中选择`/help`并回车时，它不应再向后端发送`/help`。
+    *   取而代之，它应该直接从`commandStore.availableCommands`中读取所有指令，格式化后，通过`chatStore`在前端渲染出帮助信息。
+*   **2.5 TDD 原则:**
+    *   为`useCommandLoader`编写测试，验证其能够正确调用`/help`，并在成功/失败时更新`commandStore`。
+    *   更新`commandStore`的测试，以反映新的指令执行分发逻辑。
+
+#### **三、原则与规范**
+
+*   **单一事实来源:** 此任务完成后，NEXUS后端必须是指令定义（包括其执行位置）的唯一权威。
+*   **健壮性:** 前端的Fallback机制是强制性的，它保证了在最坏情况下，核心诊断工具(`/ping`)依然可用。
+*   **逻辑清晰:** 客户端与服务器端指令的执行路径必须在代码层面有清晰的、可被一眼识别的分支。
+
+---

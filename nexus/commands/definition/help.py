@@ -16,6 +16,7 @@ COMMAND_DEFINITION = {
     "name": "help",
     "description": "Display information about available commands",
     "usage": "/help",
+    "execution_target": "server",
     "examples": [
         "/help"
     ]
@@ -53,28 +54,13 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
             }
             return result
 
-        # Format help message
-        help_lines = ["Available commands:"]
-
-        for cmd_name, cmd_def in command_definitions.items():
-            description = cmd_def.get('description', 'No description available')
-            usage = cmd_def.get('usage', f'/{cmd_name}')
-
-            help_lines.append(f"  {usage} - {description}")
-
-            # Add examples if available
-            examples = cmd_def.get('examples', [])
-            for example in examples:
-                help_lines.append(f"    Example: {example}")
-
-            help_lines.append("")  # Empty line for readability
-
-        # Join lines and remove trailing empty line
-        help_message = "\n".join(help_lines).strip()
-
+        # Return complete command metadata for frontend consumption
         result = {
             "status": "success",
-            "message": help_message
+            "message": "Available commands retrieved successfully",
+            "data": {
+                "commands": command_definitions
+            }
         }
 
         logger.info("Help command completed successfully")

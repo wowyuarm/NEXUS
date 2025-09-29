@@ -15,14 +15,13 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import type { Command } from '../commands';
+import type { Command } from '../store/commandStore';
 
 interface CommandListProps {
   isOpen: boolean;
   query: string;
   availableCommands: Command[];
   selectedIndex: number;
-  onClose: () => void;
   onExecute: (command: string) => void;
   onSelectIndex: (index: number) => void;
 }
@@ -32,7 +31,6 @@ export const CommandList: React.FC<CommandListProps> = ({
   query,
   availableCommands,
   selectedIndex,
-  onClose,
   onExecute,
   onSelectIndex,
 }) => {

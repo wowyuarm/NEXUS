@@ -1,6 +1,24 @@
 import { create } from 'zustand';
-import { COMMANDS, filterCommands } from '@/features/command/commands';
-import type { Command } from '@/features/command/commands';
+
+export interface Command {
+  name: string;
+  description: string;
+  usage: string;
+  execution_target: 'client' | 'server';
+  examples: string[];
+}
+
+/**
+ * Filter commands based on user input
+ * Only shows commands that start with the input characters
+ */
+export const filterCommands = (query: string, commands: Command[]): Command[] => {
+  if (!query) return commands;
+
+  return commands.filter(command =>
+    command.name.toLowerCase().startsWith(query.toLowerCase())
+  );
+};
 
 interface CommandState {
   isCommandListOpen: boolean;
@@ -27,7 +45,7 @@ export const useCommandStore = create<CommandStore>((set, get) => ({
   // Initial state
   isCommandListOpen: false,
   commandQuery: '',
-  availableCommands: COMMANDS,
+  availableCommands: [],
   isLoading: false,
   selectedCommandIndex: 0,
 

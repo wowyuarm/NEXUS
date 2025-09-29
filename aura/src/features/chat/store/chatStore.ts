@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { websocketManager } from '@/services/websocket/manager';
-import { executeHelpCommand, COMMANDS } from '@/features/command/commands';
+import type { Command } from '@/features/command/store/commandStore';
 import type { Message, ToolCall } from '../types';
 import type {
   RunStartedPayload,
@@ -49,7 +49,7 @@ export interface ChatActions {
   clearMessages: () => void;
   clearError: () => void;
 
-  executeCommand: (command: string) => void;
+  executeCommand: (command: string, availableCommands?: Command[]) => Promise<any>;
 }
 
 export type ChatStore = ChatState & ChatActions;
@@ -69,6 +69,14 @@ const updateToolCallStatus = (
     };
   }
   return toolCall;
+};
+
+/**
+ * Format help content for client-side display
+ */
+const formatHelpContent = (commands: Command[]): string => {
+  const commandList = commands.map(cmd => `- **${cmd.usage}**: ${cmd.description}`).join('\n');
+  return `Available commands:\n\n${commandList}`;
 };
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -336,35 +344,59 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   handleCommandResult: (payload: CommandResultPayload) => {
-    const { command, result } = payload;
+    // Support both payload shapes:
+    // 1) Wrapped: { command: string, result: { status, message, data? } }
+    // 2) Raw:     { status, message, data? }
+    const isWrapped = (payload as any)?.result !== undefined;
+    const resultObj = (isWrapped ? (payload as any).result : payload) as {
+      status: 'success' | 'error';
+      message: string;
+      data?: Record<string, unknown>;
+    };
+    const commandText: string | undefined = isWrapped ? (payload as any).command : undefined;
 
     set((state) => {
-      const messageIndex = state.messages.findIndex(
-        msg => msg.role === 'SYSTEM' && msg.content === command && msg.metadata?.status === 'pending'
-      );
+      // Try to locate the pending system message for this command.
+      let messageIndex = -1;
+      if (commandText) {
+        messageIndex = state.messages.findIndex(
+          (msg) => msg.role === 'SYSTEM' && msg.content === commandText && msg.metadata?.status === 'pending'
+        );
+      }
+      // Fallback: pick the most recent pending SYSTEM message
+      if (messageIndex < 0) {
+        for (let i = state.messages.length - 1; i >= 0; i--) {
+          const msg = state.messages[i];
+          if (msg.role === 'SYSTEM' && msg.metadata?.status === 'pending') {
+            messageIndex = i;
+            break;
+          }
+        }
+      }
 
       if (messageIndex >= 0) {
         const updatedMessages = [...state.messages];
         updatedMessages[messageIndex] = {
           ...updatedMessages[messageIndex],
-          content: result.message || 'Command completed',
+          content: resultObj.message || 'Command completed',
           metadata: {
             ...updatedMessages[messageIndex].metadata,
             status: 'completed',
-            commandResult: result
+            commandResult: resultObj
           }
         };
         return { messages: updatedMessages };
-      } else {
-        const newMessage: Message = {
-          id: uuidv4(),
-          role: 'SYSTEM',
-          content: result.message || 'Command completed',
-          timestamp: new Date(),
-          metadata: { status: 'completed', commandResult: result }
-        };
-        return { messages: [...state.messages, newMessage] };
       }
+
+      // If no pending message found, append a new SYSTEM message
+      const newMessage: Message = {
+        id: uuidv4(),
+        role: 'SYSTEM',
+        content: resultObj.message || 'Command completed',
+        timestamp: new Date(),
+        metadata: { status: 'completed', commandResult: resultObj }
+      };
+      return { messages: [...state.messages, newMessage] };
     });
   },
 
@@ -417,41 +449,91 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ lastError: null });
   },
 
-  executeCommand: (command: string) => {
-    if (!websocketManager.connected) {
-      console.error('Cannot execute command: not connected to NEXUS');
-      return;
-    }
+  executeCommand: async (command: string, availableCommands?: Command[]) => {
+    const commandName = command.startsWith('/') ? command.slice(1) : command;
+    
+    // Find command definition to determine execution target
+    const commandDef = availableCommands?.find(cmd => cmd.name === commandName);
+    
+    if (commandDef?.execution_target === 'client') {
+      // Handle client-side commands
+      switch (commandName) {
+        case 'clear':
+          get().clearMessages();
+          return { status: 'success', message: 'Chat history cleared' };
+          
+        case 'help':
+          // Client-side help: format available commands for display
+          if (availableCommands) {
+            const helpContent = formatHelpContent(availableCommands);
+            const helpMessage: Message = {
+              id: uuidv4(),
+              role: 'SYSTEM',
+              content: helpContent,
+              timestamp: new Date(),
+              metadata: { status: 'completed' }
+            };
 
-    if (command === '/help') {
-      const helpContent = executeHelpCommand(COMMANDS);
-      const helpMessage: Message = {
+            set((state) => ({
+              messages: [...state.messages, helpMessage]
+            }));
+            return { status: 'success', message: helpContent };
+          }
+          break;
+          
+        default:
+          console.warn(`Unknown client command: ${commandName}`);
+          return { status: 'error', message: `Unknown client command: ${commandName}` };
+      }
+    } else {
+      // Handle server-side commands
+      if (!websocketManager.connected) {
+        const error = 'Cannot execute server command: not connected to NEXUS';
+        console.error(error);
+        return { status: 'error', message: error };
+      }
+
+      // For server commands, create pending message
+      const pendingMessage: Message = {
         id: uuidv4(),
         role: 'SYSTEM',
-        content: helpContent,
+        content: command,
         timestamp: new Date(),
-        metadata: { status: 'completed' }
+        metadata: { status: 'pending' }
       };
 
       set((state) => ({
-        messages: [...state.messages, helpMessage]
+        messages: [...state.messages, pendingMessage]
       }));
-      return;
+
+      // For help command, register listener BEFORE sending to avoid race conditions
+      if (commandName === 'help') {
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Help command timeout'));
+          }, 5000);
+
+          const handleCommandResult = (data: any) => {
+            // Accept only help-like payloads: { status, message, data: { commands } }
+            const isHelpResponse = Boolean(
+              data && typeof data === 'object' && data.status && data.data && (data.data as any).commands
+            );
+            if (isHelpResponse) {
+              clearTimeout(timeout);
+              websocketManager.off('command_result', handleCommandResult);
+              resolve(data);
+            }
+          };
+
+          websocketManager.on('command_result', handleCommandResult);
+          websocketManager.sendCommand(command);
+        });
+      }
+
+      // Default: send command after pending message
+      websocketManager.sendCommand(command);
+      return { status: 'pending', message: 'Command sent to server' };
     }
-
-    const pendingMessage: Message = {
-      id: uuidv4(),
-      role: 'SYSTEM',
-      content: command,
-      timestamp: new Date(),
-      metadata: { status: 'pending' }
-    };
-
-    set((state) => ({
-      messages: [...state.messages, pendingMessage]
-    }));
-
-    websocketManager.sendCommand(command);
   }
 }));
 

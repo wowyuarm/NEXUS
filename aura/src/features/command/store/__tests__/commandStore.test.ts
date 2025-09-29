@@ -8,9 +8,27 @@ describe('commandStore', () => {
       commandQuery: '',
       isLoading: false,
       availableCommands: [
-        { name: 'ping', description: 'Check connection to the NEXUS core.' },
-        { name: 'help', description: 'Display information about available commands.' },
-        { name: 'identity', description: 'Manage your user identity.' }
+        { 
+          name: 'ping', 
+          description: 'Check connection to the NEXUS core.',
+          usage: '/ping',
+          execution_target: 'server' as const,
+          examples: ['/ping']
+        },
+        { 
+          name: 'help', 
+          description: 'Display information about available commands.',
+          usage: '/help',
+          execution_target: 'server' as const,
+          examples: ['/help']
+        },
+        { 
+          name: 'clear', 
+          description: 'Clear the chat history',
+          usage: '/clear',
+          execution_target: 'client' as const,
+          examples: ['/clear']
+        }
       ],
       selectedCommandIndex: 0
     });
@@ -35,15 +53,25 @@ describe('commandStore', () => {
   });
 
   describe('Available commands', () => {
-    it('has predefined commands', () => {
+    it('starts with empty commands (loaded dynamically)', () => {
+      // Reset to initial state
+      useCommandStore.setState({ availableCommands: [] });
       const names = useCommandStore.getState().availableCommands.map(c => c.name);
-      expect(names).toEqual(['ping', 'help', 'identity']);
+      expect(names).toEqual([]);
     });
 
-    it('can override commands', () => {
-      useCommandStore.getState().setCommands([{ name: 'x', description: 'y' }]);
-      const names = useCommandStore.getState().availableCommands.map(c => c.name);
-      expect(names).toEqual(['x']);
+    it('can set commands with complete metadata', () => {
+      const newCommands = [{
+        name: 'test',
+        description: 'Test command',
+        usage: '/test',
+        execution_target: 'client' as const,
+        examples: ['/test']
+      }];
+      useCommandStore.getState().setCommands(newCommands);
+      const commands = useCommandStore.getState().availableCommands;
+      expect(commands).toEqual(newCommands);
+      expect(commands[0].execution_target).toBe('client');
     });
   });
 

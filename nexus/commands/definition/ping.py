@@ -15,6 +15,7 @@ COMMAND_DEFINITION = {
     "name": "ping",
     "description": "Test system connectivity by responding with 'pong'",
     "usage": "/ping",
+    "execution_target": "server",
     "examples": [
         "/ping"
     ]

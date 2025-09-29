@@ -103,9 +103,20 @@ class TestCommandServiceIntegration:
         result_message = call_args[0][1]
         assert result_message.role == Role.SYSTEM
         assert result_message.content["status"] == "success"
-        assert "Available commands:" in result_message.content["message"]
-        assert "ping" in result_message.content["message"]
-        assert "help" in result_message.content["message"]
+        assert "data" in result_message.content
+        assert "commands" in result_message.content["data"]
+        
+        # Verify command definitions include execution_target
+        commands = result_message.content["data"]["commands"]
+        assert "ping" in commands
+        assert "help" in commands
+        assert "clear" in commands
+        
+        # Verify execution_target field is present
+        assert commands["ping"]["execution_target"] == "server"
+        assert commands["help"]["execution_target"] == "server" 
+        assert commands["clear"]["execution_target"] == "client"
+        
         assert result_message.run_id == "test-run-789"
         assert result_message.session_id == "test-session-012"
 
@@ -155,6 +166,7 @@ class TestCommandServiceIntegration:
         assert len(service._command_registry) > 0
         assert "ping" in service._command_registry
         assert "help" in service._command_registry
+        assert "clear" in service._command_registry
 
     @pytest.mark.asyncio
     async def test_command_error_handling(self, mock_bus, mock_database_service):

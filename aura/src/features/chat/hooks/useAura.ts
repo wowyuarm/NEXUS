@@ -16,6 +16,7 @@ import { useEffect, useCallback, useMemo } from 'react';
 import { websocketManager } from '../../../services/websocket/manager';
 import { useChatStore } from '../store/chatStore';
 import { useCommandStore } from '@/features/command/store/commandStore';
+import { useCommandLoader } from '@/features/command/hooks/useCommandLoader';
 import type { Message } from '../types';
 import type { CurrentRun } from '../store/chatStore';
 import type {
@@ -43,7 +44,7 @@ export interface UseAuraReturn {
   isCommandListOpen: boolean;
   commandQuery: string;
   selectedCommandIndex: number;
-  availableCommands: Array<{ name: string; description: string }>;
+  availableCommands: Array<{ name: string; description: string; execution_target: 'client' | 'server'; usage: string; examples: string[] }>;
 
   // Actions
   sendMessage: (content: string) => void;
@@ -55,7 +56,7 @@ export interface UseAuraReturn {
   closeCommandList: () => void;
   setCommandQuery: (query: string) => void;
   setSelectedCommandIndex: (index: number) => void;
-  executeCommand: (command: string) => void;
+  executeCommand: (command: string) => Promise<void>;
 
   // Connection Management
   connect: () => Promise<void>;
@@ -105,6 +106,9 @@ export function useAura(): UseAuraReturn {
     setLoading,
     resetSelection
   } = useCommandStore();
+
+  // Load commands dynamically from backend
+  useCommandLoader();
 
   // ===== WebSocket Event Handlers =====
 
@@ -266,14 +270,21 @@ export function useAura(): UseAuraReturn {
       // we do not compute here to keep UI behavior simple
       useCommandStore.setState({ selectedCommandIndex: index });
     },
-    executeCommand: (command: string) => {
-      // Delegate to chat store for execution side-effects
-      useChatStore.getState().executeCommand(command);
-      // After execution, close palette and reset query/selection to keep UI consistent
-      closeCommandList();
-      setCommandQuery('');
-      useCommandStore.setState({ selectedCommandIndex: 0 });
-      setLoading(false);
+    executeCommand: async (command: string) => {
+      try {
+        setLoading(true);
+        // Delegate to chat store for execution side-effects with available commands
+        await useChatStore.getState().executeCommand(command, availableCommands);
+        // After execution, close palette and reset query/selection to keep UI consistent
+        closeCommandList();
+        setCommandQuery('');
+        useCommandStore.setState({ selectedCommandIndex: 0 });
+      } catch (error) {
+        console.error('Command execution failed:', error);
+        handleError({ message: `Command execution failed: ${error}` });
+      } finally {
+        setLoading(false);
+      }
     },
 
     // Connection Management
