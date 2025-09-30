@@ -20,6 +20,28 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(process.cwd(), "./src"),
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Separate React libraries into independent chunk
+            'react-vendor': ['react', 'react-dom'],
+            // Separate large UI library
+            'framer-motion': ['framer-motion'],
+            // Separate markdown-related libraries for lazy loading
+            'markdown': ['react-markdown', 'remark-gfm', 'rehype-highlight'],
+            // Separate code highlighting library
+            'highlight': ['highlight.js'],
+            // Separate ethers library
+            'ethers': ['ethers'],
+            // Separate state management library
+            'zustand': ['zustand'],
+          },
+        },
+      },
+      // Set chunk size warning limit (optional)
+      chunkSizeWarningLimit: 600,
+    },
     server: {
       port: 5173, // Fixed port for consistency
       proxy: {

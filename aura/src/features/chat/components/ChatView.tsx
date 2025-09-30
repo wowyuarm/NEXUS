@@ -22,6 +22,7 @@ import { ChatInput } from './ChatInput';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
 import { CommandList } from '@/features/command/components/CommandList';
+import type { Command } from '@/features/command/store/commandStore';
 
 interface ChatViewProps {
   messages: Message[];
@@ -35,7 +36,7 @@ interface ChatViewProps {
   // Command props
   isCommandListOpen: boolean;
   commandQuery: string;
-  availableCommands: Array<{ name: string; description: string }>;
+  availableCommands: Command[];
   selectedCommandIndex: number;
   onOpenCommandList: () => void;
   onCloseCommandList: () => void;
@@ -194,7 +195,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
               query={commandQuery}
               availableCommands={availableCommands}
               selectedIndex={selectedCommandIndex}
-              onClose={onCloseCommandList}
               onExecute={onExecuteCommand}
               onSelectIndex={onSetSelectedCommandIndex}
             />
