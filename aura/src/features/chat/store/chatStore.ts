@@ -454,31 +454,30 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     // Find command definition to determine execution target
     const commandDef = availableCommands?.find(cmd => cmd.name === commandName);
     
+    // Special handling for /help: use cached data if available for instant response
+    if (commandName === 'help' && availableCommands && availableCommands.length > 0) {
+      // We have cached commands, render help immediately on client side
+      const helpContent = formatHelpContent(availableCommands);
+      const helpMessage: Message = {
+        id: uuidv4(),
+        role: 'SYSTEM',
+        content: helpContent,
+        timestamp: new Date(),
+        metadata: { status: 'completed' }
+      };
+
+      set((state) => ({
+        messages: [...state.messages, helpMessage]
+      }));
+      return { status: 'success', message: helpContent, data: { commands: availableCommands } };
+    }
+    
     if (commandDef?.execution_target === 'client') {
       // Handle client-side commands
       switch (commandName) {
         case 'clear':
           get().clearMessages();
           return { status: 'success', message: 'Chat history cleared' };
-          
-        case 'help':
-          // Client-side help: format available commands for display
-          if (availableCommands) {
-            const helpContent = formatHelpContent(availableCommands);
-            const helpMessage: Message = {
-              id: uuidv4(),
-              role: 'SYSTEM',
-              content: helpContent,
-              timestamp: new Date(),
-              metadata: { status: 'completed' }
-            };
-
-            set((state) => ({
-              messages: [...state.messages, helpMessage]
-            }));
-            return { status: 'success', message: helpContent };
-          }
-          break;
           
         default:
           console.warn(`Unknown client command: ${commandName}`);
@@ -505,7 +504,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         messages: [...state.messages, pendingMessage]
       }));
 
-      // For help command, register listener BEFORE sending to avoid race conditions
+      // For help command (first load only), register listener BEFORE sending to avoid race conditions
       if (commandName === 'help') {
         return new Promise((resolve, reject) => {
           const timeout = setTimeout(() => {

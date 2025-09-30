@@ -19,7 +19,10 @@ import type {
 vi.mock('@/services/websocket/manager', () => ({
   websocketManager: {
     connected: true,
-    sendMessage: vi.fn()
+    sendMessage: vi.fn(),
+    sendCommand: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn()
   }
 }));
 
@@ -408,6 +411,90 @@ describe('chatStore', () => {
       
       expect(state.currentRun.status).toBe('error');
       expect(state.isInputDisabled).toBe(false);
+    });
+  });
+
+  describe('executeCommand', () => {
+    it('should execute client-side command immediately (/clear)', async () => {
+      // Setup: Add some messages
+      useChatStore.setState({
+        ...initialState,
+        messages: [
+          { id: '1', role: 'HUMAN', content: 'test', timestamp: new Date() },
+          { id: '2', role: 'AI', content: 'response', timestamp: new Date() }
+        ]
+      });
+
+      const commands = [
+        { name: 'clear', execution_target: 'client' as const, description: 'Clear', usage: '/clear', examples: [] }
+      ];
+
+      const { executeCommand } = useChatStore.getState();
+      const result = await executeCommand('/clear', commands);
+
+      expect(result?.status).toBe('success');
+      expect(useChatStore.getState().messages).toHaveLength(0);
+    });
+
+    it('should use cached data for /help when available (smart caching)', async () => {
+      const commands = [
+        { name: 'ping', execution_target: 'server' as const, description: 'Ping', usage: '/ping', examples: [] },
+        { name: 'help', execution_target: 'server' as const, description: 'Help', usage: '/help', examples: [] },
+        { name: 'clear', execution_target: 'client' as const, description: 'Clear', usage: '/clear', examples: [] }
+      ];
+
+      const { executeCommand } = useChatStore.getState();
+      const result = await executeCommand('/help', commands);
+
+      // Should return immediately with cached data
+      expect(result?.status).toBe('success');
+      expect(result?.data?.commands).toEqual(commands);
+
+      // Should have created a SYSTEM message
+      const state = useChatStore.getState();
+      expect(state.messages).toHaveLength(1);
+      expect(state.messages[0].role).toBe('SYSTEM');
+      expect(state.messages[0].content).toContain('ping');
+      expect(state.messages[0].content).toContain('help');
+      expect(state.messages[0].content).toContain('clear');
+      expect(state.messages[0].metadata?.status).toBe('completed');
+
+      // Should NOT have sent to server
+      const { websocketManager } = await import('@/services/websocket/manager');
+      expect(websocketManager.sendCommand).not.toHaveBeenCalled();
+    });
+
+    it('should create pending message for server-side commands', async () => {
+      const commands = [
+        { name: 'ping', execution_target: 'server' as const, description: 'Ping', usage: '/ping', examples: [] }
+      ];
+
+      const { executeCommand } = useChatStore.getState();
+      await executeCommand('/ping', commands);
+
+      const state = useChatStore.getState();
+      
+      // Should have created pending SYSTEM message
+      expect(state.messages).toHaveLength(1);
+      expect(state.messages[0].role).toBe('SYSTEM');
+      expect(state.messages[0].content).toBe('/ping');
+      expect(state.messages[0].metadata?.status).toBe('pending');
+
+      // Should have sent to server
+      const { websocketManager } = await import('@/services/websocket/manager');
+      expect(websocketManager.sendCommand).toHaveBeenCalledWith('/ping');
+    });
+
+    it('should handle unknown client command gracefully', async () => {
+      const commands = [
+        { name: 'unknown', execution_target: 'client' as const, description: 'Unknown', usage: '/unknown', examples: [] }
+      ];
+
+      const { executeCommand } = useChatStore.getState();
+      const result = await executeCommand('/unknown', commands);
+
+      expect(result?.status).toBe('error');
+      expect(result?.message).toContain('Unknown client command');
     });
   });
 });

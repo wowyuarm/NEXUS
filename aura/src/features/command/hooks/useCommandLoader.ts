@@ -11,6 +11,7 @@ interface Command {
 }
 
 // Fallback commands for when backend is unavailable
+// These must match backend definitions exactly to maintain architectural integrity
 const FALLBACK_COMMANDS: Command[] = [
   {
     name: 'ping',
@@ -23,12 +24,12 @@ const FALLBACK_COMMANDS: Command[] = [
     name: 'help',
     description: 'Display information about available commands.',
     usage: '/help',
-    execution_target: 'client',
+    execution_target: 'server',  // Backend is the authoritative source for command metadata
     examples: ['/help']
   },
   {
     name: 'clear',
-    description: 'Clear the chat history',
+    description: 'Clear the chat messages from view (context history preserved)',
     usage: '/clear',
     execution_target: 'client',
     examples: ['/clear']
@@ -42,7 +43,6 @@ export interface UseCommandLoaderOptions {
 
 export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
   const { setCommands, setLoading } = useCommandStore();
-  const timeoutMs = options?.timeoutMs ?? 5000;
   const autoLoad = options?.autoLoad ?? true;
 
   const loadCommands = useCallback(async () => {
@@ -53,34 +53,16 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
         throw new Error('WebSocket not connected');
       }
 
-      const result = await new Promise<{ status: string; data?: { commands: Record<string, Command> } }>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Help command timeout'));
-        }, timeoutMs);
-
-        const handle = (payload: unknown) => {
-          const looksLikeHelp = Boolean(
-            payload && 
-            typeof payload === 'object' && 
-            'status' in payload && 
-            'data' in payload && 
-            payload.data &&
-            typeof payload.data === 'object' &&
-            'commands' in payload.data
-          );
-          if (looksLikeHelp) {
-            clearTimeout(timeout);
-            websocketManager.off('command_result', handle);
-            resolve(payload as { status: string; data: { commands: Record<string, Command> } });
-          }
-        };
-
-        websocketManager.on('command_result', handle);
-        websocketManager.sendCommand('/help');
-      });
+      // Use unified command execution entry point through chatStore
+      // This ensures consistent behavior and allows users to see system initialization
+      const { useChatStore } = await import('@/features/chat/store/chatStore');
+      const { executeCommand } = useChatStore.getState();
+      
+      const result = await executeCommand('/help', FALLBACK_COMMANDS);
 
       if (result?.status === 'success' && result?.data?.commands) {
-        const commandsFromBackend: Command[] = Object.values(result.data.commands).map((cmd) => ({
+        // Trust backend completely - no overrides, no modifications
+        const commandsFromBackend: Command[] = Object.values(result.data.commands as Record<string, Command>).map((cmd) => ({
           name: cmd.name,
           description: cmd.description,
           usage: cmd.usage,
@@ -88,24 +70,8 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
           examples: cmd.examples || []
         }));
 
-        // Override: help should execute on client in UI
-        const overridden = commandsFromBackend.map(c =>
-          c.name === 'help' ? { ...c, execution_target: 'client' as const } : c
-        );
-
-        // Ensure clear command exists (client-side)
-        if (!overridden.some(c => c.name === 'clear')) {
-          overridden.push({
-            name: 'clear',
-            description: 'Clear the chat history',
-            usage: '/clear',
-            execution_target: 'client',
-            examples: ['/clear']
-          });
-        }
-
-        setCommands(overridden);
-        console.log('Successfully loaded commands from backend:', overridden);
+        setCommands(commandsFromBackend);
+        console.log('Successfully loaded commands from backend:', commandsFromBackend);
       } else {
         throw new Error('Invalid response format from help command');
       }
@@ -116,7 +82,7 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
     } finally {
       setLoading(false);
     }
-  }, [setCommands, setLoading, timeoutMs]);
+  }, [setCommands, setLoading]);
 
   useEffect(() => {
     if (autoLoad) {

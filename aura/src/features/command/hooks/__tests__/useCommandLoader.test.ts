@@ -6,57 +6,53 @@ import { websocketManager } from '@/services/websocket/manager';
 
 // Mock the stores and websocket manager
 vi.mock('../../store/commandStore');
-vi.mock('@/services/websocket/manager', () => {
-  const handlers: Record<string, Array<(payload: unknown) => void>> = {};
-  return {
-    websocketManager: {
-      connected: true,
-      on: vi.fn((event: string, cb: (payload: unknown) => void) => {
-        if (!handlers[event]) handlers[event] = [];
-        handlers[event].push(cb);
-      }),
-      off: vi.fn((event: string, cb: (payload: unknown) => void) => {
-        if (handlers[event]) {
-          handlers[event] = handlers[event].filter((fn) => fn !== cb);
-        }
-      }),
-      sendCommand: vi.fn(),
-      __emit: (event: string, payload: unknown) => {
-        (handlers[event] || []).forEach((fn) => fn(payload));
-      }
-    }
-  };
-});
+vi.mock('@/services/websocket/manager', () => ({
+  websocketManager: {
+    connected: true,
+    sendCommand: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn()
+  }
+}));
+
+// Mock chatStore to control executeCommand behavior
+vi.mock('@/features/chat/store/chatStore', () => ({
+  useChatStore: {
+    getState: vi.fn(() => ({
+      executeCommand: vi.fn()
+    }))
+  }
+}));
 
 describe('useCommandLoader', () => {
   const mockSetCommands = vi.fn();
   const mockSetLoading = vi.fn();
-  // Access mocked websocket manager
-  const mockedWs = websocketManager as unknown as {
-    connected: boolean;
-    on: ReturnType<typeof vi.fn>;
-    off: ReturnType<typeof vi.fn>;
-    sendCommand: ReturnType<typeof vi.fn>;
-    __emit: (event: string, payload: unknown) => void;
-  };
+  const mockExecuteCommand = vi.fn();
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     
     // Mock useCommandStore
     vi.mocked(useCommandStore).mockReturnValue({
       setCommands: mockSetCommands,
       setLoading: mockSetLoading
-    });
+    } as ReturnType<typeof useCommandStore>);
 
-    // Reset websocket mock state
-    mockedWs.connected = true;
-    mockedWs.on.mockClear();
-    mockedWs.off.mockClear();
-    mockedWs.sendCommand.mockClear();
+    // Mock chatStore's executeCommand
+    const { useChatStore } = await import('@/features/chat/store/chatStore');
+    vi.mocked(useChatStore.getState).mockReturnValue({
+      executeCommand: mockExecuteCommand
+    } as unknown as ReturnType<typeof useChatStore.getState>);
+
+    // Reset websocket connected state
+    Object.defineProperty(websocketManager, 'connected', {
+      value: true,
+      writable: true,
+      configurable: true
+    });
   });
 
-  it('successfully loads commands from backend', async () => {
+  it('successfully loads commands via chatStore.executeCommand', async () => {
     const mockCommandsResponse = {
       status: 'success',
       data: {
@@ -67,6 +63,13 @@ describe('useCommandLoader', () => {
             usage: '/ping',
             execution_target: 'server',
             examples: ['/ping']
+          },
+          help: {
+            name: 'help',
+            description: 'Display available commands',
+            usage: '/help',
+            execution_target: 'server',
+            examples: ['/help']
           },
           clear: {
             name: 'clear',
@@ -79,18 +82,17 @@ describe('useCommandLoader', () => {
       }
     };
 
-    const { result } = renderHook(() => useCommandLoader({ timeoutMs: 200 }));
+    mockExecuteCommand.mockResolvedValue(mockCommandsResponse);
+
+    const { result } = renderHook(() => useCommandLoader());
 
     await waitFor(() => {
       expect(mockSetLoading).toHaveBeenCalledWith(true);
     });
 
     await waitFor(() => {
-      expect(mockedWs.sendCommand).toHaveBeenCalledWith('/help');
+      expect(mockExecuteCommand).toHaveBeenCalledWith('/help', expect.any(Array));
     });
-
-    // Simulate server help response
-    mockedWs.__emit('command_result', mockCommandsResponse);
 
     await waitFor(() => {
       expect(mockSetCommands).toHaveBeenCalledWith([
@@ -100,6 +102,13 @@ describe('useCommandLoader', () => {
           usage: '/ping',
           execution_target: 'server',
           examples: ['/ping']
+        },
+        {
+          name: 'help',
+          description: 'Display available commands',
+          usage: '/help',
+          execution_target: 'server',  // Backend is the source of truth
+          examples: ['/help']
         },
         {
           name: 'clear',
@@ -117,10 +126,16 @@ describe('useCommandLoader', () => {
 
     expect(result.current.fallbackCommands).toHaveLength(3);
     expect(result.current.fallbackCommands.map(c => c.name)).toEqual(['ping', 'help', 'clear']);
+    // Verify help has server execution_target in fallback
+    expect(result.current.fallbackCommands.find(c => c.name === 'help')?.execution_target).toBe('server');
   });
 
   it('uses fallback commands when backend fails', async () => {
-    mockedWs.connected = false; // trigger immediate fallback without sending
+    Object.defineProperty(websocketManager, 'connected', {
+      value: false,
+      writable: true,
+      configurable: true
+    });
 
     const { result } = renderHook(() => useCommandLoader());
 
@@ -138,10 +153,9 @@ describe('useCommandLoader', () => {
   });
 
   it('uses fallback commands when response format is invalid', async () => {
-    const { result } = renderHook(() => useCommandLoader({ timeoutMs: 200 }));
+    mockExecuteCommand.mockResolvedValue({ status: 'success' }); // Invalid: no data
 
-    // Emit invalid response: should fall back
-    mockedWs.__emit('command_result', { status: 'success' });
+    const { result } = renderHook(() => useCommandLoader());
 
     await waitFor(() => {
       expect(mockSetCommands).toHaveBeenCalledWith(result.current.fallbackCommands);
@@ -149,17 +163,25 @@ describe('useCommandLoader', () => {
   });
 
   it('provides loadCommands function for manual reload', async () => {
-    const { result } = renderHook(() => useCommandLoader({ timeoutMs: 200 }));
+    mockExecuteCommand.mockResolvedValue({ 
+      status: 'success', 
+      data: { commands: {} } 
+    });
+
+    const { result } = renderHook(() => useCommandLoader());
     
     expect(typeof result.current.loadCommands).toBe('function');
     
+    // Wait for initial load
+    await waitFor(() => {
+      expect(mockExecuteCommand).toHaveBeenCalledTimes(1);
+    });
+
     // Manual reload should work the same way
     await result.current.loadCommands();
 
-    // Should have sent /help twice (on mount and manual reload)
-    expect(mockedWs.sendCommand).toHaveBeenCalledTimes(2);
-
-    // Emit help response to resolve promises
-    mockedWs.__emit('command_result', { status: 'success', data: { commands: {} } });
+    // Should have called executeCommand twice (on mount and manual reload)
+    expect(mockExecuteCommand).toHaveBeenCalledTimes(2);
+    expect(mockExecuteCommand).toHaveBeenCalledWith('/help', expect.any(Array));
   });
 });

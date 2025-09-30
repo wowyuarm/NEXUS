@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # Command definition
 COMMAND_DEFINITION = {
     "name": "clear",
-    "description": "Clear the chat history",
+    "description": "Clear the chat messages from view (context history preserved)",
     "usage": "/clear",
     "execution_target": "client",
     "examples": [
