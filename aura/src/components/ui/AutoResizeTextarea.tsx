@@ -1,6 +1,6 @@
 // src/components/ui/AutoResizeTextarea.tsx
 // 自动调整高度的文本输入框 - 纯UI组件
-import { useRef, useEffect, forwardRef, useImperativeHandle, type ComponentProps } from 'react';
+import { useRef, useEffect, forwardRef, useImperativeHandle, useCallback, type ComponentProps } from 'react';
 import { cn } from '@/lib/utils';
 
 interface AutoResizeTextareaProps extends Omit<ComponentProps<'textarea'>, 'rows'> {
@@ -22,20 +22,20 @@ export const AutoResizeTextarea = forwardRef<AutoResizeTextareaRef, AutoResizeTe
     const initialHeightRef = useRef<number>(0);
 
     // 重置高度到初始状态
-    const resetHeight = () => {
+    const resetHeight = useCallback(() => {
       const textarea = textareaRef.current;
       if (textarea && initialHeightRef.current > 0) {
         textarea.style.height = `${initialHeightRef.current}px`;
         textarea.style.overflowY = 'hidden';
         onReset?.();
       }
-    };
+    }, [onReset, textareaRef]);
 
     // 暴露方法给父组件
     useImperativeHandle(ref, () => ({
       resetHeight,
       focus: () => textareaRef.current?.focus(),
-    }), []);
+    }), [resetHeight, textareaRef]);
 
     // 获取初始高度
     useEffect(() => {
@@ -46,7 +46,7 @@ export const AutoResizeTextarea = forwardRef<AutoResizeTextareaRef, AutoResizeTe
         initialHeightRef.current = naturalHeight;
         textarea.style.height = `${naturalHeight}px`;
       }
-    }, []);
+    }, [textareaRef]);
 
     // 自动调整高度
     useEffect(() => {
@@ -64,7 +64,7 @@ export const AutoResizeTextarea = forwardRef<AutoResizeTextareaRef, AutoResizeTe
           textarea.style.overflowY = 'auto';
         }
       }
-    }, [value, maxHeightMultiplier]);
+    }, [value, maxHeightMultiplier, textareaRef]);
 
     return (
       <textarea

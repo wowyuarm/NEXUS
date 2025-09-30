@@ -53,17 +53,25 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
         throw new Error('WebSocket not connected');
       }
 
-      const result = await new Promise<{ status: string; data?: any }>((resolve, reject) => {
+      const result = await new Promise<{ status: string; data?: { commands: Record<string, Command> } }>((resolve, reject) => {
         const timeout = setTimeout(() => {
           reject(new Error('Help command timeout'));
         }, timeoutMs);
 
-        const handle = (payload: any) => {
-          const looksLikeHelp = Boolean(payload && payload.status && payload.data && payload.data.commands);
+        const handle = (payload: unknown) => {
+          const looksLikeHelp = Boolean(
+            payload && 
+            typeof payload === 'object' && 
+            'status' in payload && 
+            'data' in payload && 
+            payload.data &&
+            typeof payload.data === 'object' &&
+            'commands' in payload.data
+          );
           if (looksLikeHelp) {
             clearTimeout(timeout);
             websocketManager.off('command_result', handle);
-            resolve(payload);
+            resolve(payload as { status: string; data: { commands: Record<string, Command> } });
           }
         };
 
@@ -72,7 +80,7 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
       });
 
       if (result?.status === 'success' && result?.data?.commands) {
-        const commandsFromBackend: Command[] = Object.values(result.data.commands).map((cmd: any) => ({
+        const commandsFromBackend: Command[] = Object.values(result.data.commands).map((cmd) => ({
           name: cmd.name,
           description: cmd.description,
           usage: cmd.usage,

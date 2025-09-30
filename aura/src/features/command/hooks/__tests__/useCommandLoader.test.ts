@@ -7,21 +7,21 @@ import { websocketManager } from '@/services/websocket/manager';
 // Mock the stores and websocket manager
 vi.mock('../../store/commandStore');
 vi.mock('@/services/websocket/manager', () => {
-  const handlers: Record<string, Array<(payload: any) => void>> = {};
+  const handlers: Record<string, Array<(payload: unknown) => void>> = {};
   return {
     websocketManager: {
       connected: true,
-      on: vi.fn((event: string, cb: (payload: any) => void) => {
+      on: vi.fn((event: string, cb: (payload: unknown) => void) => {
         if (!handlers[event]) handlers[event] = [];
         handlers[event].push(cb);
       }),
-      off: vi.fn((event: string, cb: (payload: any) => void) => {
+      off: vi.fn((event: string, cb: (payload: unknown) => void) => {
         if (handlers[event]) {
           handlers[event] = handlers[event].filter((fn) => fn !== cb);
         }
       }),
       sendCommand: vi.fn(),
-      __emit: (event: string, payload: any) => {
+      __emit: (event: string, payload: unknown) => {
         (handlers[event] || []).forEach((fn) => fn(payload));
       }
     }
@@ -37,14 +37,14 @@ describe('useCommandLoader', () => {
     on: ReturnType<typeof vi.fn>;
     off: ReturnType<typeof vi.fn>;
     sendCommand: ReturnType<typeof vi.fn>;
-    __emit: (event: string, payload: any) => void;
+    __emit: (event: string, payload: unknown) => void;
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     
     // Mock useCommandStore
-    (useCommandStore as any).mockReturnValue({
+    vi.mocked(useCommandStore).mockReturnValue({
       setCommands: mockSetCommands,
       setLoading: mockSetLoading
     });
@@ -90,7 +90,7 @@ describe('useCommandLoader', () => {
     });
 
     // Simulate server help response
-    (mockedWs as any).__emit('command_result', mockCommandsResponse);
+    mockedWs.__emit('command_result', mockCommandsResponse);
 
     await waitFor(() => {
       expect(mockSetCommands).toHaveBeenCalledWith([
@@ -141,7 +141,7 @@ describe('useCommandLoader', () => {
     const { result } = renderHook(() => useCommandLoader({ timeoutMs: 200 }));
 
     // Emit invalid response: should fall back
-    (mockedWs as any).__emit('command_result', { status: 'success' });
+    mockedWs.__emit('command_result', { status: 'success' });
 
     await waitFor(() => {
       expect(mockSetCommands).toHaveBeenCalledWith(result.current.fallbackCommands);
@@ -160,6 +160,6 @@ describe('useCommandLoader', () => {
     expect(mockedWs.sendCommand).toHaveBeenCalledTimes(2);
 
     // Emit help response to resolve promises
-    (mockedWs as any).__emit('command_result', { status: 'success', data: { commands: {} } });
+    mockedWs.__emit('command_result', { status: 'success', data: { commands: {} } });
   });
 });

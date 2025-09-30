@@ -49,7 +49,7 @@ export interface ChatActions {
   clearMessages: () => void;
   clearError: () => void;
 
-  executeCommand: (command: string, availableCommands?: Command[]) => Promise<any>;
+  executeCommand: (command: string, availableCommands?: Command[]) => Promise<{ status: string; message: string; data?: Record<string, unknown> } | undefined>;
 }
 
 export type ChatStore = ChatState & ChatActions;
@@ -347,13 +347,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     // Support both payload shapes:
     // 1) Wrapped: { command: string, result: { status, message, data? } }
     // 2) Raw:     { status, message, data? }
-    const isWrapped = (payload as any)?.result !== undefined;
-    const resultObj = (isWrapped ? (payload as any).result : payload) as {
-      status: 'success' | 'error';
-      message: string;
-      data?: Record<string, unknown>;
-    };
-    const commandText: string | undefined = isWrapped ? (payload as any).command : undefined;
+    type WrappedPayload = { command: string; result: { status: 'success' | 'error'; message: string; data?: Record<string, unknown> } };
+    type RawPayload = { status: 'success' | 'error'; message: string; data?: Record<string, unknown> };
+    
+    const isWrapped = 'result' in payload && typeof payload.result === 'object';
+    const resultObj = (isWrapped ? (payload as WrappedPayload).result : payload) as RawPayload;
+    const commandText: string | undefined = isWrapped ? (payload as WrappedPayload).command : undefined;
 
     set((state) => {
       // Try to locate the pending system message for this command.
@@ -513,15 +512,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             reject(new Error('Help command timeout'));
           }, 5000);
 
-          const handleCommandResult = (data: any) => {
+          const handleCommandResult = (data: unknown) => {
             // Accept only help-like payloads: { status, message, data: { commands } }
             const isHelpResponse = Boolean(
-              data && typeof data === 'object' && data.status && data.data && (data.data as any).commands
+              data && typeof data === 'object' && 'status' in data && 'data' in data && 
+              data.data && typeof data.data === 'object' && 'commands' in data.data
             );
             if (isHelpResponse) {
               clearTimeout(timeout);
               websocketManager.off('command_result', handleCommandResult);
-              resolve(data);
+              resolve(data as { status: string; message: string; data?: Record<string, unknown> });
             }
           };
 

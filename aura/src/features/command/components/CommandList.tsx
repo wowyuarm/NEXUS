@@ -45,7 +45,7 @@ export const CommandList: React.FC<CommandListProps> = ({
   useEffect(() => {
     if (listRef.current && selectedIndex >= 0) {
       const selectedItem = listRef.current.children[selectedIndex] as HTMLElement;
-      if (selectedItem && typeof (selectedItem as any).scrollIntoView === 'function') {
+      if (selectedItem && 'scrollIntoView' in selectedItem && typeof selectedItem.scrollIntoView === 'function') {
         selectedItem.scrollIntoView({ block: 'nearest' });
       }
     }

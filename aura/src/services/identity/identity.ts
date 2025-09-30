@@ -8,19 +8,17 @@ export interface Identity {
 const STORAGE_KEY = 'nexus_private_key';
 
 // Helper function to generate a random private key that works in both browser and Node.js
-function generatePrivateKey(): string {
+async function generatePrivateKey(): Promise<string> {
   // Generate 32 random bytes (256 bits) for private key
   const randomBytes = new Uint8Array(32);
 
   if (typeof window !== 'undefined' && window.crypto) {
     // Browser environment
     window.crypto.getRandomValues(randomBytes);
-  } else if (typeof require !== 'undefined') {
-    // Node.js environment
-    const crypto = require('crypto');
-    crypto.randomFillSync(randomBytes);
   } else {
-    throw new Error('No crypto API available');
+    // Node.js environment - use dynamic import instead of require
+    const crypto = await import('crypto');
+    crypto.randomFillSync(randomBytes);
   }
 
   // Convert to hex string and add 0x prefix
@@ -34,7 +32,7 @@ export const IdentityService = {
    * Get or create user identity
    * Returns existing identity from localStorage or generates new one
    */
-  getIdentity(): Identity {
+  async getIdentity(): Promise<Identity> {
     try {
       // Try to get existing private key from localStorage
       const existingPrivateKey = localStorage.getItem(STORAGE_KEY);
@@ -48,7 +46,7 @@ export const IdentityService = {
         };
       } else {
         // Generate new identity
-        const privateKey = generatePrivateKey();
+        const privateKey = await generatePrivateKey();
         const wallet = new Wallet(privateKey);
 
         // Persist private key to localStorage
@@ -62,7 +60,7 @@ export const IdentityService = {
     } catch (error) {
       // Handle storage errors gracefully by generating new identity
       console.warn('Storage error, generating new identity:', error);
-      const privateKey = generatePrivateKey();
+      const privateKey = await generatePrivateKey();
       const wallet = new Wallet(privateKey);
 
       try {

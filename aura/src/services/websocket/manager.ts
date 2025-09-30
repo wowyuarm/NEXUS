@@ -78,7 +78,7 @@ export class WebSocketManager {
   private ws: WebSocket | null = null;
   private config: Required<Omit<WebSocketManagerConfig, 'url'>>;
   private emitter: EventEmitter = new EventEmitter();
-  publicKey: string;
+  publicKey: string = '';
   private baseUrl: string;
   private isConnected: boolean = false;
   private reconnectAttempts: number = 0;
@@ -87,7 +87,7 @@ export class WebSocketManager {
 
   constructor(config: WebSocketManagerConfig = {}) {
     this.baseUrl = this._getBaseUrl();
-    this.publicKey = this._getPublicKey();
+    // publicKey will be initialized in connect()
     this.config = {
       heartbeatInterval: config.heartbeatInterval ?? 30000, // 30 seconds
       reconnectInterval: config.reconnectInterval ?? 5000,   // 5 seconds
@@ -106,9 +106,9 @@ export class WebSocketManager {
 
   // ===== Private Identity Management =====
 
-  private _getPublicKey(): string {
+  private async _getPublicKey(): Promise<string> {
     // Get or create user identity and return the public key
-    const identity = IdentityService.getIdentity();
+    const identity = await IdentityService.getIdentity();
     console.log('🔑 Using Public Key for identity:', identity.publicKey);
     return identity.publicKey;
   }
@@ -122,7 +122,7 @@ export class WebSocketManager {
     }
 
     // Get persistent public key and construct full WebSocket URL
-    this.publicKey = this._getPublicKey();
+    this.publicKey = await this._getPublicKey();
     const fullUrl = `${this.baseUrl}/${this.publicKey}`;
 
     // Debug information

@@ -7,18 +7,18 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CommandList } from '../CommandList';
-import type { Command } from '../../commands';
+import type { Command } from '../../store/commandStore';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, ...props }: any) => <button {...props}>{children}</button>
+    div: ({ children, ...props }: React.ComponentProps<'div'>) => <div {...props}>{children}</div>,
+    button: ({ children, ...props }: React.ComponentProps<'button'>) => <button {...props}>{children}</button>
   },
-  AnimatePresence: ({ children }: any) => children
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => children
 }));
 
 // Mock utils
@@ -28,9 +28,9 @@ vi.mock('@/lib/utils', () => ({
 
 // Helper function to create test commands
 const createTestCommands = (): Command[] => [
-  { name: 'ping', description: 'Check connection to the NEXUS core.' },
-  { name: 'help', description: 'Display information about available commands.' },
-  { name: 'identity', description: 'Manage your user identity.' }
+  { name: 'ping', description: 'Check connection to the NEXUS core.', usage: '/ping', execution_target: 'server', examples: ['/ping'] },
+  { name: 'help', description: 'Display information about available commands.', usage: '/help', execution_target: 'server', examples: ['/help'] },
+  { name: 'identity', description: 'Manage your user identity.', usage: '/identity', execution_target: 'server', examples: ['/identity'] }
 ];
 
 // Helper function to create default props for testing

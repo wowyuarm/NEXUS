@@ -34,7 +34,7 @@ describe('IdentityService', () => {
 
       // Act & Assert: This should fail because IdentityService doesn't exist yet
       const { IdentityService } = await import('./identity');
-      const identity = IdentityService.getIdentity();
+      const identity = await IdentityService.getIdentity();
 
       // Assert: Should have generated new identity
       expect(identity).toBeDefined();
@@ -56,7 +56,7 @@ describe('IdentityService', () => {
 
       // Act & Assert: This should fail because IdentityService doesn't exist yet
       const { IdentityService } = await import('./identity');
-      const identity = IdentityService.getIdentity();
+      const identity = await IdentityService.getIdentity();
 
       // Assert: Should have loaded existing identity
       expect(identity).toBeDefined();
@@ -74,7 +74,7 @@ describe('IdentityService', () => {
 
       // Act: Get identity
       const { IdentityService } = await import('./identity');
-      const identity = IdentityService.getIdentity();
+      const identity = await IdentityService.getIdentity();
 
       // Assert: Public key should be derived consistently
       expect(identity.publicKey).toBe('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'); // Known address for this private key
@@ -90,9 +90,10 @@ describe('IdentityService', () => {
       const { IdentityService } = await import('./identity');
 
       // Assert: Should not throw, should fallback to generating new identity
-      expect(() => {
-        IdentityService.getIdentity();
-      }).not.toThrow();
+      const identity = await IdentityService.getIdentity();
+      expect(identity).toBeDefined();
+      expect(identity.privateKey).toBeDefined();
+      expect(identity.publicKey).toBeDefined();
     });
   });
 });
