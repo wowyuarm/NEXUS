@@ -20,9 +20,9 @@ vi.mock('@/components/ui/Timestamp', () => ({
 }));
 
 vi.mock('@/components/ui/RoleSymbol', () => ({
-  RoleSymbol: ({ role, isThinking }: { role: string; isThinking?: boolean }) => (
-    <div data-testid="role-symbol" data-role={role} data-thinking={isThinking}>
-      {role === 'HUMAN' ? '▲' : '●'}
+  RoleSymbol: ({ role, isThinking, status }: { role: string; isThinking?: boolean; status?: string }) => (
+    <div data-testid="role-symbol" data-role={role} data-thinking={isThinking} data-status={status}>
+      {role === 'HUMAN' ? '▲' : role === 'SYSTEM' ? '■' : '●'}
     </div>
   )
 }));
@@ -263,6 +263,110 @@ describe('ChatMessage', () => {
     });
   });
 
+  describe('SYSTEM messages', () => {
+    it('renders SYSTEM message with pending status - command only', () => {
+      const message = createMessage({
+        role: 'SYSTEM',
+        content: { command: '/ping' },
+        metadata: { status: 'pending' }
+      });
+
+      render(
+        <ChatMessage 
+          message={message} 
+          isLastMessage={false} 
+          currentRunStatus="idle" 
+        />
+      );
+
+      // Should render role symbol as ■
+      expect(screen.getByTestId('role-symbol')).toHaveAttribute('data-role', 'SYSTEM');
+      
+      // Should render command line
+      expect(screen.getByTestId('system-command')).toHaveTextContent('/ping');
+      
+      // Should NOT render divider or result when pending
+      expect(screen.queryByTestId('system-divider')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('system-result')).not.toBeInTheDocument();
+    });
+
+    it('renders SYSTEM message with completed status - command and result', () => {
+      const message = createMessage({
+        role: 'SYSTEM',
+        content: { 
+          command: '/ping',
+          result: { status: 'success', latency: '1ms', version: '0.2.0' }
+        },
+        metadata: { status: 'completed' }
+      });
+
+      render(
+        <ChatMessage 
+          message={message} 
+          isLastMessage={false} 
+          currentRunStatus="idle" 
+        />
+      );
+
+      // Should render role symbol
+      expect(screen.getByTestId('role-symbol')).toHaveAttribute('data-role', 'SYSTEM');
+      
+      // Should render command line
+      expect(screen.getByTestId('system-command')).toHaveTextContent('/ping');
+      
+      // Should render divider
+      expect(screen.getByTestId('system-divider')).toBeInTheDocument();
+      
+      // Should render result section
+      expect(screen.getByTestId('system-result')).toBeInTheDocument();
+    });
+
+    it('renders SYSTEM message with string result', () => {
+      const message = createMessage({
+        role: 'SYSTEM',
+        content: { 
+          command: '/help',
+          result: 'Available commands:\n- /ping: Check server status\n- /help: Show this help'
+        },
+        metadata: { status: 'completed' }
+      });
+
+      render(
+        <ChatMessage 
+          message={message} 
+          isLastMessage={false} 
+          currentRunStatus="idle" 
+        />
+      );
+
+      expect(screen.getByTestId('system-command')).toHaveTextContent('/help');
+      expect(screen.getByTestId('system-result')).toBeInTheDocument();
+      // String results should be rendered with MarkdownRenderer
+      expect(screen.getByTestId('markdown-content')).toBeInTheDocument();
+    });
+
+    it('passes status to RoleSymbol for breathing animation', () => {
+      const message = createMessage({
+        role: 'SYSTEM',
+        content: { command: '/ping' },
+        metadata: { status: 'pending' }
+      });
+
+      render(
+        <ChatMessage 
+          message={message} 
+          isLastMessage={false} 
+          currentRunStatus="idle" 
+        />
+      );
+
+      // RoleSymbol should receive status for animation
+      const roleSymbol = screen.getByTestId('role-symbol');
+      expect(roleSymbol).toBeInTheDocument();
+      // The actual animation behavior is tested in RoleSymbol's own tests
+    });
+  });
+
   describe('Variant rendering', () => {
     it('renders full row with role symbol in normal variant', () => {
       const message = createMessage({
@@ -303,6 +407,120 @@ describe('ChatMessage', () => {
       
       // Should not have the full row wrapper classes
       expect(container.firstChild).not.toHaveClass('group', 'relative', 'py-6', 'flex', 'items-baseline', 'gap-2');
+    });
+  });
+
+  describe('SYSTEM messages - structured command rendering', () => {
+    it('renders pending SYSTEM message with command only', () => {
+      const message = createMessage({
+        role: 'SYSTEM',
+        content: { command: '/ping' },
+        metadata: { status: 'pending' }
+      });
+
+      render(
+        <ChatMessage 
+          message={message} 
+          isLastMessage={false} 
+          currentRunStatus="idle"
+        />
+      );
+
+      expect(screen.getByTestId('role-symbol')).toHaveAttribute('data-role', 'SYSTEM');
+      expect(screen.getByTestId('system-command')).toHaveTextContent('/ping');
+      expect(screen.queryByTestId('system-divider')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('system-result')).not.toBeInTheDocument();
+    });
+
+    it('renders completed SYSTEM message with command and string result', () => {
+      const message = createMessage({
+        role: 'SYSTEM',
+        content: { 
+          command: '/ping', 
+          result: 'pong - latency: 1ms' 
+        },
+        metadata: { status: 'completed' }
+      });
+
+      render(
+        <ChatMessage 
+          message={message} 
+          isLastMessage={false} 
+          currentRunStatus="idle"
+        />
+      );
+
+      expect(screen.getByTestId('role-symbol')).toHaveAttribute('data-role', 'SYSTEM');
+      expect(screen.getByTestId('system-command')).toHaveTextContent('/ping');
+      expect(screen.getByTestId('system-divider')).toBeInTheDocument();
+      expect(screen.getByTestId('system-result')).toBeInTheDocument();
+    });
+
+    it('renders completed SYSTEM message with command and object result', () => {
+      const message = createMessage({
+        role: 'SYSTEM',
+        content: { 
+          command: '/ping', 
+          result: {
+            status: 'success',
+            latency: '1ms',
+            version: '0.2.0'
+          }
+        },
+        metadata: { status: 'completed' }
+      });
+
+      render(
+        <ChatMessage 
+          message={message} 
+          isLastMessage={false} 
+          currentRunStatus="idle"
+        />
+      );
+
+      expect(screen.getByTestId('system-command')).toHaveTextContent('/ping');
+      expect(screen.getByTestId('system-divider')).toBeInTheDocument();
+      const resultElement = screen.getByTestId('system-result');
+      expect(resultElement).toBeInTheDocument();
+      // Should contain formatted key-value pairs
+      expect(resultElement.textContent).toContain('status');
+      expect(resultElement.textContent).toContain('success');
+    });
+
+    it('passes status to RoleSymbol for animation control', () => {
+      const pendingMessage = createMessage({
+        role: 'SYSTEM',
+        content: { command: '/ping' },
+        metadata: { status: 'pending' }
+      });
+
+      const { rerender } = render(
+        <ChatMessage 
+          message={pendingMessage} 
+          isLastMessage={false} 
+          currentRunStatus="idle"
+        />
+      );
+
+      const roleSymbol = screen.getByTestId('role-symbol');
+      expect(roleSymbol).toHaveAttribute('data-status', 'pending');
+
+      // Update to completed
+      const completedMessage = createMessage({
+        role: 'SYSTEM',
+        content: { command: '/ping', result: 'pong' },
+        metadata: { status: 'completed' }
+      });
+
+      rerender(
+        <ChatMessage 
+          message={completedMessage} 
+          isLastMessage={false} 
+          currentRunStatus="idle"
+        />
+      );
+
+      expect(screen.getByTestId('role-symbol')).toHaveAttribute('data-status', 'completed');
     });
   });
 });

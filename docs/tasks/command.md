@@ -446,3 +446,84 @@
 *   **逻辑清晰:** 客户端与服务器端指令的执行路径必须在代码层面有清晰的、可被一眼识别的分支。
 
 ---
+
+---
+---
+对指令系统的用户界面（`CommandList`）和结果呈现（`ChatMessage` for `SYSTEM` role）进行一次彻底的视觉与交互精炼。必须根除所有视觉噪点，引入结构化的韵律感，并实现我们共同构想的、清晰优雅的信息布局。
+
+---
+
+#### **一、指令列表 (`CommandList`) 的视觉与交互重塑**
+
+**哲学:** 它不是一个“搜索框”，而是`ChatInput`在特定状态下的“形态延伸”。它的设计必须是**静默的、整合的、轻量级的**。
+
+*   **1.1 形态与布局 (`CommandList.tsx`):**
+    *   **移除首字母头像:** 彻底移除当前用于显示指令首字母的圆形背景UI元素。
+    *   **采用结构化双列布局:**
+        *   每个指令项 (`CommandItem.tsx`) 使用`flexbox`进行布局。
+        *   **左列 (指令名称):**
+            *   设置一个固定的最小宽度（例如`min-w-[8rem]`），确保所有指令名称左对齐，形成视觉上的垂直线。
+            *   使用`font-mono`字体，并保持与`ChatInput`中`/`符号一致的样式，以示其“指令”属性。
+            *   文本颜色应比描述略亮，作为视觉焦点。
+        *   **右列 (指令描述):**
+            *   自动填充剩余空间。
+            *   使用标准的`font-sans`字体。
+            *   文本颜色使用`secondary-foreground`，作为辅助信息。
+    *   **滚动与尺寸:**
+        *   `CommandList`的最大高度应被限制（例如 `max-h-[30vh]`）。当指令数量超出此高度时，列表应变为可滚动状态。
+
+*   **1.2 动画与过渡:**
+    *   `CommandList`的出现和消失，必须是从`ChatInput`上方边缘平滑地、带有轻微物理感的“生长”和“收回”动画（`transform: translateY` & `opacity`）。动画曲线应使用我们系统标准的`cubic-bezier`函数，时长约`200ms`。
+
+---
+
+#### **二、系统消息 (`SYSTEM` Message) 渲染的革命性重构**
+
+**哲学:** 系统反馈不是对话，而是**报告**。它的呈现方式必须清晰、结构化，能够将“指令”和“结果”在视觉上明确地区分开来，同时保持与整个UI风格的和谐统一。
+
+*   **2.1 数据结构的先行调整 (`chatStore.ts`):**
+    *   修改`executeCommand`和`handleCommandResult` actions。现在，`SYSTEM`消息的`content`字段**必须**存储为一个结构化对象，而非简单字符串。
+    *   **对于`pending`状态的消息:**
+        ```typescript
+        content: { command: '/ping' } 
+        ```
+    *   **对于`completed`状态的消息:**
+        ```typescript
+        content: { command: '/ping', result: 'pong' } // or { command: '/help', result: '...' }
+        ```
+        对于`/ping`，`result`可以是后端返回的整个`payload`对象。
+
+*   **2.2 `ChatMessage.tsx`的渲染革命:**
+    *   **TDD先行:** 为`ChatMessage`编写一个新的测试用例，传入一个`role: 'SYSTEM'`且`content`为上述结构化对象的消息，断言它能渲染出我们预期的DOM结构。
+    *   **实现新的渲染逻辑:**
+        1.  当`ChatMessage`检测到`role === 'SYSTEM'`时，它将启用一个全新的、独立的渲染路径。
+        2.  **外层容器:** 整个消息体不再是对话气泡，而是一个带有`border`和轻微`padding`的块级元素，类似于一个简化的信息面板。
+        3.  **第一部分 (指令行):**
+            *   渲染`RoleSymbol` (`■`)。
+            *   紧随其后，渲染指令本身，即`message.content.command`。这一行应使用`font-mono`字体。
+            *   将消息的`metadata.status`（`pending`或`completed`）传递给`RoleSymbol`的`status` prop，以驱动其呼吸/脉冲动画。
+        4.  **第二部分 (分割线):**
+            *   **仅当`message.content.result`存在时**，在指令行下方渲染一条`hr`元素。这条分割线应该是微妙的，颜色为`border`，`margin-top`和`margin-bottom`应创造出呼吸感。
+        5.  **第三部分 (结果区):**
+            *   **仅当`message.content.result`存在时**，在分割线下方渲染结果。
+            *   **结果格式化:**
+                *   如果`result`是字符串，直接使用`MarkdownRenderer`渲染（这允许我们的帮助文本等包含格式）。
+                *   如果`result`是对象（例如`/ping`返回的`data`对象），则将其格式化为一个美观的键值对列表或一个`pre`代码块中的JSON字符串。
+                *   **例如，`/ping`的结果可以被格式化为：**
+                    ```
+                    Status:  success
+                    Latency: 1ms
+                    Version: 0.2.0
+                    ```
+
+---
+
+#### **三、原则与规范**
+
+*   **视觉一致性:** `CommandList`和`SYSTEM`消息面板的材质、边框、阴影等视觉元素，必须严格遵循我们已定义的“灰度中庸”和“液态玻璃”设计语言。
+*   **信息层级:** 新的`SYSTEM`消息布局必须通过排版、分割线和间距，清晰地建立起“指令 -> 结果”的信息层级关系。
+*   **交互的确定性:** 动画和过渡效果不能影响功能。`CommandList`的交互（键盘导航、过滤）必须始终保持高响应性和可靠性。
+
+**你必须首先了解当前实现，发现出入与不完善之处。注意遵循TDD原则**
+
+---

@@ -450,13 +450,19 @@ describe('chatStore', () => {
       expect(result?.status).toBe('success');
       expect(result?.data?.commands).toEqual(commands);
 
-      // Should have created a SYSTEM message
+      // Should have created a SYSTEM message with structured content
       const state = useChatStore.getState();
       expect(state.messages).toHaveLength(1);
       expect(state.messages[0].role).toBe('SYSTEM');
-      expect(state.messages[0].content).toContain('ping');
-      expect(state.messages[0].content).toContain('help');
-      expect(state.messages[0].content).toContain('clear');
+      expect(state.messages[0].content).toEqual({
+        command: '/help',
+        result: expect.stringContaining('ping')
+      });
+      // Verify result contains all command names
+      const content = state.messages[0].content as { command: string; result: string };
+      expect(content.result).toContain('ping');
+      expect(content.result).toContain('help');
+      expect(content.result).toContain('clear');
       expect(state.messages[0].metadata?.status).toBe('completed');
 
       // Should NOT have sent to server
@@ -474,10 +480,10 @@ describe('chatStore', () => {
 
       const state = useChatStore.getState();
       
-      // Should have created pending SYSTEM message
+      // Should have created pending SYSTEM message with structured content
       expect(state.messages).toHaveLength(1);
       expect(state.messages[0].role).toBe('SYSTEM');
-      expect(state.messages[0].content).toBe('/ping');
+      expect(state.messages[0].content).toEqual({ command: '/ping' });
       expect(state.messages[0].metadata?.status).toBe('pending');
 
       // Should have sent to server

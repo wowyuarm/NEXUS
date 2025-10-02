@@ -23,7 +23,7 @@ import { Timestamp } from '@/components/ui/Timestamp';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
 import { ToolCallCard } from './ToolCallCard';
 import { useTypewriter } from '../hooks/useTypewriter';
-import type { Message } from '../types';
+import type { Message, SystemMessageContent } from '../types';
 import type { RunStatus } from '../store/chatStore';
 
 
@@ -54,13 +54,16 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   // For historical messages or non-AI messages, use static rendering
   const shouldUseStaticRendering = !isActiveAIMessage;
 
+  // Extract string content (SYSTEM messages will skip typewriter logic)
+  const stringContent = typeof message.content === 'string' ? message.content : '';
+
   // Determine if we should use typewriter effect
   const isStreaming =
     shouldShowStreaming || message.isStreaming || (message.metadata?.isStreaming ?? false);
 
   // Use typewriter engine for streaming and to gracefully finish after stream ends
   const { displayedContent, isTyping } = useTypewriter({
-    targetContent: message.content,
+    targetContent: stringContent,
     isStreamingMessage: isStreaming && !shouldUseStaticRendering,
   });
 
@@ -70,11 +73,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   const shouldUseTypewriterOutput =
     !shouldUseStaticRendering && (
       isTyping ||
-      (displayedContent.length > 0 && displayedContent.length < (message.content?.length ?? 0)) ||
+      (displayedContent.length > 0 && displayedContent.length < (stringContent?.length ?? 0)) ||
       isStreaming
     );
   const isActivelyTyping = shouldUseTypewriterOutput;
-  const contentForRender = shouldUseTypewriterOutput ? displayedContent : message.content;
+  const contentForRender = shouldUseTypewriterOutput ? displayedContent : stringContent;
   // Strict gating: do not fast-forward. Cards will only appear after text up to their insertIndex has streamed.
 
   // Render tool calls interleaved by individual insertIndex
@@ -144,8 +147,63 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     return <div className="space-y-3">{fragments}</div>;
   };
 
+  // Helper: Check if content is SystemMessageContent
+  const isSystemContent = (content: string | SystemMessageContent): content is SystemMessageContent => {
+    return typeof content === 'object' && 'command' in content;
+  };
+
+  // Helper: Format object result as key-value pairs
+  const formatObjectResult = (obj: Record<string, unknown>): string => {
+    return Object.entries(obj)
+      .map(([key, value]) => {
+        const formattedValue = typeof value === 'string' ? value : JSON.stringify(value);
+        return `**${key}:** ${formattedValue}`;
+      })
+      .join('\n\n');
+  };
+
+  // Render SYSTEM message with structured command/result layout
+  const renderSystemMessage = () => {
+    if (!isSystemContent(message.content)) {
+      // Fallback for old string-based SYSTEM messages
+      return <MarkdownRenderer content={message.content as string} />;
+    }
+
+    const { command, result } = message.content;
+
+    return (
+      <div className="space-y-3">
+        {/* Command line - always shown */}
+        <div className="font-mono text-sm text-foreground" data-testid="system-command">
+          {command}
+        </div>
+
+        {/* Divider - only when result exists */}
+        {result && (
+          <hr className="border-border my-3" data-testid="system-divider" />
+        )}
+
+        {/* Result area - only when result exists */}
+        {result && (
+          <div className="text-sm" data-testid="system-result">
+            {typeof result === 'string' ? (
+              <MarkdownRenderer content={result} />
+            ) : (
+              <MarkdownRenderer content={formatObjectResult(result as Record<string, unknown>)} />
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Render content based on current state
   const renderContent = () => {
+    // SYSTEM role: use special structured rendering
+    if (message.role === 'SYSTEM') {
+      return renderSystemMessage();
+    }
+
     // Active AI message states
     if (isActiveAIMessage) {
       // Thinking state: this should not render any message bubble
@@ -205,6 +263,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       <RoleSymbol
         role={message.role}
         isThinking={false} // Never show thinking animation here
+        status={message.role === 'SYSTEM' ? message.metadata?.status : undefined}
       />
       {ContentArea}
     </div>

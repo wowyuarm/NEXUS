@@ -145,7 +145,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (streamingAIMessageIndex >= 0) {
         const messagesWithToolCall = state.messages.map((msg, index) => {
           if (index === streamingAIMessageIndex) {
-            const currentLength = msg.content.length;
+            const currentLength = typeof msg.content === 'string' ? msg.content.length : 0;
             const tcWithIndex: ToolCall = { ...toolCall, insertIndex: currentLength };
             return {
               ...msg,
@@ -359,7 +359,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       let messageIndex = -1;
       if (commandText) {
         messageIndex = state.messages.findIndex(
-          (msg) => msg.role === 'SYSTEM' && msg.content === commandText && msg.metadata?.status === 'pending'
+          (msg) => {
+            if (msg.role === 'SYSTEM' && msg.metadata?.status === 'pending') {
+              // Support both old string format and new structured format
+              const msgCommand = typeof msg.content === 'string' 
+                ? msg.content 
+                : msg.content.command;
+              return msgCommand === commandText;
+            }
+            return false;
+          }
         );
       }
       // Fallback: pick the most recent pending SYSTEM message
@@ -375,11 +384,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       if (messageIndex >= 0) {
         const updatedMessages = [...state.messages];
+        const existingMsg = updatedMessages[messageIndex];
+        const existingCommand = typeof existingMsg.content === 'string'
+          ? existingMsg.content
+          : existingMsg.content.command;
+        
+        // Update with structured content
         updatedMessages[messageIndex] = {
-          ...updatedMessages[messageIndex],
-          content: resultObj.message || 'Command completed',
+          ...existingMsg,
+          content: {
+            command: existingCommand,
+            result: resultObj.data || resultObj.message || 'Command completed'
+          },
           metadata: {
-            ...updatedMessages[messageIndex].metadata,
+            ...existingMsg.metadata,
             status: 'completed',
             commandResult: resultObj
           }
@@ -387,11 +405,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         return { messages: updatedMessages };
       }
 
-      // If no pending message found, append a new SYSTEM message
+      // If no pending message found, append a new SYSTEM message with structured content
       const newMessage: Message = {
         id: uuidv4(),
         role: 'SYSTEM',
-        content: resultObj.message || 'Command completed',
+        content: {
+          command: commandText || 'unknown',
+          result: resultObj.data || resultObj.message || 'Command completed'
+        },
         timestamp: new Date(),
         metadata: { status: 'completed', commandResult: resultObj }
       };
@@ -461,7 +482,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const helpMessage: Message = {
         id: uuidv4(),
         role: 'SYSTEM',
-        content: helpContent,
+        content: {
+          command: '/help',
+          result: helpContent
+        },
         timestamp: new Date(),
         metadata: { status: 'completed' }
       };
@@ -491,11 +515,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         return { status: 'error', message: error };
       }
 
-      // For server commands, create pending message
+      // For server commands, create pending message with structured content
       const pendingMessage: Message = {
         id: uuidv4(),
         role: 'SYSTEM',
-        content: command,
+        content: { command },
         timestamp: new Date(),
         metadata: { status: 'pending' }
       };

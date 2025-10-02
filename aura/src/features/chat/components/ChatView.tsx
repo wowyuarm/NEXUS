@@ -78,12 +78,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // 是否已有当前 run 的 AI 流式消息（开始打字后就不再显示思考符号）
   const hasStreamingAICurrentRun = useMemo(() => {
     if (!currentRunId) return false;
-    return messages.some((m) =>
-      m.role === 'AI'
-      && (m.isStreaming || ((m.metadata?.isStreaming ?? false)))
-      && m.runId === currentRunId
-      && ((m.content?.length ?? 0) > 0)
-    );
+    return messages.some((m) => {
+      const contentLength = typeof m.content === 'string' ? m.content.length : 0;
+      return m.role === 'AI'
+        && (m.isStreaming || ((m.metadata?.isStreaming ?? false)))
+        && m.runId === currentRunId
+        && (contentLength > 0);
+    });
   }, [messages, currentRunId]);
 
   // 显示条件：仅当当前状态为 thinking，且未开始流式输出，并且上一条为用户消息

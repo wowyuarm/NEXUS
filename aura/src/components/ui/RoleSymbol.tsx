@@ -7,16 +7,20 @@ import { cn } from '@/lib/utils';
 interface RoleSymbolProps {
   role: 'HUMAN' | 'AI' | 'SYSTEM' | 'TOOL';
   isThinking?: boolean;
+  status?: 'pending' | 'completed';
 }
 
 // 角色符号映射 - 独立一列显示，尺寸增大
-export const RoleSymbol: React.FC<RoleSymbolProps> = ({ role, isThinking = false }) => {
+export const RoleSymbol: React.FC<RoleSymbolProps> = ({ role, isThinking = false, status }) => {
   const symbols = {
     HUMAN: '▲',
     AI: '●',
     SYSTEM: '■',
     TOOL: '◆'
   };
+
+  // Determine animation based on isThinking or status
+  const shouldPulse = isThinking || status === 'pending';
 
   return (
     <motion.div
@@ -26,9 +30,9 @@ export const RoleSymbol: React.FC<RoleSymbolProps> = ({ role, isThinking = false
         'text-secondary-foreground text-[18px] leading-none font-mono select-none',
         'flex-shrink-0' // 防止收缩
       )}
-      animate={isThinking ? { opacity: [0.4, 1, 0.4] } : { opacity: 1 }}
+      animate={shouldPulse ? { opacity: [0.4, 1, 0.4] } : { opacity: 1 }}
       transition={
-        isThinking
+        shouldPulse
           ? { duration: 2, repeat: Infinity, ease: 'easeInOut' }
           : { duration: 0.2, ease: 'easeOut' }
       }

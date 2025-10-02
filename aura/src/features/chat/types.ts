@@ -13,14 +13,27 @@ export interface ToolCall {
   insertIndex?: number;
 }
 
+/**
+ * System message content structure
+ * - For pending state: only command is present
+ * - For completed state: both command and result are present
+ */
+export interface SystemMessageContent {
+  command: string;
+  result?: string | Record<string, unknown>;
+}
+
 export interface Message {
   id: string;
   role: MessageRole;
-  content: string;
+  // For SYSTEM role, content can be structured object; otherwise string
+  content: string | SystemMessageContent;
   timestamp: Date | string;
   runId?: string;
   metadata?: {
     isStreaming?: boolean;
+    status?: 'pending' | 'completed';
+    commandResult?: Record<string, unknown>;
     [key: string]: unknown;
   };
   // 兼容store中的字段
