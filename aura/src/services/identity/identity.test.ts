@@ -96,4 +96,51 @@ describe('IdentityService', () => {
       expect(identity.publicKey).toBeDefined();
     });
   });
+
+  describe('signCommand', () => {
+    it('should sign a command and return auth object with publicKey and signature', async () => {
+      // Arrange: localStorage has existing private key
+      const existingPrivateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+      const expectedPublicKey = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+      localStorageMock.getItem.mockReturnValue(existingPrivateKey);
+
+      // Act: Sign a command
+      const { IdentityService } = await import('./identity');
+      const command = '/identity';
+      const auth = await IdentityService.signCommand(command);
+
+      // Assert: Should return auth object with correct structure
+      expect(auth).toBeDefined();
+      expect(auth.publicKey).toBe(expectedPublicKey);
+      expect(auth.signature).toBeDefined();
+      expect(auth.signature).toMatch(/^0x[a-fA-F0-9]+$/); // Hex string format
+      expect(auth.signature.length).toBeGreaterThan(100); // Signatures are typically 130+ chars
+    });
+
+    it('should create different signatures for different commands', async () => {
+      // Arrange: localStorage has existing private key
+      const existingPrivateKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+      localStorageMock.getItem.mockReturnValue(existingPrivateKey);
+
+      // Act: Sign two different commands
+      const { IdentityService } = await import('./identity');
+      const auth1 = await IdentityService.signCommand('/identity');
+      const auth2 = await IdentityService.signCommand('/help');
+
+      // Assert: Signatures should be different for different commands
+      expect(auth1.signature).not.toBe(auth2.signature);
+      expect(auth1.publicKey).toBe(auth2.publicKey); // But public key should be the same
+    });
+
+    it('should throw error if no identity exists', async () => {
+      // Arrange: localStorage returns null (no identity)
+      localStorageMock.getItem.mockReturnValue(null);
+
+      // Act & Assert: Should throw error
+      const { IdentityService } = await import('./identity');
+      await expect(IdentityService.signCommand('/identity'))
+        .rejects
+        .toThrow();
+    });
+  });
 });

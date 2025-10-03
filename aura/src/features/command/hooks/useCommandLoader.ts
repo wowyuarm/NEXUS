@@ -33,17 +33,26 @@ const FALLBACK_COMMANDS: Command[] = [
     usage: '/clear',
     execution_target: 'client',
     examples: ['/clear']
+  },
+  {
+    name: 'identity',
+    description: 'Identity verification - returns your verified public key',
+    usage: '/identity',
+    execution_target: 'server',
+    examples: ['/identity']
   }
 ];
 
 export interface UseCommandLoaderOptions {
   timeoutMs?: number;
   autoLoad?: boolean;
+  isConnected?: boolean;
 }
 
 export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
   const { setCommands, setLoading } = useCommandStore();
   const autoLoad = options?.autoLoad ?? true;
+  const isConnected = options?.isConnected ?? websocketManager.connected;
 
   const loadCommands = useCallback(async () => {
     setLoading(true);
@@ -55,10 +64,11 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
 
       // Use unified command execution entry point through chatStore
       // This ensures consistent behavior and allows users to see system initialization
+      // IMPORTANT: Do NOT pass FALLBACK_COMMANDS here - we want to force fetching from backend
       const { useChatStore } = await import('@/features/chat/store/chatStore');
       const { executeCommand } = useChatStore.getState();
       
-      const result = await executeCommand('/help', FALLBACK_COMMANDS);
+      const result = await executeCommand('/help');
 
       if (result?.status === 'success' && result?.data?.commands) {
         // Trust backend completely - no overrides, no modifications
@@ -84,11 +94,13 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
     }
   }, [setCommands, setLoading]);
 
+  // Auto-load commands when WebSocket connects
   useEffect(() => {
-    if (autoLoad) {
+    if (autoLoad && isConnected) {
+      console.log('🔄 Loading commands: WebSocket connected');
       loadCommands();
     }
-  }, [autoLoad, loadCommands]);
+  }, [autoLoad, isConnected, loadCommands]);
 
   return {
     loadCommands,

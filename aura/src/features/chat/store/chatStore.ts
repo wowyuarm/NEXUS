@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { websocketManager } from '@/services/websocket/manager';
+import { IdentityService } from '@/services/identity/identity';
 import type { Command } from '@/features/command/store/commandStore';
 import type { Message, ToolCall } from '../types';
 import type {
@@ -515,6 +516,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         return { status: 'error', message: error };
       }
 
+      // Check if command requires signature
+      // Currently, only /identity command requires signature
+      const requiresSignature = commandName === 'identity';
+      let auth: { publicKey: string; signature: string } | undefined;
+
+      if (requiresSignature) {
+        try {
+          // Sign the command using IdentityService
+          auth = await IdentityService.signCommand(command);
+          console.log('✍️ Signed command:', commandName);
+        } catch (error) {
+          console.error('Failed to sign command:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Failed to sign command';
+          return { status: 'error', message: errorMessage };
+        }
+      }
+
       // For server commands, create pending message with structured content
       const pendingMessage: Message = {
         id: uuidv4(),
@@ -549,12 +567,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           };
 
           websocketManager.on('command_result', handleCommandResult);
-          websocketManager.sendCommand(command);
+          websocketManager.sendCommand(command, auth);
         });
       }
 
-      // Default: send command after pending message
-      websocketManager.sendCommand(command);
+      // Default: send command after pending message (with auth if signed)
+      websocketManager.sendCommand(command, auth);
       return { status: 'pending', message: 'Command sent to server' };
     }
   }

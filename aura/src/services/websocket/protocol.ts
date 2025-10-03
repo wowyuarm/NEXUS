@@ -186,6 +186,10 @@ export interface SystemCommandMessage {
   payload: {
     command: string;
     session_id: string;
+    auth?: {
+      publicKey: string;
+      signature: string;
+    };
   };
 }
 
@@ -203,13 +207,24 @@ export function createClientMessage(input: string, publicKey: string, timestamp?
   };
 }
 
-export function createSystemCommandMessage(command: string, publicKey: string): SystemCommandMessage {
+export function createSystemCommandMessage(
+  command: string, 
+  publicKey: string,
+  auth?: { publicKey: string; signature: string }
+): SystemCommandMessage {
+  const payload: SystemCommandMessage['payload'] = {
+    command,
+    session_id: publicKey
+  };
+
+  // Include auth data if provided
+  if (auth) {
+    payload.auth = auth;
+  }
+
   return {
     type: 'system_command',
-    payload: {
-      command,
-      session_id: publicKey
-    }
+    payload
   };
 }
 

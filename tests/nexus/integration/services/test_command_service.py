@@ -9,6 +9,8 @@ with the event bus system.
 
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
+from eth_keys import keys
+from eth_hash.auto import keccak
 
 from nexus.services.command import CommandService
 from nexus.core.models import Message, Role
@@ -232,3 +234,87 @@ class TestCommandServiceIntegration:
                 mock_bus.publish.assert_called_once()
                 result_message = mock_bus.publish.call_args[0][1]
                 assert result_message.content["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_signed_command_verification_success(self, mock_bus, mock_database_service):
+        """
+        Test that CommandService correctly verifies a properly signed command
+        and executes the /identity whoami command successfully.
+        """
+        # Arrange: Generate a test key pair
+        private_key_bytes = b'\x01' * 32  # Simple test private key
+        private_key = keys.PrivateKey(private_key_bytes)
+        public_key_hex = private_key.public_key.to_address()
+        
+        # Sign the command
+        command_str = "/identity"
+        # eth_keys expects bytes for signing, so we encode the command
+        message_hash = keccak(command_str.encode('utf-8'))
+        signature = private_key.sign_msg_hash(message_hash)
+        signature_hex = signature.to_hex()
+        
+        # Create message with auth payload
+        input_message = Message(
+            run_id="test-run-signed",
+            session_id="test-session-signed",
+            role=Role.COMMAND,
+            content={
+                "command": command_str,
+                "auth": {
+                    "publicKey": public_key_hex,
+                    "signature": signature_hex
+                }
+            }
+        )
+        
+        # Act: Create service and handle the signed command
+        service = CommandService(bus=mock_bus, database_service=mock_database_service)
+        await service.handle_command(input_message)
+        
+        # Assert: Verify command was executed successfully
+        mock_bus.publish.assert_called_once()
+        call_args = mock_bus.publish.call_args
+        
+        result_message = call_args[0][1]
+        assert result_message.content["status"] == "success"
+        assert "Your verified public key is" in result_message.content["message"]
+        assert public_key_hex in result_message.content["message"]
+
+    @pytest.mark.asyncio
+    async def test_signed_command_verification_failure(self, mock_bus, mock_database_service):
+        """
+        Test that CommandService rejects commands with invalid signatures
+        and returns an authentication failure error.
+        """
+        # Arrange: Create a command with wrong signature
+        command_str = "/identity"
+        fake_signature = "0x" + "00" * 65  # Invalid signature
+        fake_public_key = "0x" + "00" * 20  # Invalid public key
+        
+        # Create message with invalid auth payload
+        input_message = Message(
+            run_id="test-run-invalid-sig",
+            session_id="test-session-invalid-sig",
+            role=Role.COMMAND,
+            content={
+                "command": command_str,
+                "auth": {
+                    "publicKey": fake_public_key,
+                    "signature": fake_signature
+                }
+            }
+        )
+        
+        # Act: Create service and handle the command with invalid signature
+        service = CommandService(bus=mock_bus, database_service=mock_database_service)
+        await service.handle_command(input_message)
+        
+        # Assert: Verify authentication failure was returned
+        mock_bus.publish.assert_called_once()
+        call_args = mock_bus.publish.call_args
+        
+        result_message = call_args[0][1]
+        assert result_message.content["status"] == "error"
+        assert "authentication" in result_message.content["message"].lower() or \
+               "signature" in result_message.content["message"].lower() or \
+               "verification" in result_message.content["message"].lower()

@@ -255,12 +255,27 @@ class WebsocketInterface:
                                 logger.warning(f"Empty command received from session_id={session_id}")
                                 continue
 
+                            # Check if command has authentication data
+                            payload = parsed_message.get("payload", {})
+                            auth_data = payload.get("auth") if isinstance(payload, dict) else None
+
+                            # Create command message content
+                            # If auth is present, use structured format; otherwise use simple string
+                            if auth_data:
+                                command_content = {
+                                    "command": command,
+                                    "auth": auth_data
+                                }
+                                logger.info(f"Command has signature authentication")
+                            else:
+                                command_content = command
+
                             # Create command message
                             command_message = Message(
                                 run_id=self._generate_run_id(),
                                 session_id=session_id,
                                 role=Role.COMMAND,
-                                content=command
+                                content=command_content
                             )
 
                             # Publish to system command topic

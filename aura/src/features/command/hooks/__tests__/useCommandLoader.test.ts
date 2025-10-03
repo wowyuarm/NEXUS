@@ -84,14 +84,16 @@ describe('useCommandLoader', () => {
 
     mockExecuteCommand.mockResolvedValue(mockCommandsResponse);
 
-    const { result } = renderHook(() => useCommandLoader());
+    // Simulate WebSocket connected state
+    const { result } = renderHook(() => useCommandLoader({ isConnected: true }));
 
     await waitFor(() => {
       expect(mockSetLoading).toHaveBeenCalledWith(true);
     });
 
     await waitFor(() => {
-      expect(mockExecuteCommand).toHaveBeenCalledWith('/help', expect.any(Array));
+      // After fix: no longer passing FALLBACK_COMMANDS to force backend fetch
+      expect(mockExecuteCommand).toHaveBeenCalledWith('/help');
     });
 
     await waitFor(() => {
@@ -124,10 +126,13 @@ describe('useCommandLoader', () => {
       expect(mockSetLoading).toHaveBeenCalledWith(false);
     });
 
-    expect(result.current.fallbackCommands).toHaveLength(3);
-    expect(result.current.fallbackCommands.map(c => c.name)).toEqual(['ping', 'help', 'clear']);
+    expect(result.current.fallbackCommands).toHaveLength(4);
+    expect(result.current.fallbackCommands.map(c => c.name)).toEqual(['ping', 'help', 'clear', 'identity']);
     // Verify help has server execution_target in fallback
     expect(result.current.fallbackCommands.find(c => c.name === 'help')?.execution_target).toBe('server');
+    // Verify identity is included in fallback
+    expect(result.current.fallbackCommands.find(c => c.name === 'identity')).toBeDefined();
+    expect(result.current.fallbackCommands.find(c => c.name === 'identity')?.execution_target).toBe('server');
   });
 
   it('uses fallback commands when backend fails', async () => {
@@ -137,7 +142,8 @@ describe('useCommandLoader', () => {
       configurable: true
     });
 
-    const { result } = renderHook(() => useCommandLoader());
+    // Pass isConnected: true to trigger loading attempt, but WebSocket will fail
+    const { result } = renderHook(() => useCommandLoader({ isConnected: true }));
 
     await waitFor(() => {
       expect(mockSetLoading).toHaveBeenCalledWith(true);
@@ -155,7 +161,7 @@ describe('useCommandLoader', () => {
   it('uses fallback commands when response format is invalid', async () => {
     mockExecuteCommand.mockResolvedValue({ status: 'success' }); // Invalid: no data
 
-    const { result } = renderHook(() => useCommandLoader());
+    const { result } = renderHook(() => useCommandLoader({ isConnected: true }));
 
     await waitFor(() => {
       expect(mockSetCommands).toHaveBeenCalledWith(result.current.fallbackCommands);
@@ -168,20 +174,42 @@ describe('useCommandLoader', () => {
       data: { commands: {} } 
     });
 
-    const { result } = renderHook(() => useCommandLoader());
+    // Use autoLoad: false to test manual loading only
+    const { result } = renderHook(() => useCommandLoader({ autoLoad: false }));
     
     expect(typeof result.current.loadCommands).toBe('function');
-    
-    // Wait for initial load
-    await waitFor(() => {
-      expect(mockExecuteCommand).toHaveBeenCalledTimes(1);
-    });
 
-    // Manual reload should work the same way
+    // Manual reload should work
     await result.current.loadCommands();
 
-    // Should have called executeCommand twice (on mount and manual reload)
-    expect(mockExecuteCommand).toHaveBeenCalledTimes(2);
-    expect(mockExecuteCommand).toHaveBeenCalledWith('/help', expect.any(Array));
+    // Should have called executeCommand once (manual reload only)
+    expect(mockExecuteCommand).toHaveBeenCalledTimes(1);
+    // After fix: no longer passing FALLBACK_COMMANDS to force backend fetch
+    expect(mockExecuteCommand).toHaveBeenCalledWith('/help');
+  });
+
+  it('waits for WebSocket connection before loading commands', async () => {
+    mockExecuteCommand.mockResolvedValue({
+      status: 'success',
+      data: { commands: {} }
+    });
+
+    // Start with disconnected state
+    const { rerender } = renderHook(
+      ({ isConnected }) => useCommandLoader({ isConnected }),
+      { initialProps: { isConnected: false } }
+    );
+
+    // Should NOT load commands when disconnected
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(mockExecuteCommand).not.toHaveBeenCalled();
+
+    // Simulate connection established
+    rerender({ isConnected: true });
+
+    // NOW it should load commands
+    await waitFor(() => {
+      expect(mockExecuteCommand).toHaveBeenCalledWith('/help');
+    });
   });
 });

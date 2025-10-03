@@ -9,7 +9,11 @@ through the event bus system.
 import logging
 import importlib
 import pkgutil
-from typing import Dict, Any, Callable, Awaitable
+from typing import Dict, Any, Callable, Awaitable, Optional
+
+from eth_keys import keys
+from eth_keys.exceptions import ValidationError, BadSignature
+from eth_hash.auto import keccak
 
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message, Role
@@ -165,7 +169,8 @@ class CommandService:
         """
         Handle incoming command requests from the event bus.
 
-        This method parses the command, executes it, and publishes the result.
+        This method parses the command, verifies signature if required, executes it,
+        and publishes the result.
 
         Args:
             message: The command request message
@@ -173,8 +178,9 @@ class CommandService:
         try:
             logger.info(f"Handling command request: {message.content}")
 
-            # Parse the command
-            command_name = self._parse_command_name(message.content)
+            # Parse the command (supports both string and structured payload)
+            command_str, auth_data = self._parse_command_payload(message.content)
+            command_name = self._parse_command_name(command_str)
 
             # Find the command executor
             executor = self._command_registry.get(command_name)
@@ -187,8 +193,22 @@ class CommandService:
                 await self._publish_result(message, result)
                 return
 
+            # Check if command requires signature verification
+            command_definition = self._command_definitions.get(command_name, {})
+            requires_signature = command_definition.get('requires_signature', False)
+
+            # Verify signature if required
+            verified_public_key: Optional[str] = None
+            if requires_signature:
+                verification_result = self._verify_signature(command_str, auth_data)
+                if verification_result['status'] == 'error':
+                    # Signature verification failed
+                    await self._publish_result(message, verification_result)
+                    return
+                verified_public_key = verification_result.get('public_key')
+
             # Build execution context
-            context = self._build_execution_context(command_name)
+            context = self._build_execution_context(command_name, verified_public_key)
 
             # Execute the command
             try:
@@ -214,6 +234,25 @@ class CommandService:
             await self._publish_result(message, error_result)
             logger.error(f"Command processing error: {e}")
 
+    def _parse_command_payload(self, content) -> tuple[str, Optional[Dict[str, Any]]]:
+        """
+        Parse command payload which can be either a string or a structured object.
+
+        Args:
+            content: Either a string command or a dict with command and auth fields
+
+        Returns:
+            Tuple of (command_string, auth_data or None)
+        """
+        # Handle structured payload with auth
+        if isinstance(content, dict):
+            command_str = content.get('command', '')
+            auth_data = content.get('auth')
+            return command_str, auth_data
+        
+        # Handle legacy string payload
+        return str(content), None
+
     def _parse_command_name(self, content: str) -> str:
         """
         Parse the command name from the message content.
@@ -238,12 +277,105 @@ class CommandService:
 
         return command
 
-    def _build_execution_context(self, command_name: str) -> Dict[str, Any]:
+    def _verify_signature(self, command_str: str, auth_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Verify cryptographic signature for a command.
+
+        This method implements the signature verification logic using eth_keys.
+        It verifies that the command was signed by the holder of the private key
+        corresponding to the provided public key.
+
+        Args:
+            command_str: The command string that was signed
+            auth_data: Dictionary containing 'publicKey' and 'signature'
+
+        Returns:
+            Dict with either:
+                - {'status': 'success', 'public_key': verified_public_key}
+                - {'status': 'error', 'message': error_description}
+        """
+        try:
+            # Check if auth data is provided
+            if not auth_data:
+                logger.warning("Signature required but auth data not provided")
+                return {
+                    "status": "error",
+                    "message": "Authentication required: This command requires a cryptographic signature"
+                }
+
+            # Extract public key and signature
+            public_key_hex = auth_data.get('publicKey')
+            signature_hex = auth_data.get('signature')
+
+            if not public_key_hex or not signature_hex:
+                logger.warning("Missing publicKey or signature in auth data")
+                return {
+                    "status": "error",
+                    "message": "Authentication failed: Missing public key or signature"
+                }
+
+            # Hash the command message (same as frontend does)
+            message_hash = keccak(command_str.encode('utf-8'))
+            
+            # Parse the signature
+            try:
+                # Convert hex signature to bytes
+                sig_bytes = bytes.fromhex(signature_hex.removeprefix('0x'))
+                
+                # Ethereum signatures have v=27 or 28, but eth_keys expects v=0 or 1
+                # Adjust the v value (last byte) if it's in Ethereum format
+                if len(sig_bytes) == 65:  # Standard signature format: r(32) + s(32) + v(1)
+                    v = sig_bytes[64]
+                    if v >= 27:  # Ethereum format
+                        sig_bytes = sig_bytes[:64] + bytes([v - 27])
+                
+                signature = keys.Signature(signature_bytes=sig_bytes)
+            except (ValueError, ValidationError) as e:
+                logger.warning(f"Invalid signature format: {e}")
+                return {
+                    "status": "error",
+                    "message": "Authentication failed: Invalid signature format"
+                }
+
+            # Recover public key from signature
+            try:
+                recovered_public_key = signature.recover_public_key_from_msg_hash(message_hash)
+                recovered_address = recovered_public_key.to_address()
+            except (BadSignature, ValidationError) as e:
+                logger.warning(f"Signature recovery failed: {e}")
+                return {
+                    "status": "error",
+                    "message": "Authentication failed: Invalid signature"
+                }
+
+            # Verify the recovered address matches the provided public key
+            if recovered_address.lower() != public_key_hex.lower():
+                logger.warning(f"Public key mismatch: expected {public_key_hex}, got {recovered_address}")
+                return {
+                    "status": "error",
+                    "message": "Authentication failed: Signature verification failed"
+                }
+
+            logger.info(f"Signature verified successfully for public key: {public_key_hex}")
+            return {
+                "status": "success",
+                "public_key": public_key_hex
+            }
+
+        except Exception as e:
+            logger.error(f"Signature verification error: {e}")
+            return {
+                "status": "error",
+                "message": f"Authentication failed: {str(e)}"
+            }
+
+    def _build_execution_context(self, command_name: str, public_key: Optional[str] = None) -> Dict[str, Any]:
         """
         Build the execution context for a command.
 
         Args:
             command_name: Name of the command being executed
+            public_key: Verified public key (if signature verification was performed)
 
         Returns:
             Dictionary containing all required context for command execution
@@ -253,6 +385,10 @@ class CommandService:
             'command_definitions': self._command_definitions,
             **self.services  # Inject all available services
         }
+
+        # Inject verified public key if available
+        if public_key:
+            context['public_key'] = public_key
 
         logger.debug(f"Built execution context for command '{command_name}'")
         return context

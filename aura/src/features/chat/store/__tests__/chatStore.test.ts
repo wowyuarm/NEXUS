@@ -486,9 +486,9 @@ describe('chatStore', () => {
       expect(state.messages[0].content).toEqual({ command: '/ping' });
       expect(state.messages[0].metadata?.status).toBe('pending');
 
-      // Should have sent to server
+      // Should have sent to server (without signature since /ping doesn't require it)
       const { websocketManager } = await import('@/services/websocket/manager');
-      expect(websocketManager.sendCommand).toHaveBeenCalledWith('/ping');
+      expect(websocketManager.sendCommand).toHaveBeenCalledWith('/ping', undefined);
     });
 
     it('should handle unknown client command gracefully', async () => {

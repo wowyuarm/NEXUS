@@ -21,6 +21,10 @@ openai
 # Web Search Tool
 tavily-python
 
+# Cryptography for signature verification
+eth-keys
+eth-hash[pycryptodome]
+
 # Testing
 pytest
 pytest-asyncio

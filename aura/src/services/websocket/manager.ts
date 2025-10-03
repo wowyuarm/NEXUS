@@ -212,18 +212,22 @@ export class WebSocketManager {
     }
   }
 
-  sendCommand(command: string): void {
+  sendCommand(command: string, auth?: { publicKey: string; signature: string }): void {
     if (!this.isConnected || !this.ws) {
       console.error('Cannot send command: WebSocket not connected');
       return;
     }
 
-    const message = createSystemCommandMessage(command, this.publicKey);
+    const message = createSystemCommandMessage(command, this.publicKey, auth);
     const messageStr = JSON.stringify(message);
 
     try {
       this.ws.send(messageStr);
-      console.log('Sent command to NEXUS:', { command, publicKey: this.publicKey });
+      console.log('Sent command to NEXUS:', { 
+        command, 
+        publicKey: this.publicKey,
+        signed: !!auth
+      });
     } catch (error) {
       console.error('Failed to send command:', error);
     }

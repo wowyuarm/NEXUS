@@ -1,8 +1,13 @@
-import { Wallet } from 'ethers';
+import { Wallet, keccak256, toUtf8Bytes } from 'ethers';
 
 export interface Identity {
   privateKey: string;
   publicKey: string;
+}
+
+export interface CommandAuth {
+  publicKey: string;
+  signature: string;
 }
 
 const STORAGE_KEY = 'nexus_private_key';
@@ -96,6 +101,47 @@ export const IdentityService = {
     } catch (error) {
       console.warn('Failed to check identity in localStorage:', error);
       return false;
+    }
+  },
+
+  /**
+   * Sign a command string using the stored private key
+   * This creates a cryptographic signature proving ownership of the identity
+   * 
+   * IMPORTANT: This uses raw keccak256 hashing without Ethereum's message prefix
+   * to match the backend verification logic.
+   * 
+   * @param command - The command string to sign (e.g., "/identity")
+   * @returns Auth object containing publicKey and signature
+   * @throws Error if no identity exists in storage
+   */
+  async signCommand(command: string): Promise<CommandAuth> {
+    try {
+      // Get the stored private key
+      const privateKey = localStorage.getItem(STORAGE_KEY);
+      
+      if (!privateKey) {
+        throw new Error('No identity found. Cannot sign command without a private key.');
+      }
+
+      // Create wallet instance from private key
+      const wallet = new Wallet(privateKey);
+
+      // Hash the command using keccak256 (same as backend)
+      // This is a RAW hash without Ethereum's "\x19Ethereum Signed Message:\n" prefix
+      const messageHash = keccak256(toUtf8Bytes(command));
+
+      // Sign the message hash directly using the signing key
+      // We use signingKey.sign() instead of signMessage() to avoid the Ethereum prefix
+      const signature = wallet.signingKey.sign(messageHash);
+
+      return {
+        publicKey: wallet.address,
+        signature: signature.serialized  // Get the serialized signature in hex format
+      };
+    } catch (error) {
+      console.error('Failed to sign command:', error);
+      throw error;
     }
   }
 };

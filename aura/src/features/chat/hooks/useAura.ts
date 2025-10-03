@@ -107,8 +107,8 @@ export function useAura(): UseAuraReturn {
     resetSelection
   } = useCommandStore();
 
-  // Load commands dynamically from backend
-  useCommandLoader();
+  // Load commands dynamically from backend after WebSocket connects
+  useCommandLoader({ isConnected });
 
   // ===== WebSocket Event Handlers =====
 
