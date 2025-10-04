@@ -15,7 +15,7 @@ COMMAND_DEFINITION = {
     "name": "clear",
     "description": "Clear the chat messages from view (context history preserved)",
     "usage": "/clear",
-    "execution_target": "client",
+    "handler": "client",
     "examples": [
         "/clear"
     ]

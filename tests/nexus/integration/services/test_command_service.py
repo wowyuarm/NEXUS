@@ -108,16 +108,16 @@ class TestCommandServiceIntegration:
         assert "data" in result_message.content
         assert "commands" in result_message.content["data"]
         
-        # Verify command definitions include execution_target
+        # Verify command definitions include handler
         commands = result_message.content["data"]["commands"]
         assert "ping" in commands
         assert "help" in commands
         assert "clear" in commands
         
-        # Verify execution_target field is present
-        assert commands["ping"]["execution_target"] == "server"
-        assert commands["help"]["execution_target"] == "server" 
-        assert commands["clear"]["execution_target"] == "client"
+        # Verify handler field is present
+        assert commands["ping"]["handler"] == "server"
+        assert commands["help"]["handler"] == "server" 
+        assert commands["clear"]["handler"] == "client"
         
         assert result_message.run_id == "test-run-789"
         assert result_message.session_id == "test-session-012"

@@ -47,12 +47,6 @@ export interface Command {
   /** Determines how/where the command is executed */
   handler: CommandHandler;
   
-  /** 
-   * Legacy field for backward compatibility
-   * Maps to handler: 'client' | 'server' -> 'client' | 'websocket'
-   * @deprecated Use 'handler' instead
-   */
-  execution_target?: 'client' | 'server';
   
   /** REST configuration (required if handler is 'rest') */
   restOptions?: RestOptions;
@@ -87,28 +81,14 @@ export function isRestCommand(command: Command): boolean {
  * Type guard to check if a command uses WebSocket handler
  */
 export function isWebSocketCommand(command: Command): boolean {
-  return command.handler === 'websocket' || command.execution_target === 'server';
+  return command.handler === 'websocket';
 }
 
 /**
  * Type guard to check if a command uses client handler
  */
 export function isClientCommand(command: Command): boolean {
-  return command.handler === 'client' || command.execution_target === 'client';
-}
-
-/**
- * Normalize legacy command format to new format
- * Converts execution_target to handler for backward compatibility
- */
-export function normalizeCommand(command: Command): Command {
-  if (!command.handler && command.execution_target) {
-    return {
-      ...command,
-      handler: command.execution_target === 'server' ? 'websocket' : 'client'
-    };
-  }
-  return command;
+  return command.handler === 'client';
 }
 
 

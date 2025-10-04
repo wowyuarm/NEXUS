@@ -418,14 +418,18 @@ class CommandService:
 
         logger.info(f"Published command result for run_id={original_message.run_id}")
 
-    def get_registered_commands(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_command_definitions(self) -> list[Dict[str, Any]]:
         """
-        Get all registered command definitions.
+        Get all registered command definitions as a list.
+        
+        This method returns command definitions in list format, suitable for
+        JSON serialization and REST API responses. Each definition contains
+        metadata including name, handler, description, usage, and examples.
 
         Returns:
-            Dictionary mapping command names to their definitions
+            List of command definition dictionaries
         """
-        return self._command_definitions.copy()
+        return list(self._command_definitions.values())
 
     def is_command_registered(self, command_name: str) -> bool:
         """

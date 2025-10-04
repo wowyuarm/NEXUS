@@ -11,7 +11,7 @@ NEXUS 指令系统采用**自动发现机制**，只需在 `nexus/commands/defin
 ### 核心原则
 
 1. **后端是唯一事实来源**：所有指令的定义和元数据由后端声明
-2. **执行位置透明**：通过 `execution_target` 明确指令在客户端或服务器端执行
+2. **执行位置透明**：通过 `handler` 明确指令在客户端或服务器端执行
 3. **自动发现**：无需手动注册，符合规范即可被系统识别
 
 ---
@@ -37,7 +37,7 @@ COMMAND_DEFINITION = {
     "name": "your_command",
     "description": "Brief description of what this command does",
     "usage": "/your_command",
-    "execution_target": "server",  # 'server' 或 'client'
+    "handler": "server",  # 'server' 或 'client'
     "examples": [
         "/your_command"
     ]
@@ -76,11 +76,11 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
 | `name` | `str` | ✅ | 指令名称（不含 `/` 前缀） |
 | `description` | `str` | ✅ | 指令的简短描述 |
 | `usage` | `str` | ✅ | 使用示例（含 `/` 前缀） |
-| `execution_target` | `str` | ✅ | `"server"` 或 `"client"` |
+| `handler` | `str` | ✅ | `"server"` 或 `"client"` |
 | `examples` | `List[str]` | ✅ | 使用示例列表 |
 | `parameters` | `Dict` | ❌ | 参数定义（未来支持） |
 
-### execution_target 选择指南
+### handler 选择指南
 
 #### 选择 `"server"`（服务器端执行）
 
@@ -170,7 +170,7 @@ COMMAND_DEFINITION = {
     "name": "stats",
     "description": "Display system statistics and metrics",
     "usage": "/stats",
-    "execution_target": "server",
+    "handler": "server",
     "examples": [
         "/stats"
     ]
@@ -235,7 +235,7 @@ COMMAND_DEFINITION = {
     "name": "theme",
     "description": "Toggle between light and dark theme",
     "usage": "/theme",
-    "execution_target": "client",
+    "handler": "client",
     "examples": [
         "/theme"
     ]
@@ -309,7 +309,7 @@ pytest tests/commands/ -v
 - [ ] 文件位于 `nexus/commands/definition/` 目录
 - [ ] 包含符合规范的 `COMMAND_DEFINITION`
 - [ ] 包含 `async def execute(context)` 函数
-- [ ] `execution_target` 设置正确
+- [ ] `handler` 设置正确
 - [ ] 添加了详细的文档字符串
 - [ ] 包含适当的日志记录
 - [ ] 错误处理完善（使用异常或返回错误状态）
@@ -349,7 +349,7 @@ pytest tests/commands/ -v
 1. 用户输入 / 触发 CommandPalette
 2. 选择指令并执行
 3. chatStore.executeCommand 分发
-4. 根据 execution_target 路由：
+4. 根据 handler 路由：
    - client: 前端直接处理
    - server: WebSocket 发送到后端
 5. 后端 CommandService 执行
@@ -417,7 +417,7 @@ except Exception as e:
 
 **解决方案**：
 - 检查前端是否正确获取了指令元数据
-- 验证 `execution_target` 是否为 `"client"`
+- 验证 `handler` 是否为 `"client"`
 - 清空前端缓存并重新加载
 
 ### 指令执行失败

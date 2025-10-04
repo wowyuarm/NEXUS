@@ -16,7 +16,7 @@ COMMAND_DEFINITION = {
     "name": "identity",
     "description": "Identity verification - returns your verified public key",
     "usage": "/identity",
-    "execution_target": "server",
+    "handler": "server",
     "requires_signature": True,  # This command requires cryptographic signature
     "examples": [
         "/identity"

@@ -1,7 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useCommandStore } from '../store/commandStore';
 import { fetchCommands } from '../api';
-import { normalizeCommand } from '../command.types';
 import type { Command } from '../command.types';
 
 // Fallback commands for when backend is unavailable
@@ -64,11 +63,8 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
       console.log('🔄 Loading commands from REST API...');
       const commands = await fetchCommands();
       
-      // Normalize commands for backward compatibility
-      const normalizedCommands = commands.map(normalizeCommand);
-      
-      setCommands(normalizedCommands);
-      console.log(`✅ Successfully loaded ${normalizedCommands.length} commands from backend`);
+      setCommands(commands);
+      console.log(`✅ Successfully loaded ${commands.length} commands from backend`);
       
     } catch (error) {
       console.warn('⚠️ Failed to load commands from backend, using fallback:', error);

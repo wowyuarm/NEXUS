@@ -65,21 +65,14 @@ async def get_all_commands(
                 "name": "help",
                 "description": "Show available commands",
                 "usage": "/help",
-                "execution_target": "server",
+                "handler": "server",
                 "examples": ["/help"]
             }
         ]
     """
     try:
         # Get command definitions from CommandService
-        # For now, return an empty list as a skeleton implementation
-        # This will be enhanced when we add the method to CommandService
-        commands = []
-        
-        if hasattr(cmd_svc, '_command_definitions'):
-            # Extract command metadata from the service's internal registry
-            for cmd_name, cmd_def in cmd_svc._command_definitions.items():
-                commands.append(cmd_def)
+        commands = cmd_svc.get_all_command_definitions()
         
         logger.info(f"Retrieved {len(commands)} commands via REST API")
         return commands

@@ -16,7 +16,7 @@ COMMAND_DEFINITION = {
     "name": "help",
     "description": "Display information about available commands",
     "usage": "/help",
-    "execution_target": "server",
+    "handler": "server",
     "examples": [
         "/help"
     ]
