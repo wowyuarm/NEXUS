@@ -73,26 +73,26 @@ class TestCommandServiceUnit:
             assert "examples" in cmd, f"Command {cmd.get('name')} missing 'examples' field"
             
             # Verify handler has valid value
-            assert cmd["handler"] in ["server", "client"], \
+            assert cmd["handler"] in ["websocket", "client", "rest"], \
                 f"Command {cmd['name']} has invalid handler: {cmd['handler']}"
 
     def test_get_all_command_definitions_handler_field_values(self, command_service):
         """
         Test that specific commands have correct handler field values.
         
-        - ping, help, identity: handler = "server"
+        - ping, help, identity: handler = "websocket"
         - clear: handler = "client"
         """
         result = command_service.get_all_command_definitions()
         commands_by_name = {cmd["name"]: cmd for cmd in result}
         
-        # Server-side commands
-        assert commands_by_name["ping"]["handler"] == "server", \
-            "ping command should have handler='server'"
-        assert commands_by_name["help"]["handler"] == "server", \
-            "help command should have handler='server'"
-        assert commands_by_name["identity"]["handler"] == "server", \
-            "identity command should have handler='server'"
+        # WebSocket commands
+        assert commands_by_name["ping"]["handler"] == "websocket", \
+            "ping command should have handler='websocket'"
+        assert commands_by_name["help"]["handler"] == "websocket", \
+            "help command should have handler='websocket'"
+        assert commands_by_name["identity"]["handler"] == "websocket", \
+            "identity command should have handler='websocket'"
         
         # Client-side command
         assert commands_by_name["clear"]["handler"] == "client", \
@@ -120,7 +120,7 @@ class TestCommandServiceUnit:
 
     def test_identity_command_has_requires_signature_field(self, command_service):
         """
-        Test that identity command has requires_signature field set to True.
+        Test that identity command has requiresSignature field set to True.
         
         This field is critical for signature verification in authenticated commands.
         """
@@ -128,8 +128,8 @@ class TestCommandServiceUnit:
         commands_by_name = {cmd["name"]: cmd for cmd in result}
         
         identity_cmd = commands_by_name["identity"]
-        assert "requires_signature" in identity_cmd, \
-            "identity command should have requires_signature field"
-        assert identity_cmd["requires_signature"] is True, \
+        assert "requiresSignature" in identity_cmd, \
+            "identity command should have requiresSignature field"
+        assert identity_cmd["requiresSignature"] is True, \
             "identity command should require signature"
 

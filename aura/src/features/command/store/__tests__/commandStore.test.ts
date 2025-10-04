@@ -4,8 +4,8 @@ import { useCommandStore } from '@/features/command/store/commandStore';
 describe('commandStore', () => {
   beforeEach(() => {
     useCommandStore.setState({
-      isCommandListOpen: false,
-      commandQuery: '',
+      isPaletteOpen: false,
+      query: '',
       isLoading: false,
       availableCommands: [
         { 
@@ -37,17 +37,17 @@ describe('commandStore', () => {
   describe('Palette state', () => {
     it('opens and closes palette', () => {
       const store = useCommandStore.getState();
-      store.openCommandList();
-      expect(useCommandStore.getState().isCommandListOpen).toBe(true);
-      store.closeCommandList();
-      expect(useCommandStore.getState().isCommandListOpen).toBe(false);
+      store.openPalette();
+      expect(useCommandStore.getState().isPaletteOpen).toBe(true);
+      store.closePalette();
+      expect(useCommandStore.getState().isPaletteOpen).toBe(false);
     });
 
     it('sets command query and resets selection', () => {
       const store = useCommandStore.getState();
-      store.setCommandQuery('pi');
+      store.setQuery('pi');
       const state = useCommandStore.getState();
-      expect(state.commandQuery).toBe('pi');
+      expect(state.query).toBe('pi');
       expect(state.selectedCommandIndex).toBe(0);
     });
   });
@@ -90,7 +90,7 @@ describe('commandStore', () => {
 
     it('respects filtering when navigating', () => {
       const store = useCommandStore.getState();
-      store.setCommandQuery('h'); // only 'help'
+      store.setQuery('h'); // only 'help'
       // Next should clamp to 0; Prev should clamp to 0
       store.selectNextCommand();
       expect(useCommandStore.getState().selectedCommandIndex).toBe(0);
@@ -100,7 +100,7 @@ describe('commandStore', () => {
 
     it('sets selection to -1 when no commands match', () => {
       const store = useCommandStore.getState();
-      store.setCommandQuery('xyz');
+      store.setQuery('xyz');
       store.selectNextCommand();
       expect(useCommandStore.getState().selectedCommandIndex).toBe(-1);
       store.resetSelection();

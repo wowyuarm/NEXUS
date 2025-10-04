@@ -25,14 +25,14 @@ export const ChatContainer = () => {
     messages,
     currentRun,
     toolCallHistory,
-    isCommandListOpen,
-    commandQuery,
+    isPaletteOpen,
+    query,
     selectedCommandIndex,
     availableCommands,
     sendMessage,
-    openCommandList,
-    closeCommandList,
-    setCommandQuery,
+    openPalette,
+    closePalette,
+    setQuery,
     setSelectedCommandIndex,
     executeCommand
   } = useAura();
@@ -71,13 +71,13 @@ export const ChatContainer = () => {
       onScrollToBottom={handleScrollToBottom}
       suppressAutoScroll={suppressAutoScroll}
       // Command props
-      isCommandListOpen={isCommandListOpen}
-      commandQuery={commandQuery}
+      isPaletteOpen={isPaletteOpen}
+      query={query}
       availableCommands={availableCommands}
       selectedCommandIndex={selectedCommandIndex}
-      onOpenCommandList={openCommandList}
-      onCloseCommandList={closeCommandList}
-      onSetCommandQuery={setCommandQuery}
+      onOpenPalette={openPalette}
+      onClosePalette={closePalette}
+      onSetQuery={setQuery}
       onSetSelectedCommandIndex={setSelectedCommandIndex}
       onExecuteCommand={executeCommand}
     />

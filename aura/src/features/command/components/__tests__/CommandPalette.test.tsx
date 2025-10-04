@@ -1,7 +1,7 @@
 /**
- * CommandList Component Tests
+ * CommandPalette Component Tests
  * 
- * Tests for the CommandList component's filtering, selection, and interaction logic
+ * Tests for the CommandPalette component's filtering, selection, and interaction logic
  * Verifies command filtering, keyboard navigation, and execution
  */
 
@@ -9,7 +9,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CommandList } from '../CommandList';
+import { CommandPalette } from '../CommandPalette';
 import type { Command } from '../../command.types';
 
 // Mock framer-motion
@@ -45,7 +45,7 @@ const createTestProps = (overrides = {}) => ({
   ...overrides
 });
 
-describe('CommandList', () => {
+describe('CommandPalette', () => {
   const mockOnClose = vi.fn();
   const mockOnExecute = vi.fn();
   const mockOnSelectIndex = vi.fn();
@@ -61,13 +61,13 @@ describe('CommandList', () => {
   describe('Rendering', () => {
     it('renders nothing when isOpen is false', () => {
       const props = createTestProps({ isOpen: false });
-      const { container } = render(<CommandList {...props} />);
+      const { container } = render(<CommandPalette {...props} />);
       expect(container.firstChild).toBeNull();
     });
 
-    it('renders basic command list', () => {
+    it('renders basic command palette', () => {
       const props = createTestProps();
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       expect(screen.getByText('/ping')).toBeInTheDocument();
       expect(screen.getByText('/help')).toBeInTheDocument();
     });
@@ -76,7 +76,7 @@ describe('CommandList', () => {
   describe('Command Filtering', () => {
     it('shows all commands when query is empty', () => {
       const props = createTestProps({ query: '' });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       expect(screen.getByText('/ping')).toBeInTheDocument();
       expect(screen.getByText('/help')).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe('CommandList', () => {
 
     it('filters commands by query (case insensitive)', () => {
       const props = createTestProps({ query: 'h' });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       expect(screen.getByText('/help')).toBeInTheDocument();
       expect(screen.queryByText('/ping')).not.toBeInTheDocument();
@@ -94,7 +94,7 @@ describe('CommandList', () => {
 
     it('filters commands by query (case insensitive) - uppercase', () => {
       const props = createTestProps({ query: 'H' });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       expect(screen.getByText('/help')).toBeInTheDocument();
       expect(screen.queryByText('/ping')).not.toBeInTheDocument();
@@ -103,7 +103,7 @@ describe('CommandList', () => {
 
     it('shows no commands when query matches nothing', () => {
       const props = createTestProps({ query: 'xyz' });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       expect(screen.queryByText('/ping')).not.toBeInTheDocument();
       expect(screen.queryByText('/help')).not.toBeInTheDocument();
@@ -112,7 +112,7 @@ describe('CommandList', () => {
 
     it('shows empty state when no commands match', () => {
       const props = createTestProps({ query: 'xyz' });
-      const { container } = render(<CommandList {...props} />);
+      const { container } = render(<CommandPalette {...props} />);
       
       // Should render empty div with height
       const emptyDiv = container.querySelector('.h-12');
@@ -123,7 +123,7 @@ describe('CommandList', () => {
   describe('Command Selection', () => {
     it('highlights selected command', () => {
       const props = createTestProps({ selectedIndex: 1 });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       const helpButton = screen.getByText('/help').closest('button');
       expect(helpButton).toHaveClass('bg-accent/30');
@@ -131,7 +131,7 @@ describe('CommandList', () => {
 
     it('does not highlight non-selected commands', () => {
       const props = createTestProps({ selectedIndex: 1 });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       const pingButton = screen.getByText('/ping').closest('button');
       const identityButton = screen.getByText('/identity').closest('button');
@@ -142,7 +142,7 @@ describe('CommandList', () => {
 
     it('updates selection on mouse enter', async () => {
       const props = createTestProps({ onSelectIndex: mockOnSelectIndex });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       const helpButton = screen.getByText('/help').closest('button');
       await user.hover(helpButton!);
@@ -154,7 +154,7 @@ describe('CommandList', () => {
   describe('Command Execution', () => {
     it('executes command on click', async () => {
       const props = createTestProps({ onExecute: mockOnExecute });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       const helpButton = screen.getByText('/help').closest('button');
       await user.click(helpButton!);
@@ -164,7 +164,7 @@ describe('CommandList', () => {
 
     it('executes different commands correctly', async () => {
       const props = createTestProps({ onExecute: mockOnExecute });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       const pingButton = screen.getByText('/ping').closest('button');
       await user.click(pingButton!);
@@ -179,7 +179,7 @@ describe('CommandList', () => {
         query: 'h', 
         selectedIndex: 0 // First (and only) command in filtered list
       });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       const helpButton = screen.getByText('/help').closest('button');
       expect(helpButton).toHaveClass('bg-accent/30');
@@ -190,7 +190,7 @@ describe('CommandList', () => {
         query: 'i', 
         selectedIndex: 0 // First command in filtered list (identity)
       });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       const identityButton = screen.getByText('/identity').closest('button');
       expect(identityButton).toHaveClass('bg-accent/30');
@@ -200,7 +200,7 @@ describe('CommandList', () => {
   describe('Accessibility', () => {
     it('renders buttons with role', () => {
       const props = createTestProps();
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       const buttons = screen.getAllByRole('button');
       expect(buttons.length).toBeGreaterThan(0);
     });
@@ -209,7 +209,7 @@ describe('CommandList', () => {
   describe('Edge Cases', () => {
     it('handles empty commands array', () => {
       const props = createTestProps({ availableCommands: [] });
-      const { container } = render(<CommandList {...props} />);
+      const { container } = render(<CommandPalette {...props} />);
       
       const emptyDiv = container.querySelector('.h-12');
       expect(emptyDiv).toBeInTheDocument();
@@ -217,7 +217,7 @@ describe('CommandList', () => {
 
     it('handles selectedIndex out of bounds', () => {
       const props = createTestProps({ selectedIndex: 999 });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       // Should not crash and no command should be highlighted
       const buttons = screen.getAllByRole('button');
@@ -228,7 +228,7 @@ describe('CommandList', () => {
 
     it('handles negative selectedIndex', () => {
       const props = createTestProps({ selectedIndex: -1 });
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       
       // Should not crash and no command should be highlighted
       const buttons = screen.getAllByRole('button');
@@ -241,8 +241,9 @@ describe('CommandList', () => {
   describe('Animation and Styling', () => {
     it('mounts without motion errors', () => {
       const props = createTestProps();
-      render(<CommandList {...props} />);
+      render(<CommandPalette {...props} />);
       expect(screen.getByText('/ping')).toBeInTheDocument();
     });
   });
 });
+

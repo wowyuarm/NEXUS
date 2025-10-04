@@ -1,7 +1,7 @@
 /**
- * CommandList Component
+ * CommandPalette Component
  *
- * A lightweight command list that appears directly above the ChatInput
+ * A lightweight command palette that appears directly above the ChatInput
  * when the user starts typing a command. This is not a modal or popup,
  * but rather a natural extension of the ChatInput interface.
  *
@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { Command } from '../command.types';
 
-interface CommandListProps {
+interface CommandPaletteProps {
   isOpen: boolean;
   query: string;
   availableCommands: Command[];
@@ -26,7 +26,7 @@ interface CommandListProps {
   onSelectIndex: (index: number) => void;
 }
 
-export const CommandList: React.FC<CommandListProps> = ({
+export const CommandPalette: React.FC<CommandPaletteProps> = ({
   isOpen,
   query,
   availableCommands,
@@ -70,7 +70,7 @@ export const CommandList: React.FC<CommandListProps> = ({
         }}
         className="absolute bottom-full left-0 right-0 mb-2 z-40"
       >
-        {/* Command List Container */}
+        {/* Command Palette Container */}
         <div
           ref={listRef}
           className="bg-card border border-border rounded-lg shadow-lg shadow-black/20 overflow-hidden max-h-[30vh] overflow-y-auto"
@@ -117,3 +117,4 @@ export const CommandList: React.FC<CommandListProps> = ({
     </AnimatePresence>
   );
 };
+

@@ -527,3 +527,121 @@
 **你必须首先了解当前实现，发现出入与不完善之处。注意遵循TDD原则**
 
 ---
+
+---
+---
+本次任务是对指令核心（Command Core）系统进行一次全面的架构正规化重构。你必须以本委托单描述的**最终状态**为唯一目标，检视当前代码库，移除所有冗余、冲突或不符合最终架构的实现，并补充缺失的逻辑，最终交付一个职责清晰、逻辑统一、代码纯粹的指令系统。
+
+---
+
+### **第一部分：最终系统架构规范 (Final System Architecture Specification)**
+
+#### **1.1 核心原则 (Core Principles)**
+
+1.  **后端单一事实来源 (Backend SSOT):** NEXUS后端是所有指令元数据（包括名称、描述、执行类型`handler`）的唯一权威来源。
+2.  **通信双通道 (Dual-Channel Communication):**
+    *   **REST API:** 用于一次性的、无状态的元数据拉取。
+    *   **WebSocket:** 用于实时的、需要认证的操作指令。
+3.  **职责分离 (Separation of Concerns):** 前后端的每一个模块都必须有单一、明确的职责。特别地，前端的状态管理必须在`chatStore`（对话）和`commandStore`（指令UI）之间严格分离。
+
+#### **1.2 权威数据结构 (Authoritative Data Structures)**
+
+*   **指令定义 (`Command` Interface):** 这是前后端的核心契约。
+    ```typescript
+    // src/features/command/commands.types.ts
+    export interface Command {
+      name: string;
+      description: string;
+      handler: 'client' | 'websocket' | 'rest';
+      requiresSignature?: boolean; // 新增：明确指令是否需要签名
+      // REST指令的元数据
+      restOptions?: {
+        endpoint: string;
+        method: 'GET' | 'POST' | 'PUT';
+      };
+    }
+    ```
+*   **系统消息内容 (`SystemMessageContent`):** 这是`SYSTEM`角色消息的统一内容结构。
+    ```typescript
+    // src/features/chat/types.ts (或类似位置)
+    export interface SystemMessageContent {
+      command: string;      // 例如: "/ping"
+      result?: string | object; // 指令的执行结果
+    }
+    ```
+
+---
+
+### **第二部分：NEXUS后端最终状态 (Backend Final State)**
+
+#### **2.1 模块职责**
+
+*   **`nexus/commands/definition/*.py`:**
+    *   **职责:** 作为单个指令的原子定义单元。
+    *   **契约:** 每个文件必须导出`COMMAND_DEFINITION`字典，该字典必须包含`name`, `description`, `handler` (`'client'`或`'server'`)，以及可选的`requiresSignature: true`。
+*   **`nexus/services/command.py` (`CommandService`):**
+    *   **职责:** 动态指令调度器。负责在启动时**自动发现并注册**所有指令，**验证**传入指令的签名（如果需要），**分派**给对应的`execute`函数，并将结果发布回总线。**它不包含任何特定指令的业务逻辑。**
+*   **`nexus/interfaces/rest.py`:**
+    *   **职责:** 系统的“公共目录”。
+    *   **契约:** 必须提供一个`GET /api/v1/commands`端点，该端点通过依赖注入调用`CommandService.get_all_command_definitions()`，并返回一个符合前端`Command[]`接口的JSON数组。
+*   **`nexus/interfaces/websocket.py`:**
+    *   **职责:** 系统的“实时操作总线”。
+    *   **契约:**
+        *   接收`type: 'system_command'`的WebSocket消息，并将其发布到`SYSTEM_COMMAND`总线主题。
+        *   订阅`COMMAND_RESULT`总线主题，并将结果作为`event: 'command_result'`的UI事件发送回前端。
+
+---
+
+### **第三部分：AURA前端最终状态 (Frontend Final State)**
+
+#### **3.1 模块职责**
+
+*   **`src/features/command/store/commandStore.ts`:**
+    *   **职责:** **唯一**负责管理**指令面板UI状态**。
+    *   **状态清单:** `isPaletteOpen`, `query`, `availableCommands`, `isLoading`, `selectedCommandIndex`。**不应包含任何与聊天消息相关的内容。**
+*   **`src/features/chat/store/chatStore.ts`:**
+    *   **职责:** **唯一**负责管理**对话流状态**。
+    *   **状态清单:** `messages`, `currentRun`, `isConnected`等。
+    *   **与指令系统的交互:** 它提供`createPendingSystemMessage`和`updateSystemMessageResult`等actions，供`commandExecutor`调用，以在对话流中反映指令的执行状态。它**不**知道指令是如何被执行的。
+*   **`src/features/command/api.ts`:**
+    *   **职责:** **唯一**负责与后端REST API进行通信的模块。
+    *   **契约:** 必须提供`fetchCommands()`函数，用于调用`GET /api/v1/commands`。
+*   **`src/features/command/hooks/useCommandLoader.ts`:**
+    *   **职责:** 应用的“指令引导程序”。
+    *   **契约:** 必须在**WebSocket连接成功后**，调用`api.fetchCommands()`获取指令列表，并将其存入`commandStore`。必须包含一个健壮的**Fallback机制**。
+*   **`src/features/command/commandExecutor.ts`:**
+    *   **职责:** **唯一的指令执行分发中枢**。
+    *   **契约:** 导出一个`executeCommand(command: Command)`函数。该函数内部必须实现基于`command.handler`的`switch`逻辑，以决定是调用客户端函数、WebSocket还是REST API。
+*   **UI组件 (`CommandPalette.tsx`, `ChatMessage.tsx`等):**
+    *   **职责:** 作为“哑”视图组件。它们只负责从`store`中读取状态并渲染，以及将用户交互委托给`commandExecutor`或`store`的`actions`。
+
+#### **3.2 最终数据流 (Canonical Data Flow)**
+
+*   **指令加载流程:**
+    1.  AURA启动 → WebSocket连接成功。
+    2.  `useCommandLoader`触发 → 调用 `api.fetchCommands()`。
+    3.  `GET /api/v1/commands`请求 → 后端`rest.py`响应。
+    4.  `useCommandLoader`将结果存入`commandStore.setCommands()`。
+*   **指令执行流程 (`/ping` - `websocket`):**
+    1.  用户在`CommandPalette`中选择`/ping`并回车。
+    2.  UI调用 `commandExecutor.executeCommand({ name: '/ping', handler: 'websocket', ... })`。
+    3.  `commandExecutor`调用`chatStore.createPendingSystemMessage('/ping')`。
+    4.  `commandExecutor`调用`websocketManager.sendCommand('/ping', authObject)`。
+    5.  ...后端处理...
+    6.  `websocketManager`接收到`command_result`事件。
+    7.  `chatStore.updateSystemMessageResult(...)`更新消息。
+*   **指令执行流程 (`/clear` - `client`):**
+    1.  用户在`CommandPalette`中选择`/clear`并回车。
+    2.  UI调用 `commandExecutor.executeCommand({ name: '/clear', handler: 'client', ... })`。
+    3.  `commandExecutor`直接调用 `chatStore.clearMessages()`。
+    4.  `commandExecutor`调用`chatStore.createFinalSystemMessage(...)`以显示成功信息。
+
+#### **四、任务要求与验收标准 (Mandates & Acceptance Criteria)**
+
+*   **代码清理:** 工程师AI必须主动识别并移除所有与上述规范不符的冗余代码、冲突逻辑或过时文件（例如`normalizeCommand()`函数、前端静态`commands.ts`等）。
+*   **TDD遵从:** 所有被修改或重构的逻辑部分，都必须有对应的、通过的单元或集成测试。测试文件结构应与源码结构保持一致。
+*   **最终状态验证:** 任务完成的唯一标准是，代码库的结构和行为**完全符合**本委托单中描述的最终状态。请在完成任务后，提供一份简要的“重构报告”，说明你是如何将现有代码调整为符合新规范的。
+
+---
+
+这份蓝图就是我们对“指令核心”的最终定义。请以此为唯一依据，开始你的探索与重构。

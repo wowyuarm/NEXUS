@@ -14,13 +14,13 @@ import { ChatInput } from '@/features/chat/components/ChatInput';
 // Helper function to create default props for testing
 const createTestProps = (overrides = {}) => ({
   onSendMessage: vi.fn(),
-  isCommandListOpen: false,
-  commandQuery: '',
+  isPaletteOpen: false,
+  query: '',
   availableCommands: [],
   selectedCommandIndex: 0,
-  onOpenCommandList: vi.fn(),
-  onCloseCommandList: vi.fn(),
-  onSetCommandQuery: vi.fn(),
+  onOpenPalette: vi.fn(),
+  onClosePalette: vi.fn(),
+  onSetQuery: vi.fn(),
   onSetSelectedCommandIndex: vi.fn(),
   onExecuteCommand: vi.fn(),
   ...overrides
@@ -378,8 +378,8 @@ describe('ChatInput', () => {
     it('executes filtered command on Enter prioritizing query over selection', async () => {
       const onExecuteCommand = vi.fn();
       const props = createTestProps({
-        isCommandListOpen: true,
-        commandQuery: 'help',
+        isPaletteOpen: true,
+        query: 'help',
         availableCommands: [
           { name: 'ping', description: '' },
           { name: 'help', description: '' },
@@ -398,8 +398,8 @@ describe('ChatInput', () => {
     it('navigates within filtered commands length', async () => {
       const onSetSelectedCommandIndex = vi.fn();
       const props = createTestProps({
-        isCommandListOpen: true,
-        commandQuery: 'h',
+        isPaletteOpen: true,
+        query: 'h',
         availableCommands: [
           { name: 'ping', description: '' },
           { name: 'help', description: '' },
@@ -419,12 +419,12 @@ describe('ChatInput', () => {
 
     it('smart-selects exact match when typing after slash', async () => {
       const onSetSelectedCommandIndex = vi.fn();
-      const onOpenCommandList = vi.fn();
-      const onSetCommandQuery = vi.fn();
+      const onOpenPalette = vi.fn();
+      const onSetQuery = vi.fn();
       const props = createTestProps({
         onSetSelectedCommandIndex,
-        onOpenCommandList,
-        onSetCommandQuery,
+        onOpenPalette,
+        onSetQuery,
         availableCommands: [
           { name: 'ping', description: '' },
           { name: 'help', description: '' },
@@ -433,19 +433,19 @@ describe('ChatInput', () => {
       });
       render(<ChatInput {...props} />);
       await user.type(screen.getByTestId('message-input'), '/help');
-      expect(onOpenCommandList).toHaveBeenCalled();
-      expect(onSetCommandQuery).toHaveBeenCalledWith('help');
+      expect(onOpenPalette).toHaveBeenCalled();
+      expect(onSetQuery).toHaveBeenCalledWith('help');
       expect(onSetSelectedCommandIndex).toHaveBeenLastCalledWith(0);
     });
 
     it('sets selection to -1 when no match exists', async () => {
       const onSetSelectedCommandIndex = vi.fn();
-      const onOpenCommandList = vi.fn();
-      const onSetCommandQuery = vi.fn();
+      const onOpenPalette = vi.fn();
+      const onSetQuery = vi.fn();
       const props = createTestProps({
         onSetSelectedCommandIndex,
-        onOpenCommandList,
-        onSetCommandQuery,
+        onOpenPalette,
+        onSetQuery,
         availableCommands: [
           { name: 'ping', description: '' },
           { name: 'help', description: '' },
@@ -454,8 +454,8 @@ describe('ChatInput', () => {
       });
       render(<ChatInput {...props} />);
       await user.type(screen.getByTestId('message-input'), '/x');
-      expect(onOpenCommandList).toHaveBeenCalled();
-      expect(onSetCommandQuery).toHaveBeenCalledWith('x');
+      expect(onOpenPalette).toHaveBeenCalled();
+      expect(onSetQuery).toHaveBeenCalledWith('x');
       expect(onSetSelectedCommandIndex).toHaveBeenLastCalledWith(-1);
     });
   });

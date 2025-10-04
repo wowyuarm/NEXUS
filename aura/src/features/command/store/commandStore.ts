@@ -14,17 +14,17 @@ export const filterCommands = (query: string, commands: Command[]): Command[] =>
 };
 
 interface CommandState {
-  isCommandListOpen: boolean;
-  commandQuery: string;
+  isPaletteOpen: boolean;
+  query: string;
   availableCommands: Command[];
   isLoading: boolean;
   selectedCommandIndex: number;
 }
 
 interface CommandActions {
-  openCommandList: () => void;
-  closeCommandList: () => void;
-  setCommandQuery: (query: string) => void;
+  openPalette: () => void;
+  closePalette: () => void;
+  setQuery: (query: string) => void;
   setCommands: (commands: Command[]) => void;
   setLoading: (loading: boolean) => void;
   selectNextCommand: () => void;
@@ -36,22 +36,22 @@ export type CommandStore = CommandState & CommandActions;
 
 export const useCommandStore = create<CommandStore>((set, get) => ({
   // Initial state
-  isCommandListOpen: false,
-  commandQuery: '',
+  isPaletteOpen: false,
+  query: '',
   availableCommands: [],
   isLoading: false,
   selectedCommandIndex: 0,
 
   // Actions
-  openCommandList: () => set({ isCommandListOpen: true, commandQuery: '', selectedCommandIndex: 0 }),
-  closeCommandList: () => set({ isCommandListOpen: false }),
-  setCommandQuery: (query: string) => set({ commandQuery: query, selectedCommandIndex: 0 }),
+  openPalette: () => set({ isPaletteOpen: true, query: '', selectedCommandIndex: 0 }),
+  closePalette: () => set({ isPaletteOpen: false }),
+  setQuery: (query: string) => set({ query: query, selectedCommandIndex: 0 }),
   setCommands: (commands: Command[]) => set({ availableCommands: commands }),
   setLoading: (loading: boolean) => set({ isLoading: loading }),
 
   selectNextCommand: () => {
-    const { availableCommands, commandQuery, selectedCommandIndex } = get();
-    const filtered = filterCommands(commandQuery, availableCommands);
+    const { availableCommands, query, selectedCommandIndex } = get();
+    const filtered = filterCommands(query, availableCommands);
     if (filtered.length === 0) {
       set({ selectedCommandIndex: -1 });
       return;
@@ -61,8 +61,8 @@ export const useCommandStore = create<CommandStore>((set, get) => ({
   },
 
   selectPrevCommand: () => {
-    const { availableCommands, commandQuery, selectedCommandIndex } = get();
-    const filtered = filterCommands(commandQuery, availableCommands);
+    const { availableCommands, query, selectedCommandIndex } = get();
+    const filtered = filterCommands(query, availableCommands);
     if (filtered.length === 0) {
       set({ selectedCommandIndex: -1 });
       return;

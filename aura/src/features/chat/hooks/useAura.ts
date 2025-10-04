@@ -42,8 +42,8 @@ export interface UseAuraReturn {
   toolCallHistory: Record<string, import('../types').ToolCall[]>;
 
   // Command State
-  isCommandListOpen: boolean;
-  commandQuery: string;
+  isPaletteOpen: boolean;
+  query: string;
   selectedCommandIndex: number;
   availableCommands: Command[];
 
@@ -53,9 +53,9 @@ export interface UseAuraReturn {
   clearError: () => void;
 
   // Command Actions
-  openCommandList: () => void;
-  closeCommandList: () => void;
-  setCommandQuery: (query: string) => void;
+  openPalette: () => void;
+  closePalette: () => void;
+  setQuery: (query: string) => void;
   setSelectedCommandIndex: (index: number) => void;
   executeCommand: (command: string) => Promise<void>;
 
@@ -97,13 +97,13 @@ export function useAura(): UseAuraReturn {
   } = useChatStore();
 
   const {
-    isCommandListOpen,
-    commandQuery,
+    isPaletteOpen,
+    query,
     selectedCommandIndex,
     availableCommands,
-    openCommandList,
-    closeCommandList,
-    setCommandQuery,
+    openPalette,
+    closePalette,
+    setQuery,
     setLoading,
     resetSelection
   } = useCommandStore();
@@ -249,8 +249,8 @@ export function useAura(): UseAuraReturn {
     toolCallHistory,
 
     // Command State
-    isCommandListOpen,
-    commandQuery,
+    isPaletteOpen,
+    query,
     selectedCommandIndex,
     availableCommands,
 
@@ -260,9 +260,9 @@ export function useAura(): UseAuraReturn {
     clearError,
 
     // Command Actions
-    openCommandList,
-    closeCommandList,
-    setCommandQuery,
+    openPalette,
+    closePalette,
+    setQuery,
     setSelectedCommandIndex: (index: number) => {
       // keep compatibility with existing UI passing absolute index
       // selection logic is managed in commandStore's selectNext/Prev when used by keyboard
@@ -277,8 +277,8 @@ export function useAura(): UseAuraReturn {
         // Delegate to chat store for execution side-effects with available commands
         await useChatStore.getState().executeCommand(command, availableCommands);
         // After execution, close palette and reset query/selection to keep UI consistent
-        closeCommandList();
-        setCommandQuery('');
+        closePalette();
+        setQuery('');
         useCommandStore.setState({ selectedCommandIndex: 0 });
       } catch (error) {
         console.error('Command execution failed:', error);

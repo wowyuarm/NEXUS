@@ -16,7 +16,7 @@ COMMAND_DEFINITION = {
     "name": "help",
     "description": "Display information about available commands",
     "usage": "/help",
-    "handler": "server",
+    "handler": "websocket",
     "examples": [
         "/help"
     ]

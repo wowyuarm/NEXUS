@@ -195,7 +195,7 @@ class CommandService:
 
             # Check if command requires signature verification
             command_definition = self._command_definitions.get(command_name, {})
-            requires_signature = command_definition.get('requires_signature', False)
+            requires_signature = command_definition.get('requiresSignature', False)
 
             # Verify signature if required
             verified_public_key: Optional[str] = None

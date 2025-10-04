@@ -9,13 +9,13 @@ interface ChatInputProps {
   onSendMessage: (message: string) => void;
   disabled?: boolean;
   // Command props
-  isCommandListOpen: boolean;
-  commandQuery: string;
+  isPaletteOpen: boolean;
+  query: string;
   availableCommands: Command[];
   selectedCommandIndex: number;
-  onOpenCommandList: () => void;
-  onCloseCommandList: () => void;
-  onSetCommandQuery: (query: string) => void;
+  onOpenPalette: () => void;
+  onClosePalette: () => void;
+  onSetQuery: (query: string) => void;
   onSetSelectedCommandIndex: (index: number) => void;
   onExecuteCommand: (command: string) => void;
 }
@@ -24,13 +24,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onSendMessage,
   disabled = false,
   // Command props
-  isCommandListOpen,
-  commandQuery,
+  isPaletteOpen,
+  query,
   availableCommands,
   selectedCommandIndex,
-  onOpenCommandList,
-  onCloseCommandList,
-  onSetCommandQuery,
+  onOpenPalette,
+  onClosePalette,
+  onSetQuery,
   onSetSelectedCommandIndex,
   onExecuteCommand,
 }) => {
@@ -40,12 +40,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Filter commands by current query for navigation and execution
   const filteredCommands = useMemo(() => {
-    const query = (commandQuery || '').toLowerCase();
-    if (!query) return availableCommands;
+    const queryLower = (query || '').toLowerCase();
+    if (!queryLower) return availableCommands;
     return availableCommands.filter(cmd =>
-      cmd.name.toLowerCase().startsWith(query)
+      cmd.name.toLowerCase().startsWith(queryLower)
     );
-  }, [availableCommands, commandQuery]);
+  }, [availableCommands, query]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,11 +64,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (isCommandListOpen) {
+    if (isPaletteOpen) {
       switch (e.key) {
         case 'Escape':
           e.preventDefault();
-          onCloseCommandList();
+          onClosePalette();
           break;
         case 'ArrowUp':
           e.preventDefault();
@@ -112,17 +112,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     // Handle command list logic - only activate when / is the first character
     if (value.startsWith('/') && value.length === 1) {
       // Only open command list when / is the first and only character
-      if (!isCommandListOpen) {
-        onOpenCommandList();
+      if (!isPaletteOpen) {
+        onOpenPalette();
         onSetSelectedCommandIndex(0);
       }
-      onSetCommandQuery('');
+      onSetQuery('');
     } else if (value.startsWith('/') && value.length > 1) {
       // Continue filtering commands as user types after /
-      const query = value.slice(1);
-      onSetCommandQuery(query);
+      const queryStr = value.slice(1);
+      onSetQuery(queryStr);
       // Smart selection: prefer exact match if present, otherwise first item
-      const lower = query.toLowerCase();
+      const lower = queryStr.toLowerCase();
       const matching = availableCommands.filter(cmd => cmd.name.toLowerCase().startsWith(lower));
       if (matching.length === 0) {
         onSetSelectedCommandIndex(-1);
@@ -130,16 +130,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         const exactIdx = matching.findIndex(cmd => cmd.name.toLowerCase() === lower);
         onSetSelectedCommandIndex(exactIdx >= 0 ? exactIdx : 0);
       }
-    } else if (isCommandListOpen) {
+    } else if (isPaletteOpen) {
       // Close command list if user deletes the / or types non-command text
-      onCloseCommandList();
+      onClosePalette();
     }
   };
 
   const canSend = message.trim().length > 0 && !disabled;
 
   // Dynamic placeholder based on command mode
-  const placeholder = isCommandListOpen ? '/' : '继续探索...';
+  const placeholder = isPaletteOpen ? '/' : '继续探索...';
 
   return (
     <div className="w-full max-w-2xl mx-auto">

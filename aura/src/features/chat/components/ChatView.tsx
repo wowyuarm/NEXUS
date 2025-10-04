@@ -21,7 +21,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
-import { CommandList } from '@/features/command/components/CommandList';
+import { CommandPalette } from '@/features/command/components/CommandPalette';
 import type { Command } from '@/features/command/command.types';
 
 interface ChatViewProps {
@@ -34,13 +34,13 @@ interface ChatViewProps {
   onScrollToBottom: () => void;
   suppressAutoScroll?: (durationMs?: number) => void;
   // Command props
-  isCommandListOpen: boolean;
-  commandQuery: string;
+  isPaletteOpen: boolean;
+  query: string;
   availableCommands: Command[];
   selectedCommandIndex: number;
-  onOpenCommandList: () => void;
-  onCloseCommandList: () => void;
-  onSetCommandQuery: (query: string) => void;
+  onOpenPalette: () => void;
+  onClosePalette: () => void;
+  onSetQuery: (query: string) => void;
   onSetSelectedCommandIndex: (index: number) => void;
   onExecuteCommand: (command: string) => void;
 }
@@ -55,13 +55,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onScrollToBottom,
   suppressAutoScroll,
   // Command props
-  isCommandListOpen,
-  commandQuery,
+  isPaletteOpen,
+  query,
   availableCommands,
   selectedCommandIndex,
-  onOpenCommandList,
-  onCloseCommandList,
-  onSetCommandQuery,
+  onOpenPalette,
+  onClosePalette,
+  onSetQuery,
   onSetSelectedCommandIndex,
   onExecuteCommand,
 }) => {
@@ -190,10 +190,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
           {...inputMotion}
         >
           <div className="w-full max-w-2xl relative">
-            {/* 命令列表 - 直接集成在输入框上方 */}
-            <CommandList
-              isOpen={isCommandListOpen}
-              query={commandQuery}
+            {/* 命令面板 - 直接集成在输入框上方 */}
+            <CommandPalette
+              isOpen={isPaletteOpen}
+              query={query}
               availableCommands={availableCommands}
               selectedIndex={selectedCommandIndex}
               onExecute={onExecuteCommand}
@@ -203,13 +203,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <ChatInput
               onSendMessage={onSendMessage}
               // Command props
-              isCommandListOpen={isCommandListOpen}
-              commandQuery={commandQuery}
+              isPaletteOpen={isPaletteOpen}
+              query={query}
               availableCommands={availableCommands}
               selectedCommandIndex={selectedCommandIndex}
-              onOpenCommandList={onOpenCommandList}
-              onCloseCommandList={onCloseCommandList}
-              onSetCommandQuery={onSetCommandQuery}
+              onOpenPalette={onOpenPalette}
+              onClosePalette={onClosePalette}
+              onSetQuery={onSetQuery}
               onSetSelectedCommandIndex={onSetSelectedCommandIndex}
               onExecuteCommand={onExecuteCommand}
             />

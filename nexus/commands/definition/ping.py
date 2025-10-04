@@ -15,7 +15,7 @@ COMMAND_DEFINITION = {
     "name": "ping",
     "description": "Test system connectivity by responding with 'pong'",
     "usage": "/ping",
-    "handler": "server",
+    "handler": "websocket",
     "examples": [
         "/ping"
     ]
