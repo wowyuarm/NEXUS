@@ -173,49 +173,17 @@ class WebsocketInterface:
         except Exception as e:
             logger.error(f"Error handling command result: {e}")
 
-    async def run_forever(self, host: str, port: int) -> FastAPI:
+    def add_websocket_routes(self, app: FastAPI) -> None:
         """
-        Create and configure the FastAPI application with WebSocket endpoint.
+        Add WebSocket routes to an existing FastAPI application.
+
+        This method registers the WebSocket endpoint handler with the provided
+        FastAPI app instance. It should be called during application initialization
+        in main.py after the app is created.
 
         Args:
-            host: Host to bind to (for logging purposes)
-            port: Port to bind to (for logging purposes)
-
-        Returns:
-            FastAPI application instance
+            app: FastAPI application instance to add routes to
         """
-        app = FastAPI(title="NEXUS WebSocket API")
-
-        @app.get("/")
-        async def root_health():
-            return {"status": "ok", "service": "NEXUS WebSocket API"}
-
-        @app.get("/health")
-        async def basic_health():
-            return {"status": "healthy", "connections": len(self.connections)}
-
-        @app.get("/api/v1/health")
-        async def comprehensive_health_check():
-            """Comprehensive health check including database connectivity."""
-            try:
-                # Check database connection health (sync method, no await needed)
-                is_db_healthy = self.database_service.provider.health_check()
-                
-                if is_db_healthy:
-                    return {"status": "ok", "dependencies": {"database": "ok"}}
-                else:
-                    # Return HTTP 503 Service Unavailable error
-                    raise HTTPException(
-                        status_code=503, 
-                        detail={"status": "error", "dependencies": {"database": "unavailable"}}
-                    )
-            except Exception as e:
-                logger.error(f"Health check failed: {e}")
-                raise HTTPException(
-                    status_code=503,
-                    detail={"status": "error", "dependencies": {"database": "connection_error"}}
-                )
-
         @app.websocket("/api/v1/ws/{session_id}")
         async def websocket_endpoint(websocket: WebSocket, session_id: str):
             await websocket.accept()
@@ -348,5 +316,4 @@ class WebsocketInterface:
                     del self.connections[session_id]
                     logger.info(f"Cleaned up connection for session_id={session_id}")
 
-        logger.info(f"WebSocket interface configured for {host}:{port}")
-        return app
+        logger.info("WebSocket routes added to FastAPI application")

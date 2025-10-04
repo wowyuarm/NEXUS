@@ -22,7 +22,7 @@ import { ChatInput } from './ChatInput';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
 import { CommandList } from '@/features/command/components/CommandList';
-import type { Command } from '@/features/command/store/commandStore';
+import type { Command } from '@/features/command/command.types';
 
 interface ChatViewProps {
   messages: Message[];

@@ -1,12 +1,5 @@
 import { create } from 'zustand';
-
-export interface Command {
-  name: string;
-  description: string;
-  usage: string;
-  execution_target: 'client' | 'server';
-  examples: string[];
-}
+import type { Command } from '../command.types';
 
 /**
  * Filter commands based on user input

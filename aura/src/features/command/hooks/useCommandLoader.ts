@@ -1,14 +1,8 @@
 import { useEffect, useCallback } from 'react';
 import { useCommandStore } from '../store/commandStore';
-import { websocketManager } from '@/services/websocket/manager';
-
-interface Command {
-  name: string;
-  description: string;
-  usage: string;
-  execution_target: 'client' | 'server';
-  examples: string[];
-}
+import { fetchCommands } from '../api';
+import { normalizeCommand } from '../command.types';
+import type { Command } from '../command.types';
 
 // Fallback commands for when backend is unavailable
 // These must match backend definitions exactly to maintain architectural integrity
@@ -17,76 +11,67 @@ const FALLBACK_COMMANDS: Command[] = [
     name: 'ping',
     description: 'Check connection to the NEXUS core.',
     usage: '/ping',
-    execution_target: 'server',
+    handler: 'websocket',
     examples: ['/ping']
   },
   {
     name: 'help',
     description: 'Display information about available commands.',
     usage: '/help',
-    execution_target: 'server',  // Backend is the authoritative source for command metadata
+    handler: 'websocket',  // Backend is the authoritative source for command metadata
     examples: ['/help']
   },
   {
     name: 'clear',
     description: 'Clear the chat messages from view (context history preserved)',
     usage: '/clear',
-    execution_target: 'client',
+    handler: 'client',
     examples: ['/clear']
   },
   {
     name: 'identity',
     description: 'Identity verification - returns your verified public key',
     usage: '/identity',
-    execution_target: 'server',
+    handler: 'websocket',
+    requiresSignature: true,
     examples: ['/identity']
   }
 ];
 
 export interface UseCommandLoaderOptions {
-  timeoutMs?: number;
   autoLoad?: boolean;
-  isConnected?: boolean;
 }
 
+/**
+ * Hook for loading commands from the backend via REST API
+ * 
+ * This hook fetches command definitions from /api/v1/commands and
+ * stores them in the command store. It provides fallback commands
+ * if the backend is unavailable.
+ * 
+ * @param options - Configuration options
+ * @returns Object with loadCommands function and fallback commands
+ */
 export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
   const { setCommands, setLoading } = useCommandStore();
   const autoLoad = options?.autoLoad ?? true;
-  const isConnected = options?.isConnected ?? websocketManager.connected;
 
   const loadCommands = useCallback(async () => {
     setLoading(true);
     
     try {
-      if (!websocketManager.connected) {
-        throw new Error('WebSocket not connected');
-      }
-
-      // Use unified command execution entry point through chatStore
-      // This ensures consistent behavior and allows users to see system initialization
-      // IMPORTANT: Do NOT pass FALLBACK_COMMANDS here - we want to force fetching from backend
-      const { useChatStore } = await import('@/features/chat/store/chatStore');
-      const { executeCommand } = useChatStore.getState();
+      // Fetch commands from REST API
+      console.log('🔄 Loading commands from REST API...');
+      const commands = await fetchCommands();
       
-      const result = await executeCommand('/help');
-
-      if (result?.status === 'success' && result?.data?.commands) {
-        // Trust backend completely - no overrides, no modifications
-        const commandsFromBackend: Command[] = Object.values(result.data.commands as Record<string, Command>).map((cmd) => ({
-          name: cmd.name,
-          description: cmd.description,
-          usage: cmd.usage,
-          execution_target: cmd.execution_target,
-          examples: cmd.examples || []
-        }));
-
-        setCommands(commandsFromBackend);
-        console.log('Successfully loaded commands from backend:', commandsFromBackend);
-      } else {
-        throw new Error('Invalid response format from help command');
-      }
+      // Normalize commands for backward compatibility
+      const normalizedCommands = commands.map(normalizeCommand);
+      
+      setCommands(normalizedCommands);
+      console.log(`✅ Successfully loaded ${normalizedCommands.length} commands from backend`);
+      
     } catch (error) {
-      console.warn('Failed to load commands from backend, using fallback:', error);
+      console.warn('⚠️ Failed to load commands from backend, using fallback:', error);
       // Use fallback commands to ensure basic functionality
       setCommands(FALLBACK_COMMANDS);
     } finally {
@@ -94,13 +79,13 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
     }
   }, [setCommands, setLoading]);
 
-  // Auto-load commands when WebSocket connects
+  // Auto-load commands on mount
   useEffect(() => {
-    if (autoLoad && isConnected) {
-      console.log('🔄 Loading commands: WebSocket connected');
+    if (autoLoad) {
+      console.log('🚀 Auto-loading commands from REST API');
       loadCommands();
     }
-  }, [autoLoad, isConnected, loadCommands]);
+  }, [autoLoad, loadCommands]);
 
   return {
     loadCommands,

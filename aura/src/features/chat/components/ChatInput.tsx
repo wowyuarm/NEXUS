@@ -3,7 +3,7 @@ import { ArrowUp } from 'lucide-react';
 import { useRef, useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button, AutoResizeTextarea, type AutoResizeTextareaRef } from '@/components/ui';
-import type { Command } from '@/features/command/store/commandStore';
+import type { Command } from '@/features/command/command.types';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;

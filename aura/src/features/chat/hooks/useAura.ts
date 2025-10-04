@@ -17,6 +17,7 @@ import { websocketManager } from '../../../services/websocket/manager';
 import { useChatStore } from '../store/chatStore';
 import { useCommandStore } from '@/features/command/store/commandStore';
 import { useCommandLoader } from '@/features/command/hooks/useCommandLoader';
+import type { Command } from '@/features/command/command.types';
 import type { Message } from '../types';
 import type { CurrentRun } from '../store/chatStore';
 import type {
@@ -44,7 +45,7 @@ export interface UseAuraReturn {
   isCommandListOpen: boolean;
   commandQuery: string;
   selectedCommandIndex: number;
-  availableCommands: Array<{ name: string; description: string; execution_target: 'client' | 'server'; usage: string; examples: string[] }>;
+  availableCommands: Command[];
 
   // Actions
   sendMessage: (content: string) => void;
@@ -107,8 +108,8 @@ export function useAura(): UseAuraReturn {
     resetSelection
   } = useCommandStore();
 
-  // Load commands dynamically from backend after WebSocket connects
-  useCommandLoader({ isConnected });
+  // Load commands from backend REST API (no longer depends on WebSocket connection)
+  useCommandLoader();  
 
   // ===== WebSocket Event Handlers =====
 

@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CommandList } from '../CommandList';
-import type { Command } from '../../store/commandStore';
+import type { Command } from '../../command.types';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -28,9 +28,9 @@ vi.mock('@/lib/utils', () => ({
 
 // Helper function to create test commands
 const createTestCommands = (): Command[] => [
-  { name: 'ping', description: 'Check connection to the NEXUS core.', usage: '/ping', execution_target: 'server', examples: ['/ping'] },
-  { name: 'help', description: 'Display information about available commands.', usage: '/help', execution_target: 'server', examples: ['/help'] },
-  { name: 'identity', description: 'Manage your user identity.', usage: '/identity', execution_target: 'server', examples: ['/identity'] }
+  { name: 'ping', description: 'Check connection to the NEXUS core.', usage: '/ping', handler: 'websocket', examples: ['/ping'] },
+  { name: 'help', description: 'Display information about available commands.', usage: '/help', handler: 'websocket', examples: ['/help'] },
+  { name: 'identity', description: 'Manage your user identity.', usage: '/identity', handler: 'websocket', examples: ['/identity'] }
 ];
 
 // Helper function to create default props for testing

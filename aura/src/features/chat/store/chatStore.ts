@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { websocketManager } from '@/services/websocket/manager';
-import { IdentityService } from '@/services/identity/identity';
-import type { Command } from '@/features/command/store/commandStore';
+import type { Command } from '@/features/command/command.types';
 import type { Message, ToolCall } from '../types';
 import type {
   RunStartedPayload,
@@ -70,14 +69,6 @@ const updateToolCallStatus = (
     };
   }
   return toolCall;
-};
-
-/**
- * Format help content for client-side display
- */
-const formatHelpContent = (commands: Command[]): string => {
-  const commandList = commands.map(cmd => `- **${cmd.usage}**: ${cmd.description}`).join('\n');
-  return `Available commands:\n\n${commandList}`;
 };
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -473,108 +464,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   executeCommand: async (command: string, availableCommands?: Command[]) => {
     const commandName = command.startsWith('/') ? command.slice(1) : command;
     
-    // Find command definition to determine execution target
+    // Find command definition
     const commandDef = availableCommands?.find(cmd => cmd.name === commandName);
     
-    // Special handling for /help: use cached data if available for instant response
-    if (commandName === 'help' && availableCommands && availableCommands.length > 0) {
-      // We have cached commands, render help immediately on client side
-      const helpContent = formatHelpContent(availableCommands);
-      const helpMessage: Message = {
-        id: uuidv4(),
-        role: 'SYSTEM',
-        content: {
-          command: '/help',
-          result: helpContent
-        },
-        timestamp: new Date(),
-        metadata: { status: 'completed' }
-      };
-
-      set((state) => ({
-        messages: [...state.messages, helpMessage]
-      }));
-      return { status: 'success', message: helpContent, data: { commands: availableCommands } };
+    if (!commandDef) {
+      return { status: 'error', message: `Unknown command: ${commandName}` };
     }
     
-    if (commandDef?.execution_target === 'client') {
-      // Handle client-side commands
-      switch (commandName) {
-        case 'clear':
-          get().clearMessages();
-          return { status: 'success', message: 'Chat history cleared' };
-          
-        default:
-          console.warn(`Unknown client command: ${commandName}`);
-          return { status: 'error', message: `Unknown client command: ${commandName}` };
-      }
-    } else {
-      // Handle server-side commands
-      if (!websocketManager.connected) {
-        const error = 'Cannot execute server command: not connected to NEXUS';
-        console.error(error);
-        return { status: 'error', message: error };
-      }
-
-      // Check if command requires signature
-      // Currently, only /identity command requires signature
-      const requiresSignature = commandName === 'identity';
-      let auth: { publicKey: string; signature: string } | undefined;
-
-      if (requiresSignature) {
-        try {
-          // Sign the command using IdentityService
-          auth = await IdentityService.signCommand(command);
-          console.log('✍️ Signed command:', commandName);
-        } catch (error) {
-          console.error('Failed to sign command:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Failed to sign command';
-          return { status: 'error', message: errorMessage };
-        }
-      }
-
-      // For server commands, create pending message with structured content
-      const pendingMessage: Message = {
-        id: uuidv4(),
-        role: 'SYSTEM',
-        content: { command },
-        timestamp: new Date(),
-        metadata: { status: 'pending' }
-      };
-
-      set((state) => ({
-        messages: [...state.messages, pendingMessage]
-      }));
-
-      // For help command (first load only), register listener BEFORE sending to avoid race conditions
-      if (commandName === 'help') {
-        return new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            reject(new Error('Help command timeout'));
-          }, 5000);
-
-          const handleCommandResult = (data: unknown) => {
-            // Accept only help-like payloads: { status, message, data: { commands } }
-            const isHelpResponse = Boolean(
-              data && typeof data === 'object' && 'status' in data && 'data' in data && 
-              data.data && typeof data.data === 'object' && 'commands' in data.data
-            );
-            if (isHelpResponse) {
-              clearTimeout(timeout);
-              websocketManager.off('command_result', handleCommandResult);
-              resolve(data as { status: string; message: string; data?: Record<string, unknown> });
-            }
-          };
-
-          websocketManager.on('command_result', handleCommandResult);
-          websocketManager.sendCommand(command, auth);
-        });
-      }
-
-      // Default: send command after pending message (with auth if signed)
-      websocketManager.sendCommand(command, auth);
-      return { status: 'pending', message: 'Command sent to server' };
-    }
+    // Use the new commandExecutor from the new architecture
+    const { executeCommand: execute } = await import('@/features/command/commandExecutor');
+    return await execute(commandDef);
   }
 }));
 

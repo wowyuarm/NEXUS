@@ -15,7 +15,7 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import type { Command } from '../store/commandStore';
+import type { Command } from '../command.types';
 
 interface CommandListProps {
   isOpen: boolean;

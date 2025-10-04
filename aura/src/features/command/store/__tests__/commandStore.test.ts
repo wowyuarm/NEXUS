@@ -12,21 +12,21 @@ describe('commandStore', () => {
           name: 'ping', 
           description: 'Check connection to the NEXUS core.',
           usage: '/ping',
-          execution_target: 'server' as const,
+          handler: 'websocket' as const,
           examples: ['/ping']
         },
         { 
           name: 'help', 
           description: 'Display information about available commands.',
           usage: '/help',
-          execution_target: 'server' as const,
+          handler: 'websocket' as const,
           examples: ['/help']
         },
         { 
           name: 'clear', 
           description: 'Clear the chat history',
           usage: '/clear',
-          execution_target: 'client' as const,
+          handler: 'client' as const,
           examples: ['/clear']
         }
       ],
@@ -65,13 +65,13 @@ describe('commandStore', () => {
         name: 'test',
         description: 'Test command',
         usage: '/test',
-        execution_target: 'client' as const,
+        handler: 'client' as const,
         examples: ['/test']
       }];
       useCommandStore.getState().setCommands(newCommands);
       const commands = useCommandStore.getState().availableCommands;
       expect(commands).toEqual(newCommands);
-      expect(commands[0].execution_target).toBe('client');
+      expect(commands[0].handler).toBe('client');
     });
   });
 

@@ -10,8 +10,10 @@ import logging
 import os
 from typing import List
 
+from fastapi import FastAPI, HTTPException
 from nexus.core.bus import NexusBus
 from nexus.interfaces.websocket import WebsocketInterface
+from nexus.interfaces import rest
 from nexus.services.config import ConfigService
 from nexus.services.database.service import DatabaseService
 from dotenv import load_dotenv
@@ -118,15 +120,57 @@ async def main() -> None:
     server_host = config_service.get("server.host", "127.0.0.1")
     server_port = config_service.get_int("server.port", 8000)
 
-    # 9) Get FastAPI app from WebSocket interface
-    app = await websocket_interface.run_forever(host=server_host, port=server_port)
+    # 9) Create unified FastAPI application
+    app = FastAPI(title="NEXUS API", version="2.0.0")
+    logger.info("Created unified FastAPI application")
+    
+    # 10) Add health check endpoints
+    @app.get("/")
+    async def root_health():
+        return {"status": "ok", "service": "NEXUS API"}
 
-    # 10) Long-running tasks (bus listeners)
+    @app.get("/health")
+    async def basic_health():
+        return {"status": "healthy", "connections": len(websocket_interface.connections)}
+
+    @app.get("/api/v1/health")
+    async def comprehensive_health_check():
+        """Comprehensive health check including database connectivity."""
+        try:
+            is_db_healthy = database_service.provider.health_check()
+            
+            if is_db_healthy:
+                return {"status": "ok", "dependencies": {"database": "ok"}}
+            else:
+                raise HTTPException(
+                    status_code=503, 
+                    detail={"status": "error", "dependencies": {"database": "unavailable"}}
+                )
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            raise HTTPException(
+                status_code=503,
+                detail={"status": "error", "dependencies": {"database": "connection_error"}}
+            )
+    
+    # 11) Configure dependency injection for REST interface
+    app.dependency_overrides[rest.get_command_service] = lambda: command_service
+    logger.info("Configured dependency injection for REST interface")
+    
+    # 12) Add REST API routes
+    app.include_router(rest.router, prefix="/api/v1", tags=["commands"])
+    logger.info("Added REST API routes")
+    
+    # 13) Add WebSocket routes
+    websocket_interface.add_websocket_routes(app)
+    logger.info("Added WebSocket routes")
+
+    # 14) Long-running tasks (bus listeners)
     bus_task = asyncio.create_task(bus.run_forever(), name="nexusbus.run_forever")
 
     logger.info(f"NEXUS engine configured with FastAPI app at {server_host}:{server_port}")
 
-    # 11) Import uvicorn and run the FastAPI app
+    # 15) Import uvicorn and run the FastAPI app
     import uvicorn
 
     # Create a task for the uvicorn server

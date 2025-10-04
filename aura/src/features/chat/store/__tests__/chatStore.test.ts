@@ -426,7 +426,7 @@ describe('chatStore', () => {
       });
 
       const commands = [
-        { name: 'clear', execution_target: 'client' as const, description: 'Clear', usage: '/clear', examples: [] }
+        { name: 'clear', handler: 'client' as const, description: 'Clear', usage: '/clear', examples: [] }
       ];
 
       const { executeCommand } = useChatStore.getState();
@@ -436,64 +436,11 @@ describe('chatStore', () => {
       expect(useChatStore.getState().messages).toHaveLength(0);
     });
 
-    it('should use cached data for /help when available (smart caching)', async () => {
-      const commands = [
-        { name: 'ping', execution_target: 'server' as const, description: 'Ping', usage: '/ping', examples: [] },
-        { name: 'help', execution_target: 'server' as const, description: 'Help', usage: '/help', examples: [] },
-        { name: 'clear', execution_target: 'client' as const, description: 'Clear', usage: '/clear', examples: [] }
-      ];
 
-      const { executeCommand } = useChatStore.getState();
-      const result = await executeCommand('/help', commands);
-
-      // Should return immediately with cached data
-      expect(result?.status).toBe('success');
-      expect(result?.data?.commands).toEqual(commands);
-
-      // Should have created a SYSTEM message with structured content
-      const state = useChatStore.getState();
-      expect(state.messages).toHaveLength(1);
-      expect(state.messages[0].role).toBe('SYSTEM');
-      expect(state.messages[0].content).toEqual({
-        command: '/help',
-        result: expect.stringContaining('ping')
-      });
-      // Verify result contains all command names
-      const content = state.messages[0].content as { command: string; result: string };
-      expect(content.result).toContain('ping');
-      expect(content.result).toContain('help');
-      expect(content.result).toContain('clear');
-      expect(state.messages[0].metadata?.status).toBe('completed');
-
-      // Should NOT have sent to server
-      const { websocketManager } = await import('@/services/websocket/manager');
-      expect(websocketManager.sendCommand).not.toHaveBeenCalled();
-    });
-
-    it('should create pending message for server-side commands', async () => {
-      const commands = [
-        { name: 'ping', execution_target: 'server' as const, description: 'Ping', usage: '/ping', examples: [] }
-      ];
-
-      const { executeCommand } = useChatStore.getState();
-      await executeCommand('/ping', commands);
-
-      const state = useChatStore.getState();
-      
-      // Should have created pending SYSTEM message with structured content
-      expect(state.messages).toHaveLength(1);
-      expect(state.messages[0].role).toBe('SYSTEM');
-      expect(state.messages[0].content).toEqual({ command: '/ping' });
-      expect(state.messages[0].metadata?.status).toBe('pending');
-
-      // Should have sent to server (without signature since /ping doesn't require it)
-      const { websocketManager } = await import('@/services/websocket/manager');
-      expect(websocketManager.sendCommand).toHaveBeenCalledWith('/ping', undefined);
-    });
 
     it('should handle unknown client command gracefully', async () => {
       const commands = [
-        { name: 'unknown', execution_target: 'client' as const, description: 'Unknown', usage: '/unknown', examples: [] }
+        { name: 'unknown', handler: 'client' as const, description: 'Unknown', usage: '/unknown', examples: [] }
       ];
 
       const { executeCommand } = useChatStore.getState();
