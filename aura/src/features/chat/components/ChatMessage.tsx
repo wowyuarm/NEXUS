@@ -152,11 +152,33 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     return typeof content === 'object' && 'command' in content;
   };
 
-  // Helper: Format object result as key-value pairs
+  // Helper: Format object result as key-value pairs with intelligent type formatting
   const formatObjectResult = (obj: Record<string, unknown>): string => {
     return Object.entries(obj)
       .map(([key, value]) => {
-        const formattedValue = typeof value === 'string' ? value : JSON.stringify(value);
+        // Smart formatting based on value type
+        let formattedValue: string;
+        if (Array.isArray(value)) {
+          // Arrays: format as bullet list for primitives, otherwise summarize
+          const isPrimitiveArray = value.every(v => ['string', 'number', 'boolean'].includes(typeof v));
+          if (isPrimitiveArray) {
+            formattedValue = value.map(v => `- ${typeof v === 'boolean' ? (v ? '✓' : '✗') : String(v)}`).join('\n');
+          } else {
+            const preview = JSON.stringify(value.slice(0, 2), null, 2);
+            const more = value.length > 2 ? `\n... and ${value.length - 2} more` : '';
+            formattedValue = '```json\n' + preview + '\n```' + more;
+          }
+        } else if (typeof value === 'boolean') {
+          formattedValue = value ? '✓' : '✗';
+        } else if (typeof value === 'number') {
+          formattedValue = value.toString();
+        } else if (typeof value === 'string') {
+          formattedValue = value;
+        } else if (value === null || value === undefined) {
+          formattedValue = String(value);
+        } else {
+          formattedValue = '```json\n' + JSON.stringify(value, null, 2) + '\n```';
+        }
         return `**${key}:** ${formattedValue}`;
       })
       .join('\n\n');

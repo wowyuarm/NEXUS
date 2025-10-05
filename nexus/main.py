@@ -11,6 +11,7 @@ import os
 from typing import List
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from nexus.core.bus import NexusBus
 from nexus.interfaces.websocket import WebsocketInterface
 from nexus.interfaces import rest
@@ -123,6 +124,25 @@ async def main() -> None:
     # 9) Create unified FastAPI application
     app = FastAPI(title="NEXUS API", version="2.0.0")
     logger.info("Created unified FastAPI application")
+    
+    # 9.5) Configure CORS middleware with environment-aware origins
+    allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "")
+    origins = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
+    
+    # Security: Production without configured origins = block all
+    if environment == "production" and not origins:
+        logger.warning("⚠️ No ALLOWED_ORIGINS configured for production. CORS requests will be blocked.")
+        origins = []
+    
+    logger.info(f"CORS configured for origins: {origins}")
+    
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_headers=["*"],
+    )
     
     # 10) Add health check endpoints
     @app.get("/")

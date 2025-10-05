@@ -116,7 +116,7 @@ class TestCommandServiceIntegration:
         
         # Verify handler field is present
         assert commands["ping"]["handler"] == "websocket"
-        assert commands["help"]["handler"] == "websocket" 
+        assert commands["help"]["handler"] == "client"  # help is now a client-side command
         assert commands["clear"]["handler"] == "client"
         
         assert result_message.run_id == "test-run-789"

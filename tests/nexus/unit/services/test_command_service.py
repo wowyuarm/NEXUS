@@ -80,8 +80,8 @@ class TestCommandServiceUnit:
         """
         Test that specific commands have correct handler field values.
         
-        - ping, help, identity: handler = "websocket"
-        - clear: handler = "client"
+        - ping, identity: handler = "websocket"
+        - help, clear: handler = "client"
         """
         result = command_service.get_all_command_definitions()
         commands_by_name = {cmd["name"]: cmd for cmd in result}
@@ -89,12 +89,12 @@ class TestCommandServiceUnit:
         # WebSocket commands
         assert commands_by_name["ping"]["handler"] == "websocket", \
             "ping command should have handler='websocket'"
-        assert commands_by_name["help"]["handler"] == "websocket", \
-            "help command should have handler='websocket'"
         assert commands_by_name["identity"]["handler"] == "websocket", \
             "identity command should have handler='websocket'"
         
-        # Client-side command
+        # Client-side commands
+        assert commands_by_name["help"]["handler"] == "client", \
+            "help command should have handler='client' (client-side rendering)"
         assert commands_by_name["clear"]["handler"] == "client", \
             "clear command should have handler='client'"
 

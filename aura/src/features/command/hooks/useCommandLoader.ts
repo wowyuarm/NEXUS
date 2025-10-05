@@ -17,7 +17,7 @@ const FALLBACK_COMMANDS: Command[] = [
     name: 'help',
     description: 'Display information about available commands.',
     usage: '/help',
-    handler: 'websocket',  // Backend is the authoritative source for command metadata
+    handler: 'client',
     examples: ['/help']
   },
   {
@@ -27,14 +27,7 @@ const FALLBACK_COMMANDS: Command[] = [
     handler: 'client',
     examples: ['/clear']
   },
-  {
-    name: 'identity',
-    description: 'Identity verification - returns your verified public key',
-    usage: '/identity',
-    handler: 'websocket',
-    requiresSignature: true,
-    examples: ['/identity']
-  }
+  // Intentionally omit 'identity' from fallback: requires backend + signature
 ];
 
 export interface UseCommandLoaderOptions {

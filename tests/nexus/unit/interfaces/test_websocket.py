@@ -257,11 +257,14 @@ class TestWebSocketCommandHandling:
         # Call handle_command_result
         await websocket_interface.handle_command_result(result_message)
 
-        # Verify the UI event was sent
+        # Verify the UI event was sent (wrapped payload with command)
         expected_event = {
             "event": "command_result",
             "run_id": "test_run",
-            "payload": command_result
+            "payload": {
+                "command": "/ping",
+                "result": command_result
+            }
         }
 
         mock_websocket.send_text.assert_called_once_with(json.dumps(expected_event))

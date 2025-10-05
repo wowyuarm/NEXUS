@@ -87,9 +87,9 @@ describe('useCommandLoader', () => {
       expect(mockSetLoading).toHaveBeenCalledWith(false);
     });
 
-    // Verify fallback commands structure
-    expect(result.current.fallbackCommands).toHaveLength(4);
-    expect(result.current.fallbackCommands.map(c => c.name)).toEqual(['ping', 'help', 'clear', 'identity']);
+    // Verify fallback commands structure (identity removed from fallback)
+    expect(result.current.fallbackCommands).toHaveLength(3);
+    expect(result.current.fallbackCommands.map(c => c.name)).toEqual(['ping', 'help', 'clear']);
     
     // Verify fallback commands use 'handler' field correctly
     result.current.fallbackCommands.forEach(cmd => {

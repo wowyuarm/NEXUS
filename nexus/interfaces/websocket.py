@@ -158,10 +158,31 @@ class WebsocketInterface:
                 return
 
             # Create standardized UI event for command result
+            # Prefer sending a wrapped payload that includes the original command string
+            # The command string is stored in message.metadata["command"] by CommandService
+            try:
+                meta = getattr(message, "metadata", {}) or {}
+                raw_cmd = meta.get("command")
+                # Normalize: command may be a string or a dict with {"command": str}
+                if isinstance(raw_cmd, dict):
+                    cmd_str = raw_cmd.get("command", "")
+                else:
+                    cmd_str = str(raw_cmd or "")
+                # Ensure leading slash for consistent UI echo
+                if cmd_str and not cmd_str.startswith('/'):
+                    cmd_str = '/' + cmd_str
+                wrapped_payload = {
+                    "command": cmd_str,
+                    "result": content
+                }
+            except Exception:
+                # Fallback to raw content if any issue occurs
+                wrapped_payload = content
+
             ui_event = {
                 "event": "command_result",
                 "run_id": run_id,
-                "payload": content
+                "payload": wrapped_payload
             }
 
             # Send the UI event to frontend

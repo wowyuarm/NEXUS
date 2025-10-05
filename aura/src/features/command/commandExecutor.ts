@@ -9,11 +9,14 @@
  * separation of concerns between command execution and state management.
  */
 
+import { v4 as uuidv4 } from 'uuid';
 import type { Command, CommandResult } from './command.types';
 import { isClientCommand, isWebSocketCommand, isRestCommand } from './command.types';
 import { websocketManager } from '@/services/websocket/manager';
 import { IdentityService } from '@/services/identity/identity';
 import { useChatStore } from '@/features/chat/store/chatStore';
+import { useCommandStore } from './store/commandStore';
+import type { Message } from '@/features/chat/types';
 
 /**
  * Execute a client-side command
@@ -40,13 +43,35 @@ async function executeClientCommand(
       };
       
     case 'help': {
-      // Client-side help rendering (if commands are already loaded)
-      // This is handled specially in chatStore for now
-      // Future: move help rendering logic here
+      // Client-side help: render from commandStore (no backend communication)
+      const commandStore = useCommandStore.getState();
+      const commands = commandStore.availableCommands;
+      
+      // Format help message as markdown list
+      const helpText = commands
+        .map(cmd => `**/${cmd.name}** - ${cmd.description}`)
+        .join('\n\n');
+      
+      // Create SYSTEM message with structured content
+      const systemMsg: Message = {
+        id: uuidv4(),
+        role: 'SYSTEM',
+        content: {
+          command: '/help',
+          result: helpText
+        },
+        timestamp: new Date(),
+        metadata: { status: 'completed' }
+      };
+      
+      // Add message to chat history using Zustand setState
+      useChatStore.setState((state) => ({
+        messages: [...state.messages, systemMsg]
+      }));
+      
       return {
         status: 'success',
-        message: 'Help displayed',
-        data: { handled: 'by_chat_store' }
+        message: 'Help displayed'
       };
     }
       
@@ -104,32 +129,23 @@ async function executeWebSocketCommand(
 
   // Note: Command result handling will be done by WebSocket event handlers in chatStore
 
-  // For help command (first load only), register listener BEFORE sending
-  if (command.name === 'help') {
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Help command timeout'));
-      }, 5000);
+  // Create pending SYSTEM message BEFORE sending command
+  // This ensures the command text is accurately recorded, preventing "unknown" display
+  const pendingMsg: Message = {
+    id: uuidv4(),
+    role: 'SYSTEM',
+    content: { command: commandText },
+    timestamp: new Date(),
+    metadata: { status: 'pending' }
+  };
+  
+  useChatStore.setState((state) => ({
+    messages: [...state.messages, pendingMsg]
+  }));
 
-      const handleCommandResult = (data: unknown) => {
-        const isHelpResponse = Boolean(
-          data && typeof data === 'object' && 'status' in data && 'data' in data && 
-          data.data && typeof data.data === 'object' && 'commands' in data.data
-        );
-        if (isHelpResponse) {
-          clearTimeout(timeout);
-          websocketManager.off('command_result', handleCommandResult);
-          resolve(data as CommandResult);
-        }
-      };
-
-      websocketManager.on('command_result', handleCommandResult);
-      websocketManager.sendCommand(commandText, auth);
-    });
-  }
-
-  // Default: send command after pending message (with auth if signed)
+  // Send command to backend (result will update the pending message)
   websocketManager.sendCommand(commandText, auth);
+  
   return {
     status: 'pending',
     message: 'Command sent to server'

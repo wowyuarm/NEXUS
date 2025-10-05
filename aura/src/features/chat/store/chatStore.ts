@@ -342,7 +342,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     type WrappedPayload = { command: string; result: { status: 'success' | 'error'; message: string; data?: Record<string, unknown> } };
     type RawPayload = { status: 'success' | 'error'; message: string; data?: Record<string, unknown> };
     
-    const isWrapped = 'result' in payload && typeof payload.result === 'object';
+    const isWrapped = 'result' in payload && typeof (payload as { result: unknown }).result === 'object' && 'command' in (payload as Record<string, unknown>);
     const resultObj = (isWrapped ? (payload as WrappedPayload).result : payload) as RawPayload;
     const commandText: string | undefined = isWrapped ? (payload as WrappedPayload).command : undefined;
 
