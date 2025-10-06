@@ -17,7 +17,7 @@ import {
   createClientMessage,
   createSystemCommandMessage
 } from './protocol';
-import { nexusConfig } from '../../config/nexus';
+// Following the Single Gateway Principle - derive WebSocket URL from NEXUS_BASE_URL
 import { IdentityService } from '../identity/identity';
 
 // ===== Event Emitter Implementation =====
@@ -98,9 +98,16 @@ export class WebSocketManager {
   // ===== Private URL Management =====
 
   private _getBaseUrl(): string {
-    // Use unified configuration from nexusConfig
-    const wsUrl = nexusConfig.wsUrl;
-    console.log('Using WebSocket URL from unified config:', wsUrl);
+    // Following the Single Gateway Principle - derive WebSocket URL from NEXUS_BASE_URL
+    const nexusBaseUrl = import.meta.env.VITE_NEXUS_BASE_URL || 'http://localhost:8000';
+
+    // Convert HTTP to WebSocket protocol
+    let wsUrl = nexusBaseUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+
+    // Append WebSocket path
+    wsUrl = `${wsUrl}/api/v1/ws`;
+
+    console.log('🔗 Derived WebSocket URL from NEXUS_BASE_URL:', wsUrl);
     return wsUrl;
   }
 

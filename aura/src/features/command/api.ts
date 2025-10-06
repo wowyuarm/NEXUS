@@ -8,9 +8,11 @@
 import type { Command } from './command.types';
 
 /**
- * Base API URL - configurable via environment variable
+ * Base API URL - derived from the single NEXUS backend URL
+ * Following the Single Gateway Principle
  */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const NEXUS_BASE_URL = import.meta.env.VITE_NEXUS_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = `${NEXUS_BASE_URL}/api/v1`;
 
 /**
  * API Error class for structured error handling
@@ -48,7 +50,7 @@ export class CommandAPIError extends Error {
  */
 export async function fetchCommands(): Promise<Command[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/commands`, {
+    const response = await fetch(`${API_BASE_URL}/commands`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -108,7 +110,7 @@ export async function fetchCommand(commandName: string): Promise<Command | null>
  */
 export async function checkAPIHealth(): Promise<{ status: string; dependencies?: Record<string, string> }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/health`);
+    const response = await fetch(`${API_BASE_URL}/health`);
     return await response.json();
   } catch (error) {
     throw new CommandAPIError(

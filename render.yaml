@@ -41,6 +41,9 @@ services:
       - key: TAVILY_API_KEY
         sync: false
         
+      - key: ALLOWED_ORIGINS
+        value: "https://aura-frontend-egej.onrender.com,https://app.yxnexus.com"
+
       # Service configuration
       - key: NEXUS_ENV
         value: "production"
@@ -59,15 +62,15 @@ services:
     plan: free
     region: oregon  # Should match backend region
       
-    # Environment variables
+    # Environment variables - Following the Single Gateway Principle
     envVars:
-      # Build configuration (optional overrides - frontend also supports relative paths)
+      # Build configuration
       - key: VITE_AURA_ENV
         value: "production"
-      - key: VITE_AURA_WS_URL
-        value: ""
-      - key: VITE_AURA_API_URL
-        value: ""
+      # Single Gateway: The one and only NEXUS backend URL
+      - key: VITE_NEXUS_BASE_URL
+        value: "https://nexus-backend-tp8m.onrender.com"
+      # App name
       - key: VITE_APP_NAME
         value: "AURA"
       # Runtime backend origin for nginx reverse proxy
