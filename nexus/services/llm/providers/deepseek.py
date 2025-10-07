@@ -5,14 +5,14 @@ This module implements the DeepSeekLLMProvider class that uses the OpenAI librar
 to communicate with DeepSeek's OpenAI-compatible API.
 
 Features:
-- OpenAI-compatible chat completion interface
-- Streaming and non-streaming responses
-- Tool calling support
+- OpenAI-compatible API interface
+- Streaming and non-streaming chat completions
+- Tool/Function calling support
 - Multiple DeepSeek model support
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import Dict, List, Optional
 from openai import AsyncOpenAI
 from .base import LLMProvider
 
@@ -25,7 +25,7 @@ class DeepSeekLLMProvider(LLMProvider):
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://api.deepseek.com/v1",
+        base_url: str = "https://api.deepseek.com",
         model: str = "deepseek-chat",
         timeout: int = 30
     ):
@@ -52,92 +52,96 @@ class DeepSeekLLMProvider(LLMProvider):
             base_url=self.base_url,
             timeout=self.timeout
         )
-        
+
         logger.info(
             f"DeepSeekLLMProvider initialized with model={self.default_model}, "
-            f"timeout={self.timeout}s, base_url={self.base_url}"
+            f"base_url={self.base_url}"
         )
 
-    async def chat_completion(self, messages: List[Dict[str, Any]], **kwargs) -> Dict[str, Any]:
+    async def chat_completion(
+        self,
+        messages: List[Dict],
+        model: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        stream: bool = False,
+        tools: Optional[List[Dict]] = None
+    ) -> Dict:
         """
         Generate a chat completion using DeepSeek.
 
         Args:
-            messages: List of message dictionaries with 'role' and 'content' keys
-            **kwargs: Additional parameters (model, temperature, tools, stream, etc.)
+            messages: List of message dictionaries with 'role' and 'content'
+            model: Model to use (defaults to self.default_model)
+            temperature: Sampling temperature (0.0-1.0)
+            max_tokens: Maximum tokens to generate
+            stream: Whether to stream the response
+            tools: Optional list of tool definitions for function calling
 
         Returns:
-            Dictionary containing 'content' (str) and 'tool_calls' (List or None)
+            Dictionary containing 'content' and optional 'tool_calls'
         """
         try:
-            # Extract parameters with defaults
-            model = kwargs.get("model", self.default_model)
-            temperature = kwargs.get("temperature", 0.7)
-            max_tokens = kwargs.get("max_tokens", 4096)
-            tools = kwargs.get("tools", [])
-            stream = kwargs.get("stream", False)
+            selected_model = model or self.default_model
 
-            logger.info(
-                f"Requesting chat completion with model={model}, "
-                f"messages_count={len(messages)}, tools_count={len(tools)}, stream={stream}"
-            )
-
-            # Prepare API call parameters
-            api_params = {
-                "model": model,
+            # Prepare request parameters
+            request_params = {
+                "model": selected_model,
                 "messages": messages,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 "stream": stream
             }
 
-            # Add tools if provided
+            # Only include tools if provided and non-empty
             if tools:
-                api_params["tools"] = tools
+                request_params["tools"] = tools
 
             # Make the API call
-            response = await self.client.chat.completions.create(**api_params)
+            response = await self.client.chat.completions.create(**request_params)
 
+            # Handle response based on streaming mode
             if stream:
-                # Handle streaming response
                 return await self._handle_streaming_response(response)
             else:
-                # Handle non-streaming response
                 return await self._handle_non_streaming_response(response)
 
         except Exception as e:
             logger.error(f"Error in DeepSeek chat completion: {e}")
             raise
 
-    async def _handle_non_streaming_response(self, response) -> Dict[str, Any]:
+    async def _handle_non_streaming_response(self, response) -> Dict:
         """Handle non-streaming response from the DeepSeek API."""
-        # Extract content and tool calls from response
-        message = response.choices[0].message if response.choices else None
-        content = message.content if message else None
+        if not response.choices:
+            logger.warning("DeepSeek API returned no choices")
+            return {
+                "content": None,
+                "tool_calls": None
+            }
 
-        # Extract tool calls safely
-        tool_calls = None
-        if message and hasattr(message, 'tool_calls'):
-            tool_calls = message.tool_calls
+        message = response.choices[0].message
+        content = getattr(message, 'content', None)
+        tool_calls = getattr(message, 'tool_calls', None)
 
-        # Convert tool_calls to the expected format if present
+        # Format tool calls if present
         formatted_tool_calls = None
         if tool_calls:
-            formatted_tool_calls = []
-            for tool_call in tool_calls:
-                formatted_tool_calls.append({
-                    "id": tool_call.id,
-                    "type": tool_call.type,
+            formatted_tool_calls = [
+                {
+                    "id": tc.id,
+                    "type": tc.type,
                     "function": {
-                        "name": tool_call.function.name,
-                        "arguments": tool_call.function.arguments
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments
                     }
-                })
+                }
+                for tc in tool_calls
+            ]
 
         logger.info(
             f"DeepSeek chat completion successful, "
             f"content_length={len(content) if content else 0}, "
-            f"tool_calls_count={len(formatted_tool_calls) if formatted_tool_calls else 0}"
+            f"tool_calls={len(formatted_tool_calls) if formatted_tool_calls else 0}"
         )
 
         return {
@@ -145,48 +149,53 @@ class DeepSeekLLMProvider(LLMProvider):
             "tool_calls": formatted_tool_calls
         }
 
-    async def _handle_streaming_response(self, response) -> Dict[str, Any]:
+    async def _handle_streaming_response(self, response) -> Dict:
         """Handle streaming response from the DeepSeek API."""
         content_chunks = []
         tool_calls = None
 
         async for chunk in response:
-            if chunk.choices:
-                delta = chunk.choices[0].delta
+            if not chunk.choices:
+                continue
 
-                # Collect content chunks
-                if hasattr(delta, 'content') and delta.content:
-                    content_chunks.append(delta.content)
+            delta = chunk.choices[0].delta
 
-                # Check for tool calls in the final chunk
-                if hasattr(delta, 'tool_calls') and delta.tool_calls:
-                    tool_calls = delta.tool_calls
+            # Collect content chunks
+            if hasattr(delta, 'content') and delta.content:
+                content_chunks.append(delta.content)
 
-        # Combine all content chunks
+            # Collect tool calls (usually comes in last chunk)
+            if hasattr(delta, 'tool_calls') and delta.tool_calls:
+                tool_calls = delta.tool_calls
+
+        # Combine content chunks
         full_content = ''.join(content_chunks) if content_chunks else None
 
-        # Convert tool_calls to the expected format if present
+        # Format tool calls if present
         formatted_tool_calls = None
         if tool_calls:
-            formatted_tool_calls = []
-            for tool_call in tool_calls:
-                formatted_tool_calls.append({
-                    "id": tool_call.id,
-                    "type": tool_call.type,
+            formatted_tool_calls = [
+                {
+                    "id": tc.id,
+                    "type": tc.type,
                     "function": {
-                        "name": tool_call.function.name,
-                        "arguments": tool_call.function.arguments
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments
                     }
-                })
+                }
+                for tc in tool_calls
+            ]
 
         logger.info(
             f"DeepSeek streaming completion successful, "
             f"content_length={len(full_content) if full_content else 0}, "
-            f"tool_calls_count={len(formatted_tool_calls) if formatted_tool_calls else 0}"
+            f"chunks={len(content_chunks)}, "
+            f"tool_calls={len(formatted_tool_calls) if formatted_tool_calls else 0}"
         )
 
         return {
             "content": full_content,
             "tool_calls": formatted_tool_calls,
-            "content_chunks": content_chunks  # Include chunks for streaming
+            "content_chunks": content_chunks
         }
+

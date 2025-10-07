@@ -161,7 +161,6 @@ const API_BASE_URL = `${httpBase}/api/v1`;
 # LLM Provider API Keys
 GEMINI_API_KEY=your_gemini_api_key
 OPENROUTER_API_KEY=your_openrouter_key
-DEEPSEEK_API_KEY=your_deepseek_key
 
 # Database
 MONGO_URI=mongodb://localhost:27017/nexus
@@ -196,8 +195,6 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: OPENROUTER_API_KEY
-        sync: false
-      - key: DEEPSEEK_API_KEY
         sync: false
       - key: MONGO_URI
         sync: false

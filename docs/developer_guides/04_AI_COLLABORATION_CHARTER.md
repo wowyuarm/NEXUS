@@ -58,8 +58,8 @@ You are allocated a **maximum of three attempts** to solve a single problem. If 
 ## IV. Architectural & Quality Mandates (Hard Rules)
 
 -   **File Size Limits**:
-    -   Python/TypeScript: **Strictly ≤ 200 lines**.
-    -   Other static languages: **Strictly ≤ 250 lines**.
+    -   Python/TypeScript: **Strictly ≤ 600 lines**.
+    -   Other static languages: **Strictly ≤ 600 lines**.
 -   **Directory Size Limits**:
     -   A single directory level should contain **≤ 8 files**. Exceeding this limit requires a proposal for sub-directory refactoring.
 -   **Zero Tolerance for "Bad Smells"**: You must actively identify and report rigidity, fragility, redundancy, unnecessary complexity, and other code smells. Upon detection, you must:

@@ -107,7 +107,7 @@ class ConfigService:
                     "deepseek": {
                         "model": "deepseek-chat",
                         "api_key": "${DEEPSEEK_API_KEY}",
-                        "base_url": "https://api.deepseek.com/v1"
+                        "base_url": "https://api.deepseek.com"
                     }
                 }
             },

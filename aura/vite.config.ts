@@ -13,6 +13,8 @@ export default defineConfig(({ mode }) => {
   console.log('VITE_NEXUS_BASE_URL (dev proxy):', env.VITE_NEXUS_BASE_URL || 'http://localhost:8000');
 
   return {
+    // Load environment variables from parent directory for client code
+    envDir: path.resolve(process.cwd(), '..'),
     plugins: [react()],
     resolve: {
       alias: {

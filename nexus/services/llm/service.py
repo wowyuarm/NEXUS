@@ -84,7 +84,7 @@ class LLMService:
         elif provider_name == "deepseek":
             # Get basic DeepSeek configuration
             api_key = self.config_service.get("llm.providers.deepseek.api_key")
-            base_url = self.config_service.get("llm.providers.deepseek.base_url", "https://api.deepseek.com/v1")
+            base_url = self.config_service.get("llm.providers.deepseek.base_url", "https://api.deepseek.com")
             model = self.config_service.get("llm.providers.deepseek.model", "deepseek-chat")
             timeout = self.config_service.get_int("llm.timeout", DEFAULT_TIMEOUT)
 

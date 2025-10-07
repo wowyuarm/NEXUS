@@ -175,12 +175,9 @@ async function executeRestCommand(
 
   try {
     const { endpoint, method, headers = {} } = command.restOptions;
-    // Derive API base from configured env or current origin
-    const configuredBase = (import.meta.env.VITE_NEXUS_BASE_URL || '').trim();
-    const httpBase = configuredBase !== '' ? configuredBase : window.location.origin;
-    const apiBaseUrl = `${httpBase}/api/v1`;
-
-    const response = await fetch(`${apiBaseUrl}${endpoint}`, {
+    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    
+    const response = await fetch(`${baseURL}${endpoint}`, {
       method,
       headers: {
         'Content-Type': 'application/json',
