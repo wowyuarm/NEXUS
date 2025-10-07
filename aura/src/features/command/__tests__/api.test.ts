@@ -56,8 +56,9 @@ describe('Command API', () => {
       
       expect(result).toEqual(mockCommands);
       expect(result).toHaveLength(4);
+      const expectedUrl = `${window.location.origin}/api/v1/commands`;
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://localhost:8000/api/v1/commands',
+        expectedUrl,
         expect.objectContaining({
           method: 'GET',
           headers: {

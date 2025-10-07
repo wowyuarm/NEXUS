@@ -98,11 +98,12 @@ export class WebSocketManager {
   // ===== Private URL Management =====
 
   private _getBaseUrl(): string {
-    // Following the Single Gateway Principle - derive WebSocket URL from NEXUS_BASE_URL
-    const nexusBaseUrl = import.meta.env.VITE_NEXUS_BASE_URL || 'http://localhost:8000';
+    // Prefer configured base URL at build-time; fallback to current origin for runtime flexibility
+    const configuredBase = (import.meta.env.VITE_NEXUS_BASE_URL || '').trim();
+    const httpBase = configuredBase !== '' ? configuredBase : window.location.origin;
 
     // Convert HTTP to WebSocket protocol
-    let wsUrl = nexusBaseUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+    let wsUrl = httpBase.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
 
     // Append WebSocket path
     wsUrl = `${wsUrl}/api/v1/ws`;

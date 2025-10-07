@@ -2,11 +2,22 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-// Load environment variables from root directory
 export default defineConfig(({ mode }) => {
-  // Load env file from the root directory (parent directory)
-  const env = loadEnv(mode, path.resolve(process.cwd(), '..'), '');
-  
+  // Load environment variables
+  // In production (Render), env vars are provided directly
+  // In development, load from parent directory's .env file
+  let env;
+  if (mode === 'production') {
+    // Production: Use environment variables provided by Render
+    env = {
+      NEXUS_ENV: process.env.NEXUS_ENV || 'production',
+      VITE_NEXUS_BASE_URL: process.env.VITE_NEXUS_BASE_URL || 'https://nexus-backend-tp8m.onrender.com'
+    };
+  } else {
+    // Development: Load from parent directory's .env file
+    env = loadEnv(mode, path.resolve(process.cwd(), '..'), '');
+  }
+
   // Log loaded environment for debugging - Following the Single Gateway Principle
   console.log('🏗️ NEXUS Environment Configuration:');
   console.log('NEXUS_ENV:', env.NEXUS_ENV);

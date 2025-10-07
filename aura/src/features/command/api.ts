@@ -11,8 +11,9 @@ import type { Command } from './command.types';
  * Base API URL - derived from the single NEXUS backend URL
  * Following the Single Gateway Principle
  */
-const NEXUS_BASE_URL = import.meta.env.VITE_NEXUS_BASE_URL || 'http://localhost:8000';
-const API_BASE_URL = `${NEXUS_BASE_URL}/api/v1`;
+const configuredBase = (import.meta.env.VITE_NEXUS_BASE_URL || '').trim();
+const httpBase = configuredBase !== '' ? configuredBase : window.location.origin;
+const API_BASE_URL = `${httpBase}/api/v1`;
 
 /**
  * API Error class for structured error handling

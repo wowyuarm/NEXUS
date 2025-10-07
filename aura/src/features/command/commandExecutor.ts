@@ -175,9 +175,10 @@ async function executeRestCommand(
 
   try {
     const { endpoint, method, headers = {} } = command.restOptions;
-    // Following the Single Gateway Principle - derive API URL from NEXUS_BASE_URL
-    const nexusBaseUrl = import.meta.env.VITE_NEXUS_BASE_URL || 'http://localhost:8000';
-    const apiBaseUrl = `${nexusBaseUrl}/api/v1`;
+    // Derive API base from configured env or current origin
+    const configuredBase = (import.meta.env.VITE_NEXUS_BASE_URL || '').trim();
+    const httpBase = configuredBase !== '' ? configuredBase : window.location.origin;
+    const apiBaseUrl = `${httpBase}/api/v1`;
 
     const response = await fetch(`${apiBaseUrl}${endpoint}`, {
       method,
