@@ -112,6 +112,7 @@ Links to related knowledge base docs, external resources, or code files.
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | `environment_configuration.md` | Complete guide to environment setup (local/production), variable flow, and network architecture | 2025-10-07 |
+| `command_system.md` | Exhaustive documentation of the command system: auto-discovery, execution handlers, WebSocket protocol, and signature verification | 2025-10-07 |
 
 ---
 
