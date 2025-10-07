@@ -62,18 +62,16 @@ services:
     plan: free
     region: oregon  # Should match backend region
       
-    # Environment variables - Following the Single Gateway Principle
+    # Environment variables
     envVars:
       # Build configuration
       - key: VITE_AURA_ENV
         value: "production"
-      # Single Gateway: The one and only NEXUS backend URL
-      - key: VITE_NEXUS_BASE_URL
-        value: "https://nexus-backend-tp8m.onrender.com"
       # App name
       - key: VITE_APP_NAME
         value: "AURA"
       # Runtime backend origin for nginx reverse proxy
+      # Frontend uses window.location.origin for API/WS, nginx proxies to this backend
       - key: BACKEND_ORIGIN
         value: "https://nexus-backend-tp8m.onrender.com"
     
