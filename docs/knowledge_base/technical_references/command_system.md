@@ -82,11 +82,11 @@ for _, modname, ispkg in pkgutil.iter_modules(package.__path__):
 
 **Requirements for a valid command module:**
 1. Must contain `COMMAND_DEFINITION` dict with keys:
-   - `name` (str): Unique command identifier (without `/` prefix)
+   - `name` (str): Unique command identifier **without `/` prefix** (internal state)
    - `description` (str): Human-readable purpose
-   - `usage` (str): Display string (e.g., `/ping`)
+   - `usage` (str): Display string **with `/` prefix** (external presentation)
    - `handler` (str): One of `"client"`, `"websocket"`, `"rest"`
-   - `examples` (list[str]): Usage examples
+   - `examples` (list[str]): Usage examples **with `/` prefix**
    - `requiresSignature` (bool, optional): Triggers signature verification
 
 2. Must contain async `execute(context: Dict[str, Any]) -> Dict[str, Any]` function
@@ -94,9 +94,9 @@ for _, modname, ispkg in pkgutil.iter_modules(package.__path__):
 **Example** (`ping.py`):
 ```python
 COMMAND_DEFINITION = {
-    "name": "ping",
+    "name": "ping",  # Internal name without / prefix
     "description": "Test system connectivity",
-    "usage": "/ping",
+    "usage": "/ping",  # UI display format with / prefix
     "handler": "websocket",
     "examples": ["/ping"]
 }
@@ -373,12 +373,12 @@ timestamp: 1234567890.123
 type CommandHandler = 'client' | 'websocket' | 'rest';
 
 interface Command {
-  name: string;
+  name: string;  // Without / prefix (e.g., "ping")
   description: string;
-  usage: string;
+  usage: string;  // With / prefix for display (e.g., "/ping")
   handler: CommandHandler;
   requiresSignature?: boolean;
-  examples: string[];
+  examples: string[];  // With / prefix (e.g., ["/ping"])
   restOptions?: RestOptions;
 }
 
@@ -393,14 +393,19 @@ interface CommandResult {
 
 ```python
 COMMAND_DEFINITION = {
-    "name": str,
+    "name": str,  # Without / prefix (internal state)
     "description": str,
-    "usage": str,
+    "usage": str,  # With / prefix (external presentation)
     "handler": "client" | "websocket" | "rest",
-    "examples": list[str],
+    "examples": list[str],  # With / prefix
     "requiresSignature": bool  # optional
 }
 ```
+
+**Semantic Convention**:
+- **Internal State**: `name` field uses pure command identifier without `/` prefix
+- **External Presentation**: `usage` and `examples` use `/` prefix for user-facing display
+- **Frontend Responsibility**: UI components add `/` prefix when displaying `command.name`
 
 **Contract Enforcement**: Frontend TypeScript types are authoritative. Backend definitions must match for proper serialization via `/api/v1/commands`.
 
@@ -700,11 +705,11 @@ from typing import Dict, Any
 logger = logging.getLogger(__name__)
 
 COMMAND_DEFINITION = {
-    "name": "mycommand",
+    "name": "mycommand",  # Without / prefix (internal state)
     "description": "Does something useful",
-    "usage": "/mycommand",
+    "usage": "/mycommand",  # With / prefix (display format)
     "handler": "websocket",  # or "client"
-    "examples": ["/mycommand"],
+    "examples": ["/mycommand"],  # With / prefix
     "requiresSignature": False  # optional
 }
 

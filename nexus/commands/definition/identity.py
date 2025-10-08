@@ -1,9 +1,9 @@
 """
 Identity command definition for NEXUS.
 
-Provides identity-related commands for user verification and management.
-Currently supports the /identity whoami subcommand which returns the verified
-public key of the user after successful signature verification.
+Provides identity verification through cryptographic signature validation.
+Returns the verified public key of the user after successful signature verification,
+establishing cryptographic proof of identity ownership.
 """
 
 import logging
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # Command definition
 COMMAND_DEFINITION = {
     "name": "identity",
-    "description": "Identity verification - returns your verified public key",
+    "description": "Verify your identity and display your public key through cryptographic signature",
     "usage": "/identity",
     "handler": "websocket",
     "requiresSignature": True,  # This command requires cryptographic signature
@@ -53,7 +53,7 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
             logger.error(error_msg)
             raise RuntimeError(error_msg)
         
-        logger.info(f"Identity whoami executed for public key: {public_key}")
+        logger.info(f"Identity command executed for public key: {public_key}")
         
         # Return success with verified public key
         result = {
