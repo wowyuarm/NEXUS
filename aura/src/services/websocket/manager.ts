@@ -259,7 +259,9 @@ export class WebSocketManager {
       const nexusEvent = parseNexusEvent(data);
       if (nexusEvent) {
         console.log('Received NEXUS event:', nexusEvent.event, nexusEvent.run_id);
-        this.emitter.emit(nexusEvent.event, nexusEvent.payload);
+        // The payload type depends on the event kind and is validated in parseNexusEvent.
+        // We keep it unknown here and let subscribers type it.
+        this.emitter.emit(nexusEvent.event, nexusEvent.payload as unknown);
         return;
       }
 

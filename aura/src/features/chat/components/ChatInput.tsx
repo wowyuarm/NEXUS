@@ -3,6 +3,7 @@ import { ArrowUp } from 'lucide-react';
 import { useRef, useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button, AutoResizeTextarea, type AutoResizeTextareaRef } from '@/components/ui';
+import { useChatStore } from '@/features/chat/store/chatStore';
 import type { Command } from '@/features/command/command.types';
 
 interface ChatInputProps {
@@ -34,6 +35,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onSetSelectedCommandIndex,
   onExecuteCommand,
 }) => {
+  const visitorMode = useChatStore(s => s.visitorMode);
   const [message, setMessage] = useState('');
   const [isComposing, setIsComposing] = useState(false);
   const textareaRef = useRef<AutoResizeTextareaRef>(null);
@@ -54,6 +56,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       if (message.trim().startsWith('/')) {
         onExecuteCommand(message.trim());
       } else {
+        // In visitor mode, only allow /identity; the store/backend will gatekeep,
+        // but we reflect same UX by encouraging identity setup when blocked.
         onSendMessage(message.trim());
       }
       setMessage('');
@@ -139,7 +143,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const canSend = message.trim().length > 0 && !disabled;
 
   // Dynamic placeholder based on command mode
-  const placeholder = isPaletteOpen ? '/' : '继续探索...';
+  const placeholder = isPaletteOpen ? '/' : (visitorMode ? '输入 /identity 以完成身份验证' : '继续探索...');
 
   return (
     <div className="w-full max-w-2xl mx-auto">

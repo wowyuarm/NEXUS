@@ -145,6 +145,10 @@ export function useAura(): UseAuraReturn {
     handleConnected(data.publicKey);
   }, [handleConnected]);
 
+  const onConnectionState = useCallback((payload: { visitor: boolean }) => {
+    useChatStore.getState().handleConnectionState(!!payload.visitor);
+  }, []);
+
   const onDisconnected = useCallback(() => {
     handleDisconnected();
   }, [handleDisconnected]);
@@ -167,6 +171,7 @@ export function useAura(): UseAuraReturn {
     websocketManager.on('error', onError);
     websocketManager.on('command_result', onCommandResult);
     websocketManager.on('connected', onConnected);
+    websocketManager.on('connection_state', onConnectionState);
     websocketManager.on('disconnected', onDisconnected);
 
     websocketManager.on('reconnect_failed', onReconnectFailed);
@@ -181,6 +186,7 @@ export function useAura(): UseAuraReturn {
       websocketManager.off('error', onError);
       websocketManager.off('command_result', onCommandResult);
       websocketManager.off('connected', onConnected);
+      websocketManager.off('connection_state', onConnectionState);
       websocketManager.off('disconnected', onDisconnected);
 
       websocketManager.off('reconnect_failed', onReconnectFailed);
@@ -194,6 +200,7 @@ export function useAura(): UseAuraReturn {
     onError,
     onCommandResult,
     onConnected,
+    onConnectionState,
     onDisconnected,
 
     onReconnectFailed

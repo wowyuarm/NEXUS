@@ -404,7 +404,7 @@ class CommandService:
         # Create result message
         result_message = Message(
             run_id=original_message.run_id,
-            session_id=original_message.session_id,
+            owner_key=original_message.owner_key,
             role=Role.SYSTEM,
             content=result,
             metadata={

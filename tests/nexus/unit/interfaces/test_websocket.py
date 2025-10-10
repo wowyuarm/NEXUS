@@ -200,7 +200,7 @@ class TestParseClientMessage:
             "type": "system_command",
             "payload": {
                 "command": "/ping",
-                "session_id": "test_session"
+                "owner_key": "test_session"
             }
         })
 
@@ -208,7 +208,7 @@ class TestParseClientMessage:
 
         assert result["type"] == "system_command"
         assert result["payload"]["command"] == "/ping"
-        assert result["payload"]["session_id"] == "test_session"
+        assert result["payload"]["owner_key"] == "test_session"
 
 
 class TestWebSocketCommandHandling:
@@ -236,8 +236,8 @@ class TestWebSocketCommandHandling:
         """Test handling command result messages."""
         # Mock WebSocket connection
         mock_websocket = AsyncMock()
-        session_id = "test_session"
-        websocket_interface.connections[session_id] = mock_websocket
+        owner_key = "test_session"
+        websocket_interface.connections[owner_key] = mock_websocket
 
         # Create a command result message
         command_result = {
@@ -248,7 +248,7 @@ class TestWebSocketCommandHandling:
 
         result_message = Message(
             run_id="test_run",
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.SYSTEM,
             content=command_result,
             metadata={"command": "/ping", "source": "CommandService"}
@@ -277,7 +277,7 @@ class TestWebSocketCommandHandling:
 
         result_message = Message(
             run_id="test_run",
-            session_id="non_existent_session",
+            owner_key="non_existent_session",
             role=Role.SYSTEM,
             content=command_result
         )

@@ -25,7 +25,7 @@ class Topics:
     CONTEXT_BUILD_REQUEST = "context.build.request"
     """
     Published by the Orchestrator to request context for a run.
-    Message content: {"session_id": str, "current_input": str}
+    Message content: {"owner_key": str, "current_input": str}
     """
 
     CONTEXT_BUILD_RESPONSE = "context.build.response"

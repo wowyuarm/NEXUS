@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { useCommandStore } from '../store/commandStore';
 import { fetchCommands } from '../api';
 import type { Command } from '../command.types';
+import { useChatStore } from '@/features/chat/store/chatStore';
 
 // Fallback commands for when backend is unavailable
 // These must match backend definitions exactly to maintain architectural integrity
@@ -47,6 +48,7 @@ export interface UseCommandLoaderOptions {
 export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
   const { setCommands, setLoading } = useCommandStore();
   const autoLoad = options?.autoLoad ?? true;
+  const visitorMode = useChatStore(s => s.visitorMode);
 
   const loadCommands = useCallback(async () => {
     setLoading(true);
@@ -55,18 +57,20 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
       // Fetch commands from REST API
       console.log('🔄 Loading commands from REST API...');
       const commands = await fetchCommands();
-      
-      setCommands(commands);
+      // Restrict commands in visitor mode to only /identity
+      const filtered = visitorMode ? commands.filter((c: Command) => c.name === 'identity') : commands;
+      setCommands(filtered);
       console.log(`✅ Successfully loaded ${commands.length} commands from backend`);
       
     } catch (error) {
       console.warn('⚠️ Failed to load commands from backend, using fallback:', error);
       // Use fallback commands to ensure basic functionality
-      setCommands(FALLBACK_COMMANDS);
+      const filteredFallback = visitorMode ? FALLBACK_COMMANDS.filter(c => c.name === 'identity') : FALLBACK_COMMANDS;
+      setCommands(filteredFallback);
     } finally {
       setLoading(false);
     }
-  }, [setCommands, setLoading]);
+  }, [setCommands, setLoading, visitorMode]);
 
   // Auto-load commands on mount
   useEffect(() => {
@@ -74,7 +78,7 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
       console.log('🚀 Auto-loading commands from REST API');
       loadCommands();
     }
-  }, [autoLoad, loadCommands]);
+  }, [autoLoad, loadCommands, visitorMode]);
 
   return {
     loadCommands,

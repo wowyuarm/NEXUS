@@ -84,11 +84,11 @@ class TestContextServiceIntegration:
         # Arrange: Prepare input message
         input_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.HUMAN,
             content={
                 "current_input": "What is artificial intelligence?",
-                "session_id": "test-session-456"
+                "owner_key": "test-session-456"
             }
         )
 
@@ -134,7 +134,7 @@ class TestContextServiceIntegration:
         # Verify message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-123"
-        assert published_message.session_id == "test-session-456"
+        assert published_message.owner_key == "test-session-456"
         assert published_message.role == Role.SYSTEM
         
         # Verify content structure
@@ -171,11 +171,11 @@ class TestContextServiceIntegration:
         # Arrange: Prepare input message
         input_message = Message(
             run_id="test-run-error",
-            session_id="test-session-error",
+            owner_key="test-session-error",
             role=Role.HUMAN,
             content={
                 "current_input": "Test input",
-                "session_id": "test-session-error"
+                "owner_key": "test-session-error"
             }
         )
 
@@ -195,7 +195,7 @@ class TestContextServiceIntegration:
         # Verify error message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-error"
-        assert published_message.session_id == "test-session-error"
+        assert published_message.owner_key == "test-session-error"
         assert published_message.role == Role.SYSTEM
         
         # Verify error content
@@ -212,10 +212,10 @@ class TestContextServiceIntegration:
         # Arrange: Prepare input message without current_input
         input_message = Message(
             run_id="test-run-missing",
-            session_id="test-session-missing",
+            owner_key="test-session-missing",
             role=Role.HUMAN,
             content={
-                "session_id": "test-session-missing"
+                "owner_key": "test-session-missing"
                 # Missing current_input
             }
         )

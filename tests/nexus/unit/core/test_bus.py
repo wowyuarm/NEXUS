@@ -72,7 +72,7 @@ class TestNexusBusInternalState:
         # Create a test message
         message = Message(
             run_id="test_run",
-            session_id="test_session",
+            owner_key="test_session",
             role=Role.HUMAN,
             content="Test message"
         )
@@ -99,7 +99,7 @@ class TestNexusBusInternalState:
         # Create a test message
         message = Message(
             run_id="test_run",
-            session_id="test_session",
+            owner_key="test_session",
             role=Role.HUMAN,
             content="Test message"
         )
@@ -241,7 +241,7 @@ class TestNexusBusListener:
         # Create test message
         message = Message(
             run_id="test_run",
-            session_id="test_session",
+            owner_key="test_session",
             role=Role.HUMAN,
             content="Test message"
         )
@@ -301,7 +301,7 @@ class TestNexusBusListener:
         # Create test message
         message = Message(
             run_id="test_run",
-            session_id="test_session",
+            owner_key="test_session",
             role=Role.HUMAN,
             content="Test message"
         )
@@ -340,7 +340,7 @@ class TestNexusBusListener:
         # Create test message
         message = Message(
             run_id="test_run",
-            session_id="test_session",
+            owner_key="test_session",
             role=Role.HUMAN,
             content="Test message"
         )

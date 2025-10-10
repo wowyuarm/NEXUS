@@ -55,7 +55,7 @@ describe('chatStore', () => {
   describe('handleRunStarted', () => {
     it('should transition to thinking state and add AI message placeholder', () => {
       const payload: RunStartedPayload = {
-        session_id: 'test-session',
+        owner_key: 'test-session',
         user_input: 'test input'
       };
 
@@ -84,7 +84,7 @@ describe('chatStore', () => {
       });
 
       const payload: RunStartedPayload = {
-        session_id: 'test-session',
+        owner_key: 'test-session',
         user_input: 'test input'
       };
 
@@ -102,7 +102,7 @@ describe('chatStore', () => {
     it('should transition to tool_running state and add tool call to activeToolCalls', () => {
       // Setup: Start a run first
       const runPayload: RunStartedPayload = {
-        session_id: 'test-session',
+        owner_key: 'test-session',
         user_input: 'test input'
       };
       useChatStore.getState().handleRunStarted(runPayload);

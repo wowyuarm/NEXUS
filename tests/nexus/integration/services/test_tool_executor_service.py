@@ -46,7 +46,7 @@ class TestToolExecutorServiceIntegration:
         # Arrange: Prepare input message
         input_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.SYSTEM,
             content={
                 "name": "web_search",
@@ -71,7 +71,7 @@ class TestToolExecutorServiceIntegration:
         # Verify message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-123"
-        assert published_message.session_id == "test-session-456"
+        assert published_message.owner_key == "test-session-456"
         assert published_message.role == Role.TOOL
         
         # Verify content structure
@@ -92,7 +92,7 @@ class TestToolExecutorServiceIntegration:
         # Arrange: Prepare input message
         input_message = Message(
             run_id="test-run-error",
-            session_id="test-session-error",
+            owner_key="test-session-error",
             role=Role.SYSTEM,
             content={
                 "name": "failing_tool",
@@ -119,7 +119,7 @@ class TestToolExecutorServiceIntegration:
         # Verify error message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-error"
-        assert published_message.session_id == "test-session-error"
+        assert published_message.owner_key == "test-session-error"
         assert published_message.role == Role.TOOL
         
         # Verify error content
@@ -136,7 +136,7 @@ class TestToolExecutorServiceIntegration:
         # Arrange: Prepare input message
         input_message = Message(
             run_id="test-run-missing",
-            session_id="test-session-missing",
+            owner_key="test-session-missing",
             role=Role.SYSTEM,
             content={
                 "name": "nonexistent_tool",
@@ -160,7 +160,7 @@ class TestToolExecutorServiceIntegration:
         # Verify error message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-missing"
-        assert published_message.session_id == "test-session-missing"
+        assert published_message.owner_key == "test-session-missing"
         assert published_message.role == Role.TOOL
         
         # Verify error content
@@ -177,7 +177,7 @@ class TestToolExecutorServiceIntegration:
         # Arrange: Prepare input message with invalid content
         input_message = Message(
             run_id="test-run-invalid",
-            session_id="test-session-invalid",
+            owner_key="test-session-invalid",
             role=Role.SYSTEM,
             content="invalid_content_not_dict"  # Should be a dict
         )
@@ -195,7 +195,7 @@ class TestToolExecutorServiceIntegration:
         # Verify error message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-invalid"
-        assert published_message.session_id == "test-session-invalid"
+        assert published_message.owner_key == "test-session-invalid"
         assert published_message.role == Role.TOOL
         
         # Verify error content
@@ -212,7 +212,7 @@ class TestToolExecutorServiceIntegration:
         # Arrange: Prepare input message without tool name
         input_message = Message(
             run_id="test-run-no-name",
-            session_id="test-session-no-name",
+            owner_key="test-session-no-name",
             role=Role.SYSTEM,
             content={
                 "args": {"param": "value"}
@@ -233,7 +233,7 @@ class TestToolExecutorServiceIntegration:
         # Verify error message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-no-name"
-        assert published_message.session_id == "test-session-no-name"
+        assert published_message.owner_key == "test-session-no-name"
         assert published_message.role == Role.TOOL
         
         # Verify error content
@@ -250,7 +250,7 @@ class TestToolExecutorServiceIntegration:
         # Arrange: Prepare input message with invalid args type
         input_message = Message(
             run_id="test-run-invalid-args",
-            session_id="test-session-invalid-args",
+            owner_key="test-session-invalid-args",
             role=Role.SYSTEM,
             content={
                 "name": "test_tool",
@@ -271,7 +271,7 @@ class TestToolExecutorServiceIntegration:
         # Verify error message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-invalid-args"
-        assert published_message.session_id == "test-session-invalid-args"
+        assert published_message.owner_key == "test-session-invalid-args"
         assert published_message.role == Role.TOOL
         
         # Verify error content
@@ -288,7 +288,7 @@ class TestToolExecutorServiceIntegration:
         # Arrange: Prepare input message
         input_message = Message(
             run_id="test-run-complex",
-            session_id="test-session-complex",
+            owner_key="test-session-complex",
             role=Role.SYSTEM,
             content={
                 "name": "data_processor",
@@ -319,7 +319,7 @@ class TestToolExecutorServiceIntegration:
         # Verify message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-complex"
-        assert published_message.session_id == "test-session-complex"
+        assert published_message.owner_key == "test-session-complex"
         assert published_message.role == Role.TOOL
         
         # Verify content structure

@@ -34,9 +34,24 @@ class TestOrchestratorFlows:
         return mock_service
 
     @pytest.fixture
-    def orchestrator_service(self, mock_bus, mock_config_service):
+    def mock_identity_service(self):
+        """Create a mock IdentityService for testing."""
+        mock_service = AsyncMock()
+        # By default, assume user is registered (returns identity dict)
+        mock_service.get_identity.return_value = {
+            "public_key": "test-public-key",
+            "created_at": "2025-01-01T00:00:00Z"
+        }
+        return mock_service
+
+    @pytest.fixture
+    def orchestrator_service(self, mock_bus, mock_config_service, mock_identity_service):
         """Create OrchestratorService instance with mocked dependencies."""
-        return OrchestratorService(bus=mock_bus, config_service=mock_config_service)
+        return OrchestratorService(
+            bus=mock_bus, 
+            config_service=mock_config_service,
+            identity_service=mock_identity_service
+        )
 
     @pytest.fixture
     def sample_run(self):
@@ -44,7 +59,7 @@ class TestOrchestratorFlows:
         # Create initial human message
         human_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.HUMAN,
             content="What is artificial intelligence?"
         )
@@ -52,7 +67,7 @@ class TestOrchestratorFlows:
         # Create run with history
         run = Run(
             id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             status=RunStatus.PENDING,
             history=[human_message]
         )
@@ -67,7 +82,7 @@ class TestOrchestratorFlows:
         # Step 1: Handle new run
         new_run_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.SYSTEM,
             content=sample_run
         )
@@ -99,7 +114,7 @@ class TestOrchestratorFlows:
         # Step 2: Handle context ready
         context_ready_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.SYSTEM,
             content={
                 "status": "success",
@@ -139,7 +154,7 @@ class TestOrchestratorFlows:
         # Step 3: Handle LLM result (no tool calls)
         llm_result_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.AI,
             content={
                 "content": "Artificial intelligence is a field of computer science...",
@@ -174,7 +189,7 @@ class TestOrchestratorFlows:
         # Step 1: Handle LLM result with tool calls
         llm_result_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.AI,
             content={
                 "content": "I'll search for information about AI.",
@@ -214,7 +229,7 @@ class TestOrchestratorFlows:
         # Step 2: Handle tool result
         tool_result_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.TOOL,
             content={
                 "tool_name": "web_search",
@@ -264,7 +279,7 @@ class TestOrchestratorFlows:
         # Step 1: Handle LLM result with multiple tool calls
         llm_result_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.AI,
             content={
                 "content": "I'll search for information from multiple sources.",
@@ -303,7 +318,7 @@ class TestOrchestratorFlows:
         # Step 2: Handle first tool result
         tool_result_1 = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.TOOL,
             content={
                 "tool_name": "web_search",
@@ -329,7 +344,7 @@ class TestOrchestratorFlows:
         # Step 3: Handle second tool result
         tool_result_2 = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.TOOL,
             content={
                 "tool_name": "web_search",
@@ -368,7 +383,7 @@ class TestOrchestratorFlows:
         # Handle LLM result with tool calls (should trigger safety valve)
         llm_result_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.AI,
             content={
                 "content": "I need to search more...",
@@ -419,7 +434,7 @@ class TestOrchestratorFlows:
         # Test text_chunk forwarding
         text_chunk_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.SYSTEM,
             content={
                 "event": "text_chunk",
@@ -443,7 +458,7 @@ class TestOrchestratorFlows:
         # Test tool_call_started forwarding
         tool_started_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.SYSTEM,
             content={
                 "event": "tool_call_started",

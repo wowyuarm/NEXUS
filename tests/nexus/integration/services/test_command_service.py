@@ -37,7 +37,10 @@ class TestCommandServiceIntegration:
     @pytest.fixture
     def command_service(self, mock_bus, mock_database_service):
         """Create CommandService instance with mocked dependencies."""
-        return CommandService(bus=mock_bus, database_service=mock_database_service)
+        # Inject a fake identity_service to satisfy /identity execution path
+        fake_identity_service = AsyncMock()
+        fake_identity_service.get_or_create_identity = AsyncMock(return_value={"public_key": "0xFAKE", "created_at": "2025-01-01T00:00:00Z"})
+        return CommandService(bus=mock_bus, database_service=mock_database_service, identity_service=fake_identity_service)
 
     @pytest.mark.asyncio
     async def test_ping_command_e2e(self, mock_bus, mock_database_service):
@@ -48,13 +51,15 @@ class TestCommandServiceIntegration:
         # Arrange: Create input message for ping command
         input_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.COMMAND,
             content="/ping"
         )
 
         # Act: Create service and simulate command handling
-        service = CommandService(bus=mock_bus, database_service=mock_database_service)
+        fake_identity_service = AsyncMock()
+        fake_identity_service.get_or_create_identity = AsyncMock(return_value={"public_key": "0xFAKE", "created_at": "2025-01-01T00:00:00Z"})
+        service = CommandService(bus=mock_bus, database_service=mock_database_service, identity_service=fake_identity_service)
         await service.handle_command(input_message)
 
         # Assert: Verify result was published to command.result topic
@@ -74,7 +79,7 @@ class TestCommandServiceIntegration:
         assert "nexus_version" in result_message.content["data"]
         assert "timestamp" in result_message.content["data"]
         assert result_message.run_id == "test-run-123"
-        assert result_message.session_id == "test-session-456"
+        assert result_message.owner_key == "test-session-456"
 
     @pytest.mark.asyncio
     async def test_help_command_e2e(self, mock_bus, mock_database_service):
@@ -85,7 +90,7 @@ class TestCommandServiceIntegration:
         # Arrange: Create input message for help command
         input_message = Message(
             run_id="test-run-789",
-            session_id="test-session-012",
+            owner_key="test-session-012",
             role=Role.COMMAND,
             content="/help"
         )
@@ -120,7 +125,7 @@ class TestCommandServiceIntegration:
         assert commands["clear"]["handler"] == "client"
         
         assert result_message.run_id == "test-run-789"
-        assert result_message.session_id == "test-session-012"
+        assert result_message.owner_key == "test-session-012"
 
     @pytest.mark.asyncio
     async def test_invalid_command_handling(self, mock_bus, mock_database_service):
@@ -130,7 +135,7 @@ class TestCommandServiceIntegration:
         # Arrange: Create input message for unknown command
         input_message = Message(
             run_id="test-run-invalid",
-            session_id="test-session-invalid",
+            owner_key="test-session-invalid",
             role=Role.COMMAND,
             content="/unknown_command"
         )
@@ -178,7 +183,7 @@ class TestCommandServiceIntegration:
         # Arrange: Create a command that will raise an exception
         input_message = Message(
             run_id="test-run-error",
-            session_id="test-session-error",
+            owner_key="test-session-error",
             role=Role.COMMAND,
             content="/ping"
         )
@@ -221,7 +226,7 @@ class TestCommandServiceIntegration:
 
             input_message = Message(
                 run_id="test-run-parse",
-                session_id="test-session-parse",
+                owner_key="test-session-parse",
                 role=Role.COMMAND,
                 content=command_input
             )
@@ -256,7 +261,7 @@ class TestCommandServiceIntegration:
         # Create message with auth payload
         input_message = Message(
             run_id="test-run-signed",
-            session_id="test-session-signed",
+            owner_key="test-session-signed",
             role=Role.COMMAND,
             content={
                 "command": command_str,
@@ -268,7 +273,9 @@ class TestCommandServiceIntegration:
         )
         
         # Act: Create service and handle the signed command
-        service = CommandService(bus=mock_bus, database_service=mock_database_service)
+        fake_identity_service = AsyncMock()
+        fake_identity_service.get_or_create_identity = AsyncMock(return_value={"public_key": public_key_hex, "created_at": "2025-01-01T00:00:00Z"})
+        service = CommandService(bus=mock_bus, database_service=mock_database_service, identity_service=fake_identity_service)
         await service.handle_command(input_message)
         
         # Assert: Verify command was executed successfully
@@ -277,8 +284,7 @@ class TestCommandServiceIntegration:
         
         result_message = call_args[0][1]
         assert result_message.content["status"] == "success"
-        assert "Your verified public key is" in result_message.content["message"]
-        assert public_key_hex in result_message.content["message"]
+        assert result_message.content["data"]["public_key"] == public_key_hex
 
     @pytest.mark.asyncio
     async def test_signed_command_verification_failure(self, mock_bus, mock_database_service):
@@ -294,7 +300,7 @@ class TestCommandServiceIntegration:
         # Create message with invalid auth payload
         input_message = Message(
             run_id="test-run-invalid-sig",
-            session_id="test-session-invalid-sig",
+            owner_key="test-session-invalid-sig",
             role=Role.COMMAND,
             content={
                 "command": command_str,

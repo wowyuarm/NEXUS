@@ -69,7 +69,7 @@ class TestLLMServiceIntegration:
         # Arrange: Prepare input message
         input_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.SYSTEM,
             content={
                 "messages": [
@@ -130,7 +130,7 @@ class TestLLMServiceIntegration:
         # Arrange: Prepare input message
         input_message = Message(
             run_id="test-run-456",
-            session_id="test-session-789",
+            owner_key="test-session-789",
             role=Role.SYSTEM,
             content={
                 "messages": [
@@ -180,7 +180,7 @@ class TestLLMServiceIntegration:
         # Arrange: Prepare input message
         input_message = Message(
             run_id="test-run-error",
-            session_id="test-session-error",
+            owner_key="test-session-error",
             role=Role.SYSTEM,
             content={
                 "messages": [
@@ -208,7 +208,7 @@ class TestLLMServiceIntegration:
         # Verify error message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-error"
-        assert published_message.session_id == "test-session-error"
+        assert published_message.owner_key == "test-session-error"
         assert published_message.role == Role.SYSTEM
         
         # Verify error content
@@ -224,7 +224,7 @@ class TestLLMServiceIntegration:
         # Arrange: Prepare input message without messages
         input_message = Message(
             run_id="test-run-missing",
-            session_id="test-session-missing",
+            owner_key="test-session-missing",
             role=Role.SYSTEM,
             content={
                 "tools": []
@@ -248,7 +248,7 @@ class TestLLMServiceIntegration:
         
         input_message = Message(
             run_id="test-run-fake",
-            session_id="test-session-fake",
+            owner_key="test-session-fake",
             role=Role.SYSTEM,
             content={
                 "messages": [
@@ -291,7 +291,7 @@ class TestLLMServiceIntegration:
         """
         # Arrange
         run_id = "test-run-final"
-        session_id = "test-session-final"
+        owner_key = "test-session-final"
         content_chunks = ["Hello", " world", "!"]
         tool_calls = [
             {
@@ -302,7 +302,7 @@ class TestLLMServiceIntegration:
         ]
 
         # Act: Send final result
-        await llm_service._send_final_streaming_result(run_id, session_id, content_chunks, tool_calls)
+        await llm_service._send_final_streaming_result(run_id, owner_key, content_chunks, tool_calls)
 
         # Assert: Verify final result was published
         mock_bus.publish.assert_called_once()
@@ -314,7 +314,7 @@ class TestLLMServiceIntegration:
         # Verify message structure
         published_message = call_args[0][1]
         assert published_message.run_id == run_id
-        assert published_message.session_id == session_id
+        assert published_message.owner_key == owner_key
         assert published_message.role == Role.AI
         
         # Verify content

@@ -23,7 +23,7 @@ class TestPersistenceServiceIntegration:
         """Create a mock DatabaseService for testing."""
         mock_service = Mock()
         mock_service.insert_message_async = AsyncMock(return_value=True)
-        mock_service.get_history_async = AsyncMock(return_value=[])
+        mock_service.get_history_by_owner_key = AsyncMock(return_value=[])
         mock_service.bus = Mock()  # Mock bus for subscription
         return mock_service
 
@@ -38,7 +38,7 @@ class TestPersistenceServiceIntegration:
         # Create initial human message
         human_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.HUMAN,
             content="What is artificial intelligence?"
         )
@@ -46,7 +46,7 @@ class TestPersistenceServiceIntegration:
         # Create run with history
         run = Run(
             id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             status=RunStatus.PENDING,
             history=[human_message]
         )
@@ -61,7 +61,7 @@ class TestPersistenceServiceIntegration:
         # Arrange: Create new run message
         new_run_message = Message(
             run_id="test-run-123",
-            session_id="test-session-456",
+            owner_key="test-session-456",
             role=Role.SYSTEM,
             content=sample_run
         )
@@ -75,7 +75,7 @@ class TestPersistenceServiceIntegration:
         # Verify the persisted message
         persisted_message = mock_database_service.insert_message_async.call_args[0][0]
         assert persisted_message.run_id == "test-run-123"
-        assert persisted_message.session_id == "test-session-456"
+        assert persisted_message.owner_key == "test-session-456"
         assert persisted_message.role == Role.HUMAN
         assert persisted_message.content == "What is artificial intelligence?"
         assert persisted_message.metadata["source"] == "new_run"
@@ -89,7 +89,7 @@ class TestPersistenceServiceIntegration:
         # Arrange: Create new run message with dict content
         new_run_message = Message(
             run_id="test-run-dict",
-            session_id="test-session-dict",
+            owner_key="test-session-dict",
             role=Role.SYSTEM,
             content={
                 "user_input": "Hello, how are you?",
@@ -106,7 +106,7 @@ class TestPersistenceServiceIntegration:
         # Verify the persisted message
         persisted_message = mock_database_service.insert_message_async.call_args[0][0]
         assert persisted_message.run_id == "test-run-dict"
-        assert persisted_message.session_id == "test-session-dict"
+        assert persisted_message.owner_key == "test-session-dict"
         assert persisted_message.role == Role.HUMAN
         assert persisted_message.content == "Hello, how are you?"
         assert persisted_message.metadata["source"] == "new_run"
@@ -120,7 +120,7 @@ class TestPersistenceServiceIntegration:
         # Arrange: Create LLM result message without tool calls
         llm_result_message = Message(
             run_id="test-run-ai",
-            session_id="test-session-ai",
+            owner_key="test-session-ai",
             role=Role.AI,
             content={
                 "content": "Artificial intelligence is a field of computer science that aims to create intelligent machines.",
@@ -137,7 +137,7 @@ class TestPersistenceServiceIntegration:
         # Verify the persisted message
         persisted_message = mock_database_service.insert_message_async.call_args[0][0]
         assert persisted_message.run_id == "test-run-ai"
-        assert persisted_message.session_id == "test-session-ai"
+        assert persisted_message.owner_key == "test-session-ai"
         assert persisted_message.role == Role.AI
         assert persisted_message.content == "Artificial intelligence is a field of computer science that aims to create intelligent machines."
         assert persisted_message.metadata["source"] == "llm_result"
@@ -152,7 +152,7 @@ class TestPersistenceServiceIntegration:
         # Act 1: Handle LLM result with tool calls
         llm_result_with_tools = Message(
             run_id="test-run-tools",
-            session_id="test-session-tools",
+            owner_key="test-session-tools",
             role=Role.AI,
             content={
                 "content": "I'll search for information about AI.",
@@ -176,7 +176,7 @@ class TestPersistenceServiceIntegration:
         
         ai_message = mock_database_service.insert_message_async.call_args[0][0]
         assert ai_message.run_id == "test-run-tools"
-        assert ai_message.session_id == "test-session-tools"
+        assert ai_message.owner_key == "test-session-tools"
         assert ai_message.role == Role.AI
         assert ai_message.content == "I'll search for information about AI."
         assert ai_message.metadata["source"] == "llm_result"
@@ -189,7 +189,7 @@ class TestPersistenceServiceIntegration:
         # Act 2: Handle tool result
         tool_result_message = Message(
             run_id="test-run-tools",
-            session_id="test-session-tools",
+            owner_key="test-session-tools",
             role=Role.TOOL,
             content={
                 "tool_name": "web_search",
@@ -206,7 +206,7 @@ class TestPersistenceServiceIntegration:
         
         tool_message = mock_database_service.insert_message_async.call_args[0][0]
         assert tool_message.run_id == "test-run-tools"
-        assert tool_message.session_id == "test-session-tools"
+        assert tool_message.owner_key == "test-session-tools"
         assert tool_message.role == Role.TOOL
         assert tool_message.content == "AI is the simulation of human intelligence processes by machines..."
         assert tool_message.metadata["source"] == "tool_result"
@@ -222,7 +222,7 @@ class TestPersistenceServiceIntegration:
         # Arrange: Create SYSTEM role message (streaming event)
         system_message = Message(
             run_id="test-run-system",
-            session_id="test-session-system",
+            owner_key="test-session-system",
             role=Role.SYSTEM,
             content={
                 "event": "text_chunk",
@@ -244,7 +244,7 @@ class TestPersistenceServiceIntegration:
         # Arrange: Create message with empty content
         empty_message = Message(
             run_id="test-run-empty",
-            session_id="test-session-empty",
+            owner_key="test-session-empty",
             role=Role.AI,
             content={
                 "content": "",
@@ -266,7 +266,7 @@ class TestPersistenceServiceIntegration:
         # Arrange: Create LLM result with None content but tool calls
         llm_result_message = Message(
             run_id="test-run-none",
-            session_id="test-session-none",
+            owner_key="test-session-none",
             role=Role.AI,
             content={
                 "content": None,
@@ -298,7 +298,7 @@ class TestPersistenceServiceIntegration:
         # Arrange: Create tool result with empty result
         empty_tool_result = Message(
             run_id="test-run-empty-tool",
-            session_id="test-session-empty-tool",
+            owner_key="test-session-empty-tool",
             role=Role.TOOL,
             content={
                 "tool_name": "empty_tool",
@@ -321,7 +321,7 @@ class TestPersistenceServiceIntegration:
         # Arrange: Create failed tool result
         failed_tool_result = Message(
             run_id="test-run-failed-tool",
-            session_id="test-session-failed-tool",
+            owner_key="test-session-failed-tool",
             role=Role.TOOL,
             content={
                 "tool_name": "failing_tool",
@@ -352,7 +352,7 @@ class TestPersistenceServiceIntegration:
         # Arrange: Create message with invalid run data
         invalid_run_message = Message(
             run_id="test-run-invalid",
-            session_id="test-session-invalid",
+            owner_key="test-session-invalid",
             role=Role.SYSTEM,
             content="invalid_run_data_not_object"  # Should be Run object or dict
         )
@@ -371,7 +371,7 @@ class TestPersistenceServiceIntegration:
         # Arrange: Create message with invalid content format
         invalid_llm_message = Message(
             run_id="test-run-invalid-llm",
-            session_id="test-session-invalid-llm",
+            owner_key="test-session-invalid-llm",
             role=Role.AI,
             content="invalid_content_not_dict"  # Should be dict
         )
@@ -390,7 +390,7 @@ class TestPersistenceServiceIntegration:
         # Arrange: Create message with invalid content format
         invalid_tool_message = Message(
             run_id="test-run-invalid-tool",
-            session_id="test-session-invalid-tool",
+            owner_key="test-session-invalid-tool",
             role=Role.TOOL,
             content="invalid_content_not_dict"  # Should be dict
         )
@@ -411,13 +411,13 @@ class TestPersistenceServiceIntegration:
             {"role": "human", "content": "Hello"},
             {"role": "ai", "content": "Hi there!"}
         ]
-        mock_database_service.get_history_async.return_value = sample_history
+        mock_database_service.get_history_by_owner_key.return_value = sample_history
         
         # Act: Get history
         result = await persistence_service.get_history("test-session", 10)
         
         # Assert: Verify delegation and result
-        mock_database_service.get_history_async.assert_called_once_with("test-session", 10)
+        mock_database_service.get_history_by_owner_key.assert_called_once_with("test-session", 10)
         assert result == sample_history
 
     @pytest.mark.asyncio
@@ -426,7 +426,7 @@ class TestPersistenceServiceIntegration:
         Test that get_history handles database errors gracefully.
         """
         # Arrange: Configure mock to raise exception
-        mock_database_service.get_history_async.side_effect = Exception("Database connection failed")
+        mock_database_service.get_history_by_owner_key.side_effect = Exception("Database connection failed")
         
         # Act: Get history
         result = await persistence_service.get_history("test-session", 10)

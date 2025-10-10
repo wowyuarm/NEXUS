@@ -78,7 +78,7 @@ class ContextService:
 
             # Build messages list with history
             messages = await self._build_messages_with_history(
-                message.session_id,
+                message.owner_key,
                 system_prompt,
                 current_input,
                 client_timestamp_utc,
@@ -92,7 +92,7 @@ class ContextService:
             # Create response message
             response_message = Message(
                 run_id=run_id,
-                session_id=message.session_id,
+                owner_key=message.owner_key,
                 role=Role.SYSTEM,
                 content={
                     "status": "success",
@@ -110,7 +110,7 @@ class ContextService:
             # Publish error response
             error_message = Message(
                 run_id=message.run_id,
-                session_id=message.session_id,
+                owner_key=message.owner_key,
                 role=Role.SYSTEM,
                 content={
                     "status": "error",
@@ -288,14 +288,14 @@ class ContextService:
 
         return messages
 
-    async def _build_messages_with_history(self, session_id: str, system_prompt: str, current_input: str, client_timestamp_utc: str = "", client_timezone_offset: int = 0, current_run_id: str = "") -> List[Dict]:
+    async def _build_messages_with_history(self, owner_key: str, system_prompt: str, current_input: str, client_timestamp_utc: str = "", client_timezone_offset: int = 0, current_run_id: str = "") -> List[Dict]:
         """Build messages list with conversation history from database.
 
         This method focuses on async I/O operations and delegates message formatting
         to the synchronous _format_llm_messages method.
 
         Args:
-            session_id: The session ID to load history for
+            owner_key: The owner's public key to load history for
             system_prompt: The system prompt to include
             current_input: The current user input
             client_timestamp_utc: The client timestamp in ISO 8601 format
@@ -316,11 +316,11 @@ class ContextService:
                     history_limit = self.config_service.get_int(CONFIG_HISTORY_SIZE_KEY, DEFAULT_HISTORY_LIMIT)
 
                 # Retrieve historical messages
-                history_from_db = await self.persistence_service.get_history(session_id, history_limit)
-                logger.info(f"Added {len(history_from_db)} historical messages to context for session {session_id}")
+                history_from_db = await self.persistence_service.get_history(owner_key, history_limit)
+                logger.info(f"Added {len(history_from_db)} historical messages to context for owner_key={owner_key}")
 
             except Exception as e:
-                logger.error(f"Failed to load conversation history for session {session_id}: {e}")
+                logger.error(f"Failed to load conversation history for owner_key={owner_key}: {e}")
                 # Continue without history if loading fails
                 history_from_db = []
 

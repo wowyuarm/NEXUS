@@ -31,6 +31,8 @@ export interface ChatState {
   isInputDisabled: boolean;
   lastError: string | null;
   toolCallHistory: Record<string, ToolCall[]>;
+  // Visitor restriction mode: only /identity is allowed in command palette
+  visitorMode: boolean;
 }
 
 export interface ChatActions {
@@ -41,6 +43,8 @@ export interface ChatActions {
   handleRunFinished: (payload: RunFinishedPayload) => void;
   handleError: (payload: ErrorPayload) => void;
   handleCommandResult: (payload: CommandResultPayload) => void;
+  // Connection state event: toggle visitor mode silently
+  handleConnectionState: (visitor: boolean) => void;
 
   handleConnected: (publicKey: string) => void;
   handleDisconnected: () => void;
@@ -83,6 +87,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   isInputDisabled: false,
   lastError: null,
   toolCallHistory: {},
+  visitorMode: false,
 
   handleRunStarted: () => {
     const runId = uuidv4();
@@ -249,6 +254,29 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const { currentRun } = get();
 
     set((state) => {
+      const isSystem = payload.role === 'SYSTEM';
+
+      // Visitor guidance: render as a standalone SYSTEM message and mark run finished state
+      if (isSystem) {
+        const sysMsg: Message = {
+          id: uuidv4(),
+          role: 'SYSTEM',
+          content: payload.chunk,
+          timestamp: new Date(),
+          runId: currentRun.runId || undefined,
+        };
+        return {
+          messages: [...state.messages, sysMsg],
+          currentRun: {
+            ...state.currentRun,
+            status: payload.is_final ? 'completed' : state.currentRun.status
+          },
+          // Enter visitor restricted mode until identity is verified
+          visitorMode: true
+        };
+      }
+
+      // Default AI streaming behavior
       let existingMessageIndex = state.messages
         .map((msg, idx) => ({ msg, idx }))
         .filter(({ msg }) => msg.role === 'AI' && msg.isStreaming)
@@ -395,7 +423,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             commandResult: resultObj
           }
         };
-        return { messages: updatedMessages };
+        // If identity succeeded, exit visitor mode
+        const exitVisitor = commandText === '/identity' && resultObj.status === 'success';
+        return { 
+          messages: updatedMessages,
+          visitorMode: exitVisitor ? false : state.visitorMode
+        };
       }
 
       // If no pending message found, append a new SYSTEM message with structured content
@@ -409,7 +442,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         timestamp: new Date(),
         metadata: { status: 'completed', commandResult: resultObj }
       };
-      return { messages: [...state.messages, newMessage] };
+      const exitVisitor = commandText === '/identity' && resultObj.status === 'success';
+      return { 
+        messages: [...state.messages, newMessage],
+        visitorMode: exitVisitor ? false : state.visitorMode
+      };
     });
   },
 
@@ -419,6 +456,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       publicKey,
       lastError: null
     });
+  },
+
+  handleConnectionState: (visitor: boolean) => {
+    set({ visitorMode: visitor });
   },
 
   handleDisconnected: () => {

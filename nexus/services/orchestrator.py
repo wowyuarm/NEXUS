@@ -43,9 +43,10 @@ LLM_ROLE_USER = "user"
 
 
 class OrchestratorService:
-    def __init__(self, bus: NexusBus, config_service: ConfigService):
+    def __init__(self, bus: NexusBus, config_service: ConfigService, identity_service=None):
         self.bus = bus
         self.config_service = config_service
+        self.identity_service = identity_service
         # Track active runs by run_id
         self.active_runs: Dict[str, Run] = {}
         # Get max tool iterations from config
@@ -135,11 +136,11 @@ class OrchestratorService:
                 })
         return messages
 
-    def _create_standardized_ui_event(self, run_id: str, session_id: str, content: str) -> Message:
+    def _create_standardized_ui_event(self, run_id: str, owner_key: str, content: str) -> Message:
         """Create a standardized UI event message."""
         return Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.AI,
             content={
                 "event": UI_EVENT_TEXT_CHUNK,
@@ -150,13 +151,13 @@ class OrchestratorService:
             }
         )
 
-    def _create_ui_event(self, run_id: str, session_id: str, event_type: str, payload: dict) -> Message:
+    def _create_ui_event(self, run_id: str, owner_key: str, event_type: str, payload: dict) -> Message:
         """
         Create a generic UI event message with specified event type and payload.
 
         Args:
             run_id: The run identifier
-            session_id: The session identifier
+            owner_key: The owner's public key (user identity)
             event_type: The UI event type (e.g., 'run_started', 'tool_call_finished')
             payload: The event-specific payload data
 
@@ -165,7 +166,7 @@ class OrchestratorService:
         """
         return Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.SYSTEM,
             content={
                 "event": event_type,
@@ -184,7 +185,7 @@ class OrchestratorService:
 
     async def handle_new_run(self, message: Message) -> None:
         """
-        Handle new run requests.
+        Handle new run requests with identity-based gatekeeper logic.
 
         Args:
             message: Message containing Run object
@@ -198,13 +199,50 @@ class OrchestratorService:
                 logger.error(f"Expected Run object in message content, got {type(run)}")
                 return
 
+            # === GATEKEEPER LOGIC: Identity Verification ===
+            # Check if user is registered (member) or unregistered (visitor)
+            if self.identity_service:
+                identity = await self.identity_service.get_identity(run.owner_key)
+                
+                if identity is None:
+                    # Visitor flow: Send guidance message and halt
+                    logger.info(f"Unregistered user (visitor) detected for owner_key={run.owner_key}, sending guidance")
+                    
+                    guidance_message = self._create_ui_event(
+                        run_id=run.id,
+                        owner_key=run.owner_key,
+                        event_type=UI_EVENT_TEXT_CHUNK,
+                        payload={
+                            # Use standardized key expected by frontend protocol
+                            "chunk": "欢迎！您当前处于访客模式。要创建您的专属身份并启用个性化功能，请执行 `/identity` 指令。",
+                            "is_final": True,
+                            # Hint UI to render this as a system message
+                            "role": "SYSTEM"
+                        }
+                    )
+                    await self.bus.publish(Topics.UI_EVENTS, guidance_message)
+                    
+                    # Publish run_finished event to close the run
+                    run_finished_event = self._create_ui_event(
+                        run_id=run.id,
+                        owner_key=run.owner_key,
+                        event_type=UI_EVENT_RUN_FINISHED,
+                        payload={"status": "visitor_guidance_sent"}
+                    )
+                    await self.bus.publish(Topics.UI_EVENTS, run_finished_event)
+                    logger.info(f"Visitor guidance sent for run_id={run.id}, halting normal flow")
+                    return
+                
+                logger.info(f"Registered user (member) verified for owner_key={run.owner_key}")
+            
+            # === MEMBER FLOW: Continue normal processing ===
             # Publish run_started UI event
             run_started_event = self._create_ui_event(
                 run_id=run.id,
-                session_id=run.session_id,
+                owner_key=run.owner_key,
                 event_type=UI_EVENT_RUN_STARTED,
                 payload={
-                    "session_id": run.session_id,
+                    "owner_key": run.owner_key,
                     "user_input": self._extract_user_input_from_run(run)
                 }
             )
@@ -227,11 +265,11 @@ class OrchestratorService:
             # Request context building
             context_request = Message(
                 run_id=run.id,
-                session_id=run.session_id,
+                owner_key=run.owner_key,
                 role=Role.SYSTEM,
                 content={
                     "current_input": current_input,
-                    "session_id": run.session_id,
+                    "owner_key": run.owner_key,
                     "client_timestamp_utc": client_timestamp_utc,
                     "client_timezone_offset": client_timezone_offset,
                     "run_id": run.id
@@ -279,7 +317,7 @@ class OrchestratorService:
             # Request LLM completion
             llm_request = Message(
                 run_id=run_id,
-                session_id=run.session_id,
+                owner_key=run.owner_key,
                 role=Role.SYSTEM,
                 content={
                     "messages": messages,
@@ -315,7 +353,7 @@ class OrchestratorService:
             if isinstance(content, dict) and content.get("event") in {UI_EVENT_TEXT_CHUNK, UI_EVENT_TOOL_CALL_STARTED}:
                 ui_event = Message(
                     run_id=run_id,
-                    session_id=run.session_id,
+                    owner_key=run.owner_key,
                     role=Role.SYSTEM,
                     content=content,
                 )
@@ -338,7 +376,7 @@ class OrchestratorService:
                     # Send error message to UI
                     error_event = Message(
                         run_id=run_id,
-                        session_id=run.session_id,
+                        owner_key=run.owner_key,
                         role=Role.SYSTEM,
                         content={
                             "event": "error",
@@ -353,7 +391,7 @@ class OrchestratorService:
                     # Publish run_finished UI event for timed out run
                     run_finished_event = self._create_ui_event(
                         run_id=run_id,
-                        session_id=run.session_id,
+                        owner_key=run.owner_key,
                         event_type=UI_EVENT_RUN_FINISHED,
                         payload={"status": "timed_out"}
                     )
@@ -375,7 +413,7 @@ class OrchestratorService:
                 # Record AI intent: add the LLM message with tool_calls to history
                 ai_message = Message(
                     run_id=run_id,
-                    session_id=run.session_id,
+                    owner_key=run.owner_key,
                     role=Role.AI,
                     content=llm_content,
                     metadata={"tool_calls": tool_calls}
@@ -393,7 +431,7 @@ class OrchestratorService:
 
                     tool_request = Message(
                         run_id=run_id,
-                        session_id=run.session_id,
+                        owner_key=run.owner_key,
                         role=Role.SYSTEM,
                         content={
                             "name": tool_call.get("function", {}).get("name"),
@@ -412,7 +450,7 @@ class OrchestratorService:
                 # Just publish run_finished UI event
                 run_finished_event = self._create_ui_event(
                     run_id=run_id,
-                    session_id=run.session_id,
+                    owner_key=run.owner_key,
                     event_type=UI_EVENT_RUN_FINISHED,
                     payload={"status": "completed"}
                 )
@@ -451,7 +489,7 @@ class OrchestratorService:
             # Publish tool_call_finished UI event
             tool_finished_event = self._create_ui_event(
                 run_id=run_id,
-                session_id=run.session_id,
+                owner_key=run.owner_key,
                 event_type=UI_EVENT_TOOL_CALL_FINISHED,
                 payload={
                     "tool_name": tool_name,
@@ -465,7 +503,7 @@ class OrchestratorService:
             # Record tool result: add the tool message to history
             tool_message = Message(
                 run_id=run_id,
-                session_id=run.session_id,
+                owner_key=run.owner_key,
                 role=Role.TOOL,
                 content=tool_result,
                 metadata={"tool_name": tool_name, "status": tool_status, "call_id": call_id}
@@ -501,7 +539,7 @@ class OrchestratorService:
 
             llm_request = Message(
                 run_id=run_id,
-                session_id=run.session_id,
+                owner_key=run.owner_key,
                 role=Role.SYSTEM,
                 content={
                     "messages": messages,

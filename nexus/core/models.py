@@ -62,7 +62,7 @@ class Message(BaseModel):
     ------
     id: unique message ID with 'msg_' prefix
     run_id: ID of the Run this message belongs to
-    session_id: ID of the conversational session continuum
+    owner_key: public key of the user who owns this message (identity-based isolation)
     role: actor that produced the message
     content: payload content (string, dict, etc.)
     timestamp: UTC timestamp when the message was created
@@ -71,7 +71,7 @@ class Message(BaseModel):
 
     id: str = Field(default_factory=_gen_msg_id)
     run_id: str
-    session_id: str
+    owner_key: str
     role: Role
     content: Any
     timestamp: datetime = Field(default_factory=_now_utc)
@@ -82,7 +82,7 @@ class Run(BaseModel):
     """Container tracking the lifecycle of a single interaction (Run)."""
 
     id: str = Field(default_factory=_gen_run_id)
-    session_id: str
+    owner_key: str
     status: RunStatus = Field(default=RunStatus.PENDING)
     history: List[Message] = Field(default_factory=list)
     iteration_count: int = Field(default=0)

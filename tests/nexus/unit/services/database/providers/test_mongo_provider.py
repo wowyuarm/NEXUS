@@ -106,7 +106,7 @@ class TestMongoProvider:
         # Create test message
         message = Message(
             run_id="test_run",
-            session_id="test_session",
+            owner_key="test_public_key_123",
             role=Role.HUMAN,
             content="Test message"
         )
@@ -119,7 +119,7 @@ class TestMongoProvider:
         # Verify the message was converted to dict
         call_args = mock_collection.insert_one.call_args[0][0]
         assert call_args['run_id'] == "test_run"
-        assert call_args['session_id'] == "test_session"
+        assert call_args['owner_key'] == "test_public_key_123"
         assert call_args['role'] == Role.HUMAN
         assert call_args['content'] == "Test message"
 
@@ -135,7 +135,7 @@ class TestMongoProvider:
         # Create test message
         message = Message(
             run_id="test_run",
-            session_id="test_session",
+            owner_key="test_public_key_123",
             role=Role.HUMAN,
             content="Test message"
         )
@@ -152,7 +152,7 @@ class TestMongoProvider:
         
         message = Message(
             run_id="test_run",
-            session_id="test_session",
+            owner_key="test_public_key_123",
             role=Role.HUMAN,
             content="Test message"
         )
@@ -171,7 +171,7 @@ class TestMongoProvider:
         mock_document1 = {
             '_id': Mock(),
             'run_id': 'test_run',
-            'session_id': 'test_session',
+            'owner_key': 'test_public_key_123',
             'role': Role.HUMAN,
             'content': 'First message',
             'timestamp': '2024-01-01T00:00:00Z'
@@ -179,7 +179,7 @@ class TestMongoProvider:
         mock_document2 = {
             '_id': Mock(),
             'run_id': 'test_run',
-            'session_id': 'test_session',
+            'owner_key': 'test_public_key_123',
             'role': Role.AI,
             'content': 'Second message',
             'timestamp': '2024-01-01T00:01:00Z'
@@ -193,7 +193,7 @@ class TestMongoProvider:
         provider = MongoProvider("mongodb://localhost:27017", "test_db")
         provider.messages_collection = mock_collection
         
-        messages = provider.get_messages_by_session_id("test_session", limit=10)
+        messages = provider.get_messages_by_owner_key("test_public_key_123", limit=10)
         
         assert len(messages) == 2
         assert messages[0]['role'] == Role.HUMAN
@@ -206,7 +206,7 @@ class TestMongoProvider:
         assert isinstance(messages[1]['_id'], str)
         
         # Verify query parameters
-        mock_collection.find.assert_called_once_with({"session_id": "test_session"})
+        mock_collection.find.assert_called_once_with({"owner_key": "test_public_key_123"})
         mock_cursor.sort.assert_called_once_with("timestamp", -1)  # DESCENDING constant
         mock_cursor.limit.assert_called_once_with(10)
 
@@ -219,17 +219,17 @@ class TestMongoProvider:
         provider = MongoProvider("mongodb://localhost:27017", "test_db")
         provider.messages_collection = mock_collection
         
-        messages = provider.get_messages_by_session_id("test_session")
+        messages = provider.get_messages_by_owner_key("test_public_key_123")
         
         assert messages == []
-        mock_collection.find.assert_called_once_with({"session_id": "test_session"})
+        mock_collection.find.assert_called_once_with({"owner_key": "test_public_key_123"})
 
     def test_get_messages_not_connected(self):
         """Test message retrieval when not connected to database."""
         provider = MongoProvider("mongodb://localhost:27017", "test_db")
         # provider.messages_collection is None
         
-        messages = provider.get_messages_by_session_id("test_session")
+        messages = provider.get_messages_by_owner_key("test_public_key_123")
         
         assert messages == []
 

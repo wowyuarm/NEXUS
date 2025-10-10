@@ -129,11 +129,11 @@ class DatabaseService:
             logger.error(f"Error during async message insertion: {e}")
             return False
 
-    async def get_history_async(self, session_id: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Asynchronously retrieve message history for a session.
+    async def get_history_by_owner_key(self, owner_key: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Asynchronously retrieve message history for an owner (user identity).
 
         Args:
-            session_id: The session ID to query for
+            owner_key: The owner's public key to query for
             limit: Maximum number of messages to return (default: 20)
 
         Returns:
@@ -147,8 +147,8 @@ class DatabaseService:
         try:
             # Use asyncio.to_thread to run the sync database operation
             messages = await asyncio.to_thread(
-                self.provider.get_messages_by_session_id,
-                session_id,
+                self.provider.get_messages_by_owner_key,
+                owner_key,
                 limit
             )
             return messages

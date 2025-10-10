@@ -24,6 +24,7 @@ from nexus.services.context import ContextService
 from nexus.services.orchestrator import OrchestratorService
 from nexus.services.persistence import PersistenceService
 from nexus.services.command import CommandService
+from nexus.services.identity import IdentityService
 from nexus.tools.registry import ToolRegistry
 
 
@@ -82,8 +83,11 @@ async def main() -> None:
     # 6) Instantiate services and interfaces with proper dependency injection
     # Order matters: dependencies must be created before dependents
 
-    # Persistence service depends on database service
-    persistence_service = PersistenceService(database_service)
+    # Identity service for user identity management
+    identity_service = IdentityService(db_service=database_service)
+
+    # Persistence service depends on database and identity services
+    persistence_service = PersistenceService(database_service, identity_service)
 
     # Other services
     llm_service = LLMService(bus, config_service)
@@ -92,12 +96,12 @@ async def main() -> None:
     # Context service now depends on config and persistence services
     context_service = ContextService(bus, tool_registry, config_service, persistence_service)
 
-    # Command service for deterministic command processing
-    command_service = CommandService(bus, database_service=database_service)
+    # Command service for deterministic command processing (inject identity_service)
+    command_service = CommandService(bus, database_service=database_service, identity_service=identity_service)
 
-    # Orchestrator and interface services
-    orchestrator_service = OrchestratorService(bus, config_service)
-    websocket_interface = WebsocketInterface(bus, database_service)
+    # Orchestrator service with identity gatekeeper (inject identity_service)
+    orchestrator_service = OrchestratorService(bus, config_service, identity_service=identity_service)
+    websocket_interface = WebsocketInterface(bus, database_service, identity_service)
 
     services: List[object] = [
         database_service,

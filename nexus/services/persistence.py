@@ -15,6 +15,7 @@ from typing import Dict, Any
 from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
 from nexus.services.database.service import DatabaseService
+from nexus.services.identity import IdentityService
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +28,14 @@ class PersistenceService:
     the database for future context building and conversation history.
     """
 
-    def __init__(self, database_service: DatabaseService):
+    def __init__(self, database_service: DatabaseService, identity_service: IdentityService | None = None):
         """Initialize PersistenceService.
 
         Args:
             database_service: The DatabaseService instance for data operations
         """
         self.database_service = database_service
+        self.identity_service = identity_service
         logger.info("PersistenceService initialized")
 
     def subscribe_to_bus(self) -> None:
@@ -106,10 +108,23 @@ class PersistenceService:
                 logger.error(f"Invalid run data format in new run message: {e}")
                 return
 
+            # Gatekeeper: Skip persistence for visitors (no identity on record)
+            try:
+                if self.identity_service:
+                    identity = await self.identity_service.get_identity(message.owner_key)
+                    if identity is None:
+                        logger.info(
+                            f"Skipping persistence for visitor owner_key={message.owner_key} (no identity)."
+                        )
+                        return
+            except Exception as e:
+                logger.error(f"Identity check failed during new run persistence: {e}")
+                return
+
             # Create a message representing the human input
             human_message = Message(
                 run_id=message.run_id,
-                session_id=message.session_id,
+                owner_key=message.owner_key,
                 role=Role.HUMAN,
                 content=user_input,
                 metadata={
@@ -156,7 +171,7 @@ class PersistenceService:
 
             ai_message = Message(
                 run_id=message.run_id,
-                session_id=message.session_id,
+                owner_key=message.owner_key,
                 role=Role.AI,
                 content=ai_content,
                 metadata={
@@ -195,7 +210,7 @@ class PersistenceService:
             # Create a message representing the tool result
             tool_message = Message(
                 run_id=message.run_id,
-                session_id=message.session_id,
+                owner_key=message.owner_key,
                 role=Role.TOOL,
                 content=tool_result,
                 metadata={
@@ -213,27 +228,27 @@ class PersistenceService:
         except Exception as e:
             logger.error(f"Error handling tool result for persistence: {e}")
 
-    async def get_history(self, session_id: str, limit: int = 20) -> list[Dict[str, Any]]:
-        """Retrieve recent conversation history for a session.
+    async def get_history(self, owner_key: str, limit: int = 20) -> list[Dict[str, Any]]:
+        """Retrieve recent conversation history for an owner (user identity).
 
         This method provides a convenient interface for other services
         to access recent conversation history (short-term memory) for context building.
         It retrieves the most recent messages up to the specified limit.
 
         Args:
-            session_id: The session ID to retrieve history for
+            owner_key: The owner's public key to retrieve history for
             limit: Maximum number of recent messages to return (default: 20)
 
         Returns:
             List of message dictionaries sorted by timestamp (newest first)
         """
         try:
-            messages = await self.database_service.get_history_async(session_id, limit)
-            logger.info(f"Retrieved {len(messages)} messages for session_id={session_id}")
+            messages = await self.database_service.get_history_by_owner_key(owner_key, limit)
+            logger.info(f"Retrieved {len(messages)} messages for owner_key={owner_key}")
             return messages
 
         except Exception as e:
-            logger.error(f"Error retrieving history for session {session_id}: {e}")
+            logger.error(f"Error retrieving history for owner_key={owner_key}: {e}")
             return []
 
     async def run_forever(self) -> None:

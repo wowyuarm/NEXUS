@@ -28,21 +28,20 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
     """
     Execute the identity command.
 
-    This command returns the verified public key of the user after successful
-    signature verification. The public key is injected into the context by
-    the CommandService's signature verification logic.
+    Creates or retrieves user identity in the database, establishing the user
+    as a registered member with data persistence capabilities.
 
     Args:
         context: Execution context containing:
             - public_key: The verified public key (injected by signature verification)
-            - command_name: Name of the command being executed
+            - identity_service: IdentityService instance for identity operations
             - Other service dependencies
 
     Returns:
-        Dict with status, message containing the verified public key
+        Dict with status, message about identity creation/verification
 
     Raises:
-        RuntimeError: If public_key is not found in context (signature verification failed)
+        RuntimeError: If public_key is not found or identity creation fails
     """
     try:
         # Extract the verified public key from context
@@ -53,15 +52,43 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
             logger.error(error_msg)
             raise RuntimeError(error_msg)
         
+        # Get IdentityService from context
+        identity_service = context.get('identity_service')
+        
+        if not identity_service:
+            error_msg = "IdentityService not found in context. Identity management unavailable."
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        
         logger.info(f"Identity command executed for public key: {public_key}")
         
-        # Return success with verified public key
+        # Get or create identity in database
+        identity = await identity_service.get_or_create_identity(public_key)
+        
+        if not identity:
+            error_msg = f"Failed to create or retrieve identity for public_key={public_key}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        
+        # Check if this was a new identity creation or existing retrieval
+        is_new = 'created_at' in identity and identity.get('_just_created', False)
+        
+        if is_new:
+            message = f"✨ 身份已创建！您的主权身份已锚定到 NEXUS 公钥：{public_key[:10]}...{public_key[-8:]}"
+            logger.info(f"New identity created for public_key={public_key}")
+        else:
+            message = f"✅ 身份已验证！欢迎回来，您的 NEXUS 公钥：{public_key[:10]}...{public_key[-8:]}"
+            logger.info(f"Existing identity verified for public_key={public_key}")
+        
+        # Return success with identity information
         result = {
             "status": "success",
-            "message": f"Your verified public key is: {public_key}",
+            "message": message,
             "data": {
                 "public_key": public_key,
-                "verified": True
+                "verified": True,
+                "is_new": is_new,
+                "created_at": identity.get('created_at')
             }
         }
         

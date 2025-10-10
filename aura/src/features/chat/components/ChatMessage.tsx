@@ -192,6 +192,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     }
 
     const { command, result } = message.content;
+    // Prefer explicit human-readable message from command result metadata when available
+    const commandResult = message.metadata?.commandResult as { status?: string; message?: string; data?: Record<string, unknown> } | undefined;
+    const messageText = typeof commandResult?.message === 'string' ? commandResult?.message : undefined;
+
+    const hasDetails = Boolean(messageText) || Boolean(result);
 
     return (
       <div className="space-y-3">
@@ -200,9 +205,16 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
           {command}
         </div>
 
-        {/* Divider - only when result exists */}
-        {result && (
+        {/* Divider - show when there is any detail (message or result) */}
+        {hasDetails && (
           <hr className="border-border my-3" data-testid="system-divider" />
+        )}
+
+        {/* Human-readable message from backend, if provided (below divider) */}
+        {messageText && (
+          <div className="text-sm" data-testid="system-message">
+            <MarkdownRenderer content={messageText} />
+          </div>
         )}
 
         {/* Result area - only when result exists */}

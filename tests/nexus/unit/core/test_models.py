@@ -18,11 +18,11 @@ class TestMessageDefaults:
         """Test that Message instance with minimal fields has correct defaults."""
         # Create a Message with only required fields
         run_id = f"run_{uuid.uuid4().hex}"
-        session_id = f"session_{uuid.uuid4().hex}"
+        owner_key = f"public_key_{uuid.uuid4().hex}"
         
         message = Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.HUMAN,
             content="Hello, world!"
         )
@@ -31,7 +31,7 @@ class TestMessageDefaults:
         assert message.id.startswith("msg_")
         assert len(message.id) == 36  # "msg_" + 32 hex chars
         assert message.run_id == run_id
-        assert message.session_id == session_id
+        assert message.owner_key == owner_key
         assert message.role == Role.HUMAN
         assert message.content == "Hello, world!"
         assert isinstance(message.timestamp, datetime)
@@ -49,14 +49,14 @@ class TestRunDefaults:
     def test_run_defaults(self):
         """Test that Run instance with minimal fields has correct defaults."""
         # Create a Run with only required fields
-        session_id = f"session_{uuid.uuid4().hex}"
+        owner_key = f"public_key_{uuid.uuid4().hex}"
         
-        run = Run(session_id=session_id)
+        run = Run(owner_key=owner_key)
         
         # Verify default values
         assert run.id.startswith("run_")
         assert len(run.id) == 36  # "run_" + 32 hex chars
-        assert run.session_id == session_id
+        assert run.owner_key == owner_key
         assert run.status == RunStatus.PENDING
         assert run.history == []
         assert run.iteration_count == 0
@@ -69,10 +69,10 @@ class TestRunDefaults:
         
     def test_run_with_custom_status(self):
         """Test that Run can be created with custom status."""
-        session_id = f"session_{uuid.uuid4().hex}"
+        owner_key = f"public_key_{uuid.uuid4().hex}"
         
         run = Run(
-            session_id=session_id,
+            owner_key=owner_key,
             status=RunStatus.COMPLETED
         )
         
@@ -80,18 +80,18 @@ class TestRunDefaults:
         
     def test_run_with_history(self):
         """Test that Run can be created with initial history."""
-        session_id = f"session_{uuid.uuid4().hex}"
+        owner_key = f"public_key_{uuid.uuid4().hex}"
         run_id = f"run_{uuid.uuid4().hex}"
         
         message = Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.HUMAN,
             content="Initial message"
         )
         
         run = Run(
-            session_id=session_id,
+            owner_key=owner_key,
             history=[message]
         )
         
@@ -100,10 +100,10 @@ class TestRunDefaults:
         
     def test_run_with_tools_and_metadata(self):
         """Test that Run can be created with custom tools and metadata."""
-        session_id = f"session_{uuid.uuid4().hex}"
+        owner_key = f"public_key_{uuid.uuid4().hex}"
         
         run = Run(
-            session_id=session_id,
+            owner_key=owner_key,
             tools=[{"name": "test_tool", "args": {}}],
             metadata={"custom_field": "custom_value"}
         )
@@ -195,12 +195,12 @@ class TestMessageFieldValidation:
     def test_message_with_different_content_types(self):
         """Test that Message accepts different content types."""
         run_id = f"run_{uuid.uuid4().hex}"
-        session_id = f"session_{uuid.uuid4().hex}"
+        owner_key = f"public_key_{uuid.uuid4().hex}"
         
         # Test with string content
         msg_str = Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.HUMAN,
             content="String content"
         )
@@ -210,7 +210,7 @@ class TestMessageFieldValidation:
         dict_content = {"key": "value", "nested": {"inner": "data"}}
         msg_dict = Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.AI,
             content=dict_content
         )
@@ -220,7 +220,7 @@ class TestMessageFieldValidation:
         list_content = ["item1", "item2", {"nested": "item"}]
         msg_list = Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.TOOL,
             content=list_content
         )
@@ -229,7 +229,7 @@ class TestMessageFieldValidation:
         # Test with None content
         msg_none = Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.SYSTEM,
             content=None
         )
@@ -238,7 +238,7 @@ class TestMessageFieldValidation:
     def test_message_with_custom_metadata(self):
         """Test that Message properly handles custom metadata."""
         run_id = f"run_{uuid.uuid4().hex}"
-        session_id = f"session_{uuid.uuid4().hex}"
+        owner_key = f"public_key_{uuid.uuid4().hex}"
         
         custom_metadata = {
             "source": "test_suite",
@@ -252,7 +252,7 @@ class TestMessageFieldValidation:
         
         message = Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.COMMAND,
             content="Test with metadata",
             metadata=custom_metadata
@@ -268,23 +268,23 @@ class TestRunFieldValidation:
     
     def test_run_with_different_status_values(self):
         """Test that Run can be created with all status values."""
-        session_id = f"session_{uuid.uuid4().hex}"
+        owner_key = f"public_key_{uuid.uuid4().hex}"
         
         # Test each status value
         for status in RunStatus:
             run = Run(
-                session_id=session_id,
+                owner_key=owner_key,
                 status=status
             )
             assert run.status == status
             
     def test_run_iteration_count_increments(self):
         """Test that Run iteration_count can be set and modified."""
-        session_id = f"session_{uuid.uuid4().hex}"
+        owner_key = f"public_key_{uuid.uuid4().hex}"
         
         # Test with custom iteration count
         run = Run(
-            session_id=session_id,
+            owner_key=owner_key,
             iteration_count=5
         )
         assert run.iteration_count == 5
@@ -295,7 +295,7 @@ class TestRunFieldValidation:
         
     def test_run_with_complex_tools(self):
         """Test that Run can handle complex tool structures."""
-        session_id = f"session_{uuid.uuid4().hex}"
+        owner_key = f"public_key_{uuid.uuid4().hex}"
         
         complex_tools = [
             {
@@ -311,7 +311,7 @@ class TestRunFieldValidation:
         ]
         
         run = Run(
-            session_id=session_id,
+            owner_key=owner_key,
             tools=complex_tools
         )
         

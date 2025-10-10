@@ -57,11 +57,11 @@ class DatabaseProvider(ABC):
         pass
 
     @abstractmethod
-    def get_messages_by_session_id(self, session_id: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Retrieve messages for a specific session.
+    def get_messages_by_owner_key(self, owner_key: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Retrieve messages for a specific owner (user identity).
 
         Args:
-            session_id: The session ID to query for
+            owner_key: The owner's public key to query for
             limit: Maximum number of messages to return (default: 20)
 
         Returns:
@@ -105,5 +105,29 @@ class DatabaseProvider(ABC):
 
         Returns:
             bool: True if operation was successful, False otherwise
+        """
+        pass
+
+    @abstractmethod
+    def find_identity_by_public_key(self, public_key: str) -> Optional[Dict[str, Any]]:
+        """Find an identity by its public key.
+
+        Args:
+            public_key: The public key to search for
+
+        Returns:
+            Optional[Dict[str, Any]]: Identity document if found, None otherwise
+        """
+        pass
+
+    @abstractmethod
+    def create_identity(self, identity_data: Dict[str, Any]) -> bool:
+        """Create a new identity in the database.
+
+        Args:
+            identity_data: Dictionary containing identity data (must include 'public_key')
+
+        Returns:
+            bool: True if creation was successful, False otherwise
         """
         pass

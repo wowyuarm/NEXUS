@@ -162,7 +162,7 @@ class LLMService:
             # Publish error result
             error_message = Message(
                 run_id=message.run_id,
-                session_id=message.session_id,
+                owner_key=message.owner_key,
                 role=Role.SYSTEM,
                 content={
                     "content": f"Error processing LLM request: {str(e)}",
@@ -174,16 +174,16 @@ class LLMService:
     async def _handle_real_time_streaming(self, original_message: Message, messages, tools, temperature, max_tokens) -> None:
         """Handle real-time streaming LLM response."""
         run_id = original_message.run_id
-        session_id = original_message.session_id
+        owner_key = original_message.owner_key
 
         # Get streaming response from provider
         response = await self._create_streaming_response(messages, tools, temperature, max_tokens)
 
         # Process streaming chunks and collect results
-        content_chunks, tool_calls = await self._process_streaming_chunks(response, run_id, session_id)
+        content_chunks, tool_calls = await self._process_streaming_chunks(response, run_id, owner_key)
 
         # Send final result
-        await self._send_final_streaming_result(run_id, session_id, content_chunks, tool_calls)
+        await self._send_final_streaming_result(run_id, owner_key, content_chunks, tool_calls)
 
     async def _create_streaming_response(self, messages, tools, temperature, max_tokens):
         """Create streaming response from LLM provider."""
@@ -259,7 +259,7 @@ class LLMService:
             # On any failure, return original messages for safety
             return messages
 
-    async def _process_streaming_chunks(self, response, run_id: str, session_id: str):
+    async def _process_streaming_chunks(self, response, run_id: str, owner_key: str):
         """Process streaming chunks and publish them in real-time.
 
         Ensures proper event ordering: all text_chunk events are published first,
@@ -275,7 +275,7 @@ class LLMService:
                 # Handle content chunks - publish immediately for real-time streaming
                 if hasattr(delta, 'content') and delta.content:
                     content_chunks.append(delta.content)
-                    await self._publish_text_chunk(run_id, session_id, delta.content)
+                    await self._publish_text_chunk(run_id, owner_key, delta.content)
 
                 # Collect tool calls but don't publish yet - wait until all content is streamed
                 if hasattr(delta, 'tool_calls') and delta.tool_calls:
@@ -284,15 +284,15 @@ class LLMService:
         # After all content chunks are streamed, publish tool_call_started events
         if tool_calls:
             logger.info(f"All text chunks streamed for run_id={run_id}, now publishing tool_call_started events")
-            await self._publish_tool_call_events(run_id, session_id, tool_calls)
+            await self._publish_tool_call_events(run_id, owner_key, tool_calls)
 
         return content_chunks, tool_calls
 
-    async def _publish_text_chunk(self, run_id: str, session_id: str, chunk: str) -> None:
+    async def _publish_text_chunk(self, run_id: str, owner_key: str, chunk: str) -> None:
         """Publish a single text chunk via LLM_RESULTS for Orchestrator forwarding."""
         chunk_event = Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.SYSTEM,
             content={
                 "event": "text_chunk",
@@ -307,7 +307,7 @@ class LLMService:
         # Add delay for realistic streaming
         await asyncio.sleep(STREAMING_CHUNK_DELAY)
 
-    async def _publish_tool_call_events(self, run_id: str, session_id: str, tool_calls) -> None:
+    async def _publish_tool_call_events(self, run_id: str, owner_key: str, tool_calls) -> None:
         """Publish tool_call_started events via LLM_RESULTS after text chunks.
 
         Supports both provider objects (with attributes) and dict structures.
@@ -347,7 +347,7 @@ class LLMService:
             # Create and publish tool_call_started event
             tool_event = Message(
                 run_id=run_id,
-                session_id=session_id,
+                owner_key=owner_key,
                 role=Role.SYSTEM,
                 content={
                     "event": "tool_call_started",
@@ -365,14 +365,14 @@ class LLMService:
         # Add a small delay to ensure proper event ordering
         await asyncio.sleep(TOOL_EVENT_ORDERING_DELAY)
 
-    async def _send_final_streaming_result(self, run_id: str, session_id: str, content_chunks: list, tool_calls) -> None:
+    async def _send_final_streaming_result(self, run_id: str, owner_key: str, content_chunks: list, tool_calls) -> None:
         """Send the final streaming result with tool calls."""
         full_content = ''.join(content_chunks) if content_chunks else None
         formatted_tool_calls = self._format_tool_calls(tool_calls) if tool_calls else None
 
         result_message = Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.AI,
             content={
                 "content": full_content,
@@ -389,11 +389,11 @@ class LLMService:
         so E2E tests can pass in isolated environments.
         """
         run_id = original_message.run_id
-        session_id = original_message.session_id
+        owner_key = original_message.owner_key
 
         # 1) Stream a few text chunks
         for chunk in ["Thinking...", " Analyzing context...", " Preparing response."]:
-            await self._publish_text_chunk(run_id, session_id, chunk)
+            await self._publish_text_chunk(run_id, owner_key, chunk)
 
         # 2) Optionally emit a single web_search tool call if tools include it
         has_web_search = any(
@@ -405,7 +405,7 @@ class LLMService:
             # Emit tool_call_started via LLM_RESULTS to be forwarded by Orchestrator
             await self._publish_tool_call_events(
                 run_id,
-                session_id,
+                owner_key,
                 [{
                     "id": "call_fake_1",
                     "type": "function",
@@ -419,7 +419,7 @@ class LLMService:
             }]
 
         # 3) Send final result (no actual provider call)
-        await self._send_final_streaming_result(run_id, session_id, [" Here is a concise summary."], tool_calls)
+        await self._send_final_streaming_result(run_id, owner_key, [" Here is a concise summary."], tool_calls)
 
     def _format_tool_calls(self, tool_calls) -> list:
         """Format tool calls to expected structure; supports object or dict."""
@@ -448,12 +448,12 @@ class LLMService:
     async def _handle_non_streaming_result(self, original_message: Message, result: Dict) -> None:
         """Handle non-streaming LLM result."""
         run_id = original_message.run_id
-        session_id = original_message.session_id
+        owner_key = original_message.owner_key
 
         # Create result message
         result_message = Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.AI,
             content={
                 "content": result["content"],

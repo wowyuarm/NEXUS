@@ -50,7 +50,7 @@ class ToolExecutorService:
     def _create_tool_result_message(
         self,
         run_id: str,
-        session_id: str,
+        owner_key: str,
         result: str,
         status: str,
         tool_name: str,
@@ -61,7 +61,7 @@ class ToolExecutorService:
 
         Args:
             run_id: The run identifier
-            session_id: The session identifier
+            owner_key: The owner's public key (user identity)
             result: The tool execution result or error message
             status: The execution status (success/error)
             tool_name: The name of the executed tool
@@ -71,7 +71,7 @@ class ToolExecutorService:
         """
         return Message(
             run_id=run_id,
-            session_id=session_id,
+            owner_key=owner_key,
             role=Role.TOOL,
             content={
                 "result": result,
@@ -89,7 +89,7 @@ class ToolExecutorService:
             message: Message containing tool request with name and args
         """
         run_id = message.run_id
-        session_id = message.session_id
+        owner_key = message.owner_key
         tool_name = None
         call_id = ""
 
@@ -127,7 +127,7 @@ class ToolExecutorService:
             # Create and publish success result
             result_message = self._create_tool_result_message(
                 run_id=run_id,
-                session_id=session_id,
+                owner_key=owner_key,
                 result=result,
                 status=TOOL_STATUS_SUCCESS,
                 tool_name=tool_name,
@@ -143,7 +143,7 @@ class ToolExecutorService:
             # Create and publish error result
             error_message = self._create_tool_result_message(
                 run_id=run_id,
-                session_id=session_id,
+                owner_key=owner_key,
                 result=error_msg,
                 status=TOOL_STATUS_ERROR,
                 tool_name=tool_name or TOOL_STATUS_UNKNOWN,

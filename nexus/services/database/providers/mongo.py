@@ -42,6 +42,7 @@ class MongoProvider(DatabaseProvider):
         self.database: Optional[Database] = None
         self.messages_collection: Optional[Collection] = None
         self.config_collection: Optional[Collection] = None
+        self.identities_collection: Optional[Collection] = None
         logger.info(f"MongoProvider initialized for database: {db_name}")
 
     def connect(self) -> None:
@@ -58,16 +59,22 @@ class MongoProvider(DatabaseProvider):
             self.database = self.client[self.db_name]
             self.messages_collection = self.database.messages
             self.config_collection = self.database.system_configurations
+            self.identities_collection = self.database.identities
 
-            # Create index on session_id and timestamp for efficient queries
+            # Create index on owner_key and timestamp for efficient message queries
             self.messages_collection.create_index([
-                ("session_id", 1),
+                ("owner_key", 1),
                 ("timestamp", DESCENDING)
             ])
 
             # Create unique index on environment for configuration collection
             self.config_collection.create_index([
                 ("environment", 1)
+            ], unique=True)
+
+            # Create unique index on public_key for identities collection
+            self.identities_collection.create_index([
+                ("public_key", 1)
             ], unique=True)
 
             logger.info(f"Successfully connected to MongoDB: {self.db_name}")
@@ -87,6 +94,7 @@ class MongoProvider(DatabaseProvider):
             self.database = None
             self.messages_collection = None
             self.config_collection = None
+            self.identities_collection = None
             logger.info("MongoDB connection closed")
 
     def insert_message(self, message: Message) -> bool:
@@ -126,11 +134,11 @@ class MongoProvider(DatabaseProvider):
             logger.error(f"Unexpected error during message insertion: {e}")
             return False
 
-    def get_messages_by_session_id(self, session_id: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Retrieve messages for a specific session from MongoDB.
+    def get_messages_by_owner_key(self, owner_key: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Retrieve messages for a specific owner (user identity) from MongoDB.
 
         Args:
-            session_id: The session ID to query for
+            owner_key: The owner's public key to query for
             limit: Maximum number of messages to return (default: 20)
 
         Returns:
@@ -142,9 +150,9 @@ class MongoProvider(DatabaseProvider):
             return []
 
         try:
-            # Query messages for the session, sorted by timestamp descending
+            # Query messages for the owner, sorted by timestamp descending
             cursor = self.messages_collection.find(
-                {"session_id": session_id}
+                {"owner_key": owner_key}
             ).sort("timestamp", DESCENDING).limit(limit)
 
             messages = list(cursor)
@@ -154,7 +162,7 @@ class MongoProvider(DatabaseProvider):
                 if '_id' in message:
                     message['_id'] = str(message['_id'])
 
-            logger.info(f"Retrieved {len(messages)} messages for session_id={session_id}")
+            logger.info(f"Retrieved {len(messages)} messages for owner_key={owner_key}")
             return messages
 
         except OperationFailure as e:
@@ -251,4 +259,67 @@ class MongoProvider(DatabaseProvider):
             return False
         except Exception as e:
             logger.error(f"Unexpected error during configuration upsert: {e}")
+            return False
+
+    def find_identity_by_public_key(self, public_key: str) -> Optional[Dict[str, Any]]:
+        """Find an identity by its public key.
+
+        Args:
+            public_key: The public key to search for
+
+        Returns:
+            Optional[Dict[str, Any]]: Identity document if found, None otherwise
+        """
+        if self.identities_collection is None:
+            logger.error("MongoDB not connected. Cannot retrieve identity.")
+            return None
+
+        try:
+            identity_doc = self.identities_collection.find_one({"public_key": public_key})
+            
+            if identity_doc:
+                # Convert ObjectId to string for JSON serialization
+                if '_id' in identity_doc:
+                    identity_doc['_id'] = str(identity_doc['_id'])
+                logger.info(f"Identity found for public_key={public_key}")
+                return identity_doc
+            else:
+                logger.debug(f"No identity found for public_key={public_key}")
+                return None
+
+        except OperationFailure as e:
+            logger.error(f"MongoDB operation failed during identity retrieval: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error during identity retrieval: {e}")
+            return None
+
+    def create_identity(self, identity_data: Dict[str, Any]) -> bool:
+        """Create a new identity in the database.
+
+        Args:
+            identity_data: Dictionary containing identity data (must include 'public_key')
+
+        Returns:
+            bool: True if creation was successful, False otherwise
+        """
+        if self.identities_collection is None:
+            logger.error("MongoDB not connected. Cannot create identity.")
+            return False
+
+        try:
+            result = self.identities_collection.insert_one(identity_data)
+
+            if result.inserted_id:
+                logger.info(f"Identity created successfully: public_key={identity_data.get('public_key')}")
+                return True
+            else:
+                logger.error(f"Failed to create identity: public_key={identity_data.get('public_key')}")
+                return False
+
+        except OperationFailure as e:
+            logger.error(f"MongoDB operation failed during identity creation: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error during identity creation: {e}")
             return False

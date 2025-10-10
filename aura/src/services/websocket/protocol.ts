@@ -26,7 +26,7 @@ export interface BaseNexusEvent<T extends string, P = unknown> {
 // ===== Event Payload Types =====
 
 export interface RunStartedPayload {
-  session_id: string;
+  owner_key: string;
   user_input: string;
 }
 
@@ -42,7 +42,9 @@ export interface ToolCallFinishedPayload {
 }
 
 export interface TextChunkPayload {
-  chunk: string;
+  chunk: string; // could be system guidance or AI content
+  role?: 'SYSTEM' | 'AI';
+  is_final?: boolean;
 }
 
 export interface RunFinishedPayload {
@@ -64,6 +66,10 @@ export interface CommandResultPayload {
   };
 }
 
+export interface ConnectionStatePayload {
+  visitor: boolean;
+}
+
 // ===== Specific Event Types =====
 
 export type RunStartedEvent = BaseNexusEvent<'run_started', RunStartedPayload>;
@@ -83,7 +89,8 @@ export type NexusEvent =
   | TextChunkEvent
   | RunFinishedEvent
   | ErrorEvent
-  | CommandResultEvent;
+  | CommandResultEvent
+  | BaseNexusEvent<'connection_state', ConnectionStatePayload>;
 
 // ===== Event Type String Union =====
 
@@ -146,7 +153,8 @@ export function validateNexusEvent(data: unknown): data is NexusEvent {
     'text_chunk',
     'run_finished',
     'error',
-    'command_result'
+    'command_result',
+    'connection_state'
   ];
 
   return validEventTypes.includes(obj.event as EventType);
@@ -175,7 +183,7 @@ export interface ClientMessage {
   type: 'user_message';
   payload: {
     content: string;
-    session_id: string;
+    public_key: string;
     client_timestamp_utc: string;
     client_timezone_offset: number;
   };
@@ -185,7 +193,7 @@ export interface SystemCommandMessage {
   type: 'system_command';
   payload: {
     command: string;
-    session_id: string;
+    public_key: string;
     auth?: {
       publicKey: string;
       signature: string;
@@ -200,7 +208,7 @@ export function createClientMessage(input: string, publicKey: string, timestamp?
     type: 'user_message',
     payload: {
       content: input,
-      session_id: publicKey, // Semantic replacement: field name remains, content is public key
+      public_key: publicKey,
       client_timestamp_utc: clientTimestamp,
       client_timezone_offset: clientTimezoneOffset
     }
@@ -214,7 +222,7 @@ export function createSystemCommandMessage(
 ): SystemCommandMessage {
   const payload: SystemCommandMessage['payload'] = {
     command,
-    session_id: publicKey
+    public_key: publicKey
   };
 
   // Include auth data if provided
