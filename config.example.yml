@@ -1,39 +1,128 @@
+# ===================================================================
+# NEXUS 配置模板 (Configuration Template) v1.0
+# 存在于'configurations'集合中的唯一文档
+# ===================================================================
+
+# -------------------------------------------------------------------
+# A. 系统核心法则 (Core System Laws)
+#    - 由系统管理员定义，不可被用户覆写。
+#    - 控制系统的基本行为和安全边界。
+# -------------------------------------------------------------------
 system:
   log_level: "INFO"
   max_tool_iterations: 5
+  # [新增] 定义应用名称，可下发给前端用于显示，进一步也可作用户自定义
+  app_name: "YX Nexus"
 
-server:
-  host: "0.0.0.0"
-  port: 8000
+security:
+  # [新增] 明确声明哪些指令需要签名，前端可动态获取此列表
+  signature_required_commands:
+    - "identity"
+    - "config.set"  # 未来指令的示例
+    - "prompt.set"  # 未来指令的示例
 
+# -------------------------------------------------------------------
+# B. LLM 引擎目录 (LLM Engine Directory)
+#    - 定义了系统可用的所有AI模型及其访问方式。
+#    - Provider部分定义“如何连接”，Catalog部分定义“有哪些大脑”。
+# -------------------------------------------------------------------
 llm:
-  provider: "google"
-  # 通用LLM参数，适用于所有provider
-  temperature: 1.0    # 控制输出的随机性，范围0.0-1.0
-  max_tokens: 4096    # 最大输出token数
-  timeout: 30         # API请求超时时间（秒）
+  # 服务商连接信息 (不可被用户覆写)
   providers:
     google:
-      # ${VAR_NAME} 会自动从 .env 文件中读取
       api_key: "${GEMINI_API_KEY}"
       base_url: "https://generativelanguage.googleapis.com/v1beta"
-      model: "gemini-2.5-flash"
-
+    deepseek:
+      api_key: "${DEEPSEEK_API_KEY}"
+      base_url: "https://api.deepseek.com/v1"
     openrouter:
-      # OpenRouter API配置
       api_key: "${OPENROUTER_API_KEY}"
       base_url: "https://openrouter.ai/api/v1"
-      model: "moonshotai/kimi-k2:free"
 
-    deepseek:
-      # DeepSeek API配置
-      api_key: "${DEEPSEEK_API_KEY}"
-      base_url: "https://api.deepseek.com"
-      model: "deepseek-chat"
+  # 模型名录 (不可被用户覆写) - “模型即服务商”的核心实现
+  catalog:
+    gemini-2.5-flash:
+      provider: google
+      # 可选: provider具体模型ID（与key相同则可省略）
+      id: gemini-2.5-flash
+      # 可选: 友好别名（供UI/用户选择）
+      aliases: ["Gemini-2.5-Flash"]
+      default_params:
+        temperature: 0.7
+        max_tokens: 8192
 
-database:
-  db_name: "NEXUS_DB"
-  mongo_uri: "${MONGO_URI}"
+    deepseek-chat:
+      provider: deepseek
+      id: deepseek-chat
+      aliases: ["DeepSeek-Chat"]
+      default_params:
+        temperature: 0.9
+        max_tokens: 8192
 
-memory:
-  history_context_size: 20
+    moonshotai/kimi-k2:free: # OpenRouter模型的命名示例
+      provider: openrouter
+      id: moonshotai/kimi-k2:free
+      aliases: ["Kimi-K2"]
+      default_params:
+        temperature: 0.8
+        max_tokens: 8192
+# -------------------------------------------------------------------
+# C. 默认用户画像 (Default User Profile)
+#    - 这是所有新“成员”诞生时，所继承的“出厂设置”。
+#    - 也是所有“成员”在未进行个性化覆写时的默认行为。
+# -------------------------------------------------------------------
+user_defaults:
+  # 默认的、可被覆写的运行时配置
+  config:
+    model: "gemini-2.5-flash" # [关键] 用户的默认模型选择
+    temperature: 0.8          # 用户可以覆写catalog中的默认值
+    max_tokens: 4096
+    history_context_size: 20
+  
+  # 默认的、模块化的Prompt集合 - 这是通用人格 "枢 (Nexus)" 的定义
+  prompts:
+    persona:
+      content: ""
+      editable: true # [新增] 元数据：此模块是否允许用户编辑
+      order: 1       # [新增] 元数据：在最终Prompt中的拼接顺序
+
+    system:
+      content: ""
+      editable: false
+      order: 2
+
+    tools:
+      content: ""
+      editable: false
+      order: 3
+    
+    # 为未来的reflection功能预留
+    reflection:
+      content: ""
+      editable: false
+      order: 4
+
+# -------------------------------------------------------------------
+# D. UI 渲染元数据 (UI Rendering Metadata)
+#    - 后端下发给前端的“渲染指南”，实现前后端解耦。
+# -------------------------------------------------------------------
+ui:
+  # 告诉/config面板哪些字段是允许用户编辑的
+  editable_fields:
+    - "config.model"
+    - "config.temperature"
+    - "config.max_tokens"
+    - "config.history_context_size"
+    - "prompts.persona" # 允许编辑整个persona模块
+
+  # 告诉/config面板每个字段的类型和可选值
+  field_options:
+    "config.model":
+      type: "select"
+      # 这个列表可以由后端在启动时动态地从llm.catalog的key中生成
+      options: ["gemini-2.5-flash", "deepseek-chat", "moonshotai/kimi-k2:free"]
+    "config.temperature":
+      type: "slider"
+      min: 0.0
+      max: 2.0
+      step: 0.1

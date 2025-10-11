@@ -58,7 +58,7 @@ class MongoProvider(DatabaseProvider):
 
             self.database = self.client[self.db_name]
             self.messages_collection = self.database.messages
-            self.config_collection = self.database.system_configurations
+            self.config_collection = self.database.configurations
             self.identities_collection = self.database.identities
 
             # Create index on owner_key and timestamp for efficient message queries
@@ -210,14 +210,17 @@ class MongoProvider(DatabaseProvider):
 
         try:
             config_doc = self.config_collection.find_one({"environment": environment})
+            
             if config_doc:
-                # Remove MongoDB ObjectId and environment field from returned config
-                config_data = config_doc.get("config_data", {})
+                # Use direct structure only - configuration fields are stored at top level
+                config_data = dict(config_doc)
+                config_data.pop("_id", None)
+                config_data.pop("environment", None)
                 logger.info(f"Retrieved configuration for environment: {environment}")
                 return config_data
-            else:
-                logger.warning(f"No configuration found for environment: {environment}")
-                return None
+            
+            logger.warning(f"No configuration found for environment: {environment}")
+            return None
 
         except OperationFailure as e:
             logger.error(f"MongoDB operation failed during configuration retrieval: {e}")
@@ -231,7 +234,7 @@ class MongoProvider(DatabaseProvider):
 
         Args:
             environment: The environment name (e.g., 'development', 'production')
-            config_data: Configuration data to store
+            config_data: Configuration data to store (will be stored directly at top level)
 
         Returns:
             bool: True if operation was successful, False otherwise
@@ -241,9 +244,14 @@ class MongoProvider(DatabaseProvider):
             return False
 
         try:
-            result = self.config_collection.update_one(
+            # Prepare document with environment field and config fields at top level
+            document = {"environment": environment}
+            document.update(config_data)
+
+            # Upsert with direct structure (no config_data wrapper)
+            result = self.config_collection.replace_one(
                 {"environment": environment},
-                {"$set": {"config_data": config_data}},
+                document,
                 upsert=True
             )
 
@@ -322,4 +330,42 @@ class MongoProvider(DatabaseProvider):
             return False
         except Exception as e:
             logger.error(f"Unexpected error during identity creation: {e}")
+            return False
+
+    def update_identity_field(self, public_key: str, field_name: str, field_value: Any) -> bool:
+        """Update a specific field in an identity document.
+
+        Args:
+            public_key: The public key identifying the identity
+            field_name: Name of the field to update (e.g., 'config_overrides', 'prompt_overrides')
+            field_value: New value for the field
+
+        Returns:
+            bool: True if update was successful, False otherwise
+        """
+        if self.identities_collection is None:
+            logger.error("MongoDB not connected. Cannot update identity.")
+            return False
+
+        try:
+            result = self.identities_collection.update_one(
+                {"public_key": public_key},
+                {"$set": {field_name: field_value}}
+            )
+
+            if result.modified_count > 0:
+                logger.info(f"Successfully updated {field_name} for public_key: {public_key}")
+                return True
+            elif result.matched_count > 0:
+                logger.info(f"Identity found but {field_name} unchanged for public_key: {public_key}")
+                return True
+            else:
+                logger.warning(f"No identity found for public_key: {public_key}")
+                return False
+
+        except OperationFailure as e:
+            logger.error(f"MongoDB operation failed during identity update: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error during identity update: {e}")
             return False

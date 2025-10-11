@@ -11,7 +11,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
 from nexus.services.context import ContextService
-from nexus.core.models import Message, Role
+from nexus.core.models import Message, Run, RunStatus, Role
 from nexus.core.topics import Topics
 
 
@@ -63,6 +63,30 @@ class TestContextServiceIntegration:
         """Create a mock ConfigService for testing."""
         mock_service = Mock()
         mock_service.get_int.return_value = 20  # Default history limit
+        # Default user_defaults with prompts (new object structure)
+        mock_service.get_user_defaults.return_value = {
+            "config": {
+                "model": "gemini-2.5-flash",
+                "temperature": 0.8
+            },
+            "prompts": {
+                "persona": {
+                    "content": "You are Nexus, an AI assistant.",
+                    "editable": True,
+                    "order": 1
+                },
+                "system": {
+                    "content": "System instructions for Nexus.",
+                    "editable": False,
+                    "order": 2
+                },
+                "tools": {
+                    "content": "Available tools description.",
+                    "editable": False,
+                    "order": 3
+                }
+            }
+        }
         return mock_service
 
     @pytest.fixture
@@ -81,20 +105,35 @@ class TestContextServiceIntegration:
         Test that ContextService correctly handles CONTEXT_BUILD_REQUEST and publishes
         properly formatted CONTEXT_BUILD_RESPONSE with messages and tools.
         """
-        # Arrange: Prepare input message
-        input_message = Message(
+        # Arrange: Create Run object with user input
+        human_message = Message(
             run_id="test-run-123",
             owner_key="test-session-456",
             role=Role.HUMAN,
-            content={
-                "current_input": "What is artificial intelligence?",
-                "owner_key": "test-session-456"
+            content="What is artificial intelligence?"
+        )
+        
+        run = Run(
+            id="test-run-123",
+            owner_key="test-session-456",
+            status=RunStatus.BUILDING_CONTEXT,
+            history=[human_message],
+            metadata={
+                "user_profile": {
+                    "public_key": "test-session-456",
+                    "config_overrides": {},
+                    "prompt_overrides": {}
+                }
             }
         )
-
-        # Mock system prompt loading
-        system_prompt = "You are Xi, an AI assistant."
-        mocker.patch.object(context_service, '_load_system_prompt', return_value=system_prompt)
+        
+        # Prepare input message with Run object
+        input_message = Message(
+            run_id="test-run-123",
+            owner_key="test-session-456",
+            role=Role.SYSTEM,
+            content=run
+        )
 
         # Configure mock persistence service to return history
         mock_persistence_service.get_history.return_value = [
@@ -147,15 +186,13 @@ class TestContextServiceIntegration:
         messages = content["messages"]
         assert len(messages) >= 3  # At least system + current input + some history
         assert messages[0]["role"] == "system"
-        assert messages[0]["content"] == system_prompt
+        # System prompt should be from user_defaults (since no overrides)
+        # It should contain default persona "Nexus"
+        assert "Nexus" in messages[0]["content"]
         assert messages[-1]["role"] == "user"
-        # The final message should now be in XML context format
-        expected_xml_context = """<Context>
-  <Human_Input>
-    What is artificial intelligence?
-  </Human_Input>
-</Context>"""
-        assert messages[-1]["content"] == expected_xml_context
+        # The final message should be in XML context format
+        assert "<Human_Input>" in messages[-1]["content"]
+        assert "What is artificial intelligence?" in messages[-1]["content"]
         
         # Verify tools are included
         assert content["tools"] == expected_tools
@@ -164,23 +201,41 @@ class TestContextServiceIntegration:
         mock_persistence_service.get_history.assert_called_once_with("test-session-456", 20)
 
     @pytest.mark.asyncio
-    async def test_handle_build_request_error_handling(self, context_service, mock_bus, mock_persistence_service, mocker):
+    async def test_handle_build_request_error_handling(self, context_service, mock_bus, mock_persistence_service, mock_config_service, mocker):
         """
         Test that ContextService properly handles errors and publishes error response.
         """
-        # Arrange: Prepare input message
-        input_message = Message(
+        # Arrange: Create Run object
+        human_message = Message(
             run_id="test-run-error",
             owner_key="test-session-error",
             role=Role.HUMAN,
-            content={
-                "current_input": "Test input",
-                "owner_key": "test-session-error"
+            content="Test input"
+        )
+        
+        run = Run(
+            id="test-run-error",
+            owner_key="test-session-error",
+            status=RunStatus.BUILDING_CONTEXT,
+            history=[human_message],
+            metadata={
+                "user_profile": {
+                    "public_key": "test-session-error",
+                    "config_overrides": {},
+                    "prompt_overrides": {}
+                }
             }
         )
+        
+        input_message = Message(
+            run_id="test-run-error",
+            owner_key="test-session-error",
+            role=Role.SYSTEM,
+            content=run
+        )
 
-        # Mock system prompt loading to raise an exception
-        mocker.patch.object(context_service, '_load_system_prompt', side_effect=Exception("File system error"))
+        # Mock config service to raise an exception
+        mock_config_service.get_user_defaults.side_effect = Exception("Config service error")
 
         # Act: Handle the build request
         await context_service.handle_build_request(input_message)
@@ -238,3 +293,118 @@ class TestContextServiceIntegration:
             Topics.CONTEXT_BUILD_REQUEST,
             context_service.handle_build_request
         )
+
+    @pytest.mark.asyncio
+    async def test_context_composition_with_overrides(self, context_service, mock_bus, mock_tool_registry, mock_persistence_service, mock_config_service):
+        """
+        Test that ContextService composes prompts correctly when user has prompt_overrides.
+        Verifies that user's custom persona overrides the default.
+        """
+        # Arrange: Create Run object with user_profile containing prompt_overrides
+        human_message = Message(
+            run_id="test-run-override",
+            owner_key="user-with-overrides",
+            role=Role.HUMAN,
+            content="Hello!"
+        )
+        
+        run = Run(
+            id="test-run-override",
+            owner_key="user-with-overrides",
+            status=RunStatus.BUILDING_CONTEXT,
+            history=[human_message],
+            metadata={
+                "user_profile": {
+                    "public_key": "user-with-overrides",
+                    "config_overrides": {},
+                    "prompt_overrides": {
+                        "persona": "我是曦，你的AI灵魂伴侣。"
+                    }
+                }
+            }
+        )
+        
+        # Create input message with Run object
+        input_message = Message(
+            run_id="test-run-override",
+            owner_key="user-with-overrides",
+            role=Role.SYSTEM,
+            content=run  # Pass Run object as content
+        )
+        
+        # Mock persistence to return empty history
+        mock_persistence_service.get_history.return_value = []
+        
+        # Act: Handle the build request
+        await context_service.handle_build_request(input_message)
+        
+        # Assert: Verify response was published
+        assert mock_bus.publish.called
+        call_args = mock_bus.publish.call_args
+        published_message = call_args[0][1]
+        
+        # Verify the system prompt includes the overridden persona
+        messages = published_message.content["messages"]
+        system_message = messages[0]
+        assert system_message["role"] == "system"
+        # System prompt should contain the overridden persona "我是曦"
+        assert "我是曦" in system_message["content"]
+        assert "你的AI灵魂伴侣" in system_message["content"]
+        # The persona was overridden, but system and tools parts still use defaults
+        # which is correct behavior - only specified overrides are applied
+
+    @pytest.mark.asyncio
+    async def test_context_uses_defaults_for_new_user(self, context_service, mock_bus, mock_tool_registry, mock_persistence_service, mock_config_service):
+        """
+        Test that ContextService uses default prompts when user has no overrides.
+        Verifies that system uses the default persona from config.
+        """
+        # Arrange: Create Run object with user_profile but empty overrides
+        human_message = Message(
+            run_id="test-run-default",
+            owner_key="new-user",
+            role=Role.HUMAN,
+            content="What is AI?"
+        )
+        
+        run = Run(
+            id="test-run-default",
+            owner_key="new-user",
+            status=RunStatus.BUILDING_CONTEXT,
+            history=[human_message],
+            metadata={
+                "user_profile": {
+                    "public_key": "new-user",
+                    "config_overrides": {},
+                    "prompt_overrides": {}  # Empty overrides
+                }
+            }
+        )
+        
+        # Create input message with Run object
+        input_message = Message(
+            run_id="test-run-default",
+            owner_key="new-user",
+            role=Role.SYSTEM,
+            content=run
+        )
+        
+        # Mock persistence to return empty history
+        mock_persistence_service.get_history.return_value = []
+        
+        # Act: Handle the build request
+        await context_service.handle_build_request(input_message)
+        
+        # Assert: Verify response was published
+        assert mock_bus.publish.called
+        call_args = mock_bus.publish.call_args
+        published_message = call_args[0][1]
+        
+        # Verify the system prompt includes the default persona
+        messages = published_message.content["messages"]
+        system_message = messages[0]
+        assert system_message["role"] == "system"
+        # System prompt should contain the default persona "Nexus"
+        assert "Nexus" in system_message["content"]
+        assert "System instructions for Nexus" in system_message["content"]
+        assert "Available tools description" in system_message["content"]

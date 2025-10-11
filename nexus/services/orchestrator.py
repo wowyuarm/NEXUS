@@ -234,6 +234,25 @@ class OrchestratorService:
                     return
                 
                 logger.info(f"Registered user (member) verified for owner_key={run.owner_key}")
+                
+                # Build user_profile from identity (包含identity全部信息)
+                # TODO: Refactor with unified RunContext object
+                #   Current approach passes user_profile through Run.metadata -> ContextService -> LLMService
+                #   Future: Create a RunContext object that encapsulates run, user_profile, and metadata
+                #   to simplify the data passing chain and reduce coupling.
+                # See docs/future_roadmap.md for more details.
+                user_profile = {
+                    'public_key': identity['public_key'],
+                    'config_overrides': identity.get('config_overrides', {}),
+                    'prompt_overrides': identity.get('prompt_overrides', {}),
+                    'created_at': identity.get('created_at'),
+                }
+                
+                # Inject user_profile into Run.metadata
+                if run.metadata is None:
+                    run.metadata = {}
+                run.metadata['user_profile'] = user_profile
+                logger.info(f"Injected user_profile into Run.metadata for owner_key={run.owner_key}")
             
             # === MEMBER FLOW: Continue normal processing ===
             # Publish run_started UI event
@@ -255,25 +274,12 @@ class OrchestratorService:
             # Store the run
             self.active_runs[run.id] = run
 
-            # Extract current input from the first message in run history
-            current_input = self._extract_user_input_from_run(run)
-
-            # Extract client timestamp from run metadata
-            client_timestamp_utc = run.metadata.get("client_timestamp_utc", "") if run.metadata else ""
-            client_timezone_offset = run.metadata.get("client_timezone_offset", 0) if run.metadata else 0
-
-            # Request context building
+            # Request context building - pass Run object directly
             context_request = Message(
                 run_id=run.id,
                 owner_key=run.owner_key,
                 role=Role.SYSTEM,
-                content={
-                    "current_input": current_input,
-                    "owner_key": run.owner_key,
-                    "client_timestamp_utc": client_timestamp_utc,
-                    "client_timezone_offset": client_timezone_offset,
-                    "run_id": run.id
-                }
+                content=run  # Pass the entire Run object with user_profile in metadata
             )
 
             await self.bus.publish(Topics.CONTEXT_BUILD_REQUEST, context_request)
@@ -314,14 +320,16 @@ class OrchestratorService:
             # Store tools in the run object
             run.tools = tools
 
-            # Request LLM completion
+            # Request LLM completion with user_profile for dynamic provider selection
+            # TODO: Refactor with unified RunContext - user_profile currently passed through message content
             llm_request = Message(
                 run_id=run_id,
                 owner_key=run.owner_key,
                 role=Role.SYSTEM,
                 content={
                     "messages": messages,
-                    "tools": tools
+                    "tools": tools,
+                    "user_profile": run.metadata.get('user_profile', {})  # Pass user_profile for dynamic config
                 }
             )
 
@@ -543,7 +551,8 @@ class OrchestratorService:
                 role=Role.SYSTEM,
                 content={
                     "messages": messages,
-                    "tools": tools_for_followup
+                    "tools": tools_for_followup,
+                    "user_profile": run.metadata.get('user_profile', {})  # Pass user_profile for dynamic config
                 }
             )
 

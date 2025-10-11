@@ -71,52 +71,53 @@ class ConfigService:
             raise
     
     def _load_minimal_default_config(self) -> None:
-        """Load minimal hardcoded default configuration as fallback."""
-        logger.warning("Loading minimal default configuration as fallback")
+        """Load minimal hardcoded default configuration as emergency fallback.
+        
+        This configuration is intentionally minimal and should ONLY be used when
+        database configuration loading fails. The authoritative source for all
+        default values is the 'configurations' collection in the database, which
+        should be initialized using scripts/init_configurations.py.
+        """
+        logger.warning(
+            "Loading minimal emergency fallback configuration. "
+            "Please ensure database is initialized with scripts/init_configurations.py"
+        )
         
         # Environment-specific database name
         db_name = f"NEXUS_DB_{'DEV' if self._environment == 'development' else 'PROD'}"
         
-        # Minimal hardcoded configuration with environment variable placeholders
-        # This ensures consistency with database-stored configurations
+        # Absolute minimum configuration to prevent system crash
+        # Note: This will NOT provide full functionality - database initialization is required
         self._config = {
-            "server": {
-                "host": "127.0.0.1",
-                "port": 8000
+            "system": {
+                "log_level": "INFO",
+                "max_tool_iterations": 5
             },
             "database": {
                 "mongo_uri": "${MONGO_URI}",
                 "db_name": db_name
             },
             "llm": {
-                "provider": "google",
-                "temperature": 0.7,
-                "max_tokens": 4000,
-                "timeout": 30,
                 "providers": {
                     "google": {
-                        "model": "gemini-2.5-flash",
                         "api_key": "${GEMINI_API_KEY}",
                         "base_url": "https://generativelanguage.googleapis.com/v1beta"
-                    },
-                    "openrouter": {
-                        "model": "moonshotai/kimi-k2",
-                        "api_key": "${OPENROUTER_API_KEY}",
-                        "base_url": "https://openrouter.ai/api/v1"
-                    },
-                    "deepseek": {
-                        "model": "deepseek-chat",
-                        "api_key": "${DEEPSEEK_API_KEY}",
-                        "base_url": "https://api.deepseek.com"
+                    }
+                },
+                "catalog": {
+                    "gemini-2.5-flash": {
+                        "provider": "google",
+                        "id": "gemini-2.5-flash"
                     }
                 }
             },
-            "system": {
-                "log_level": "INFO",
-                "max_tool_iterations": 5
-            },
-            "memory": {
-                "history_context_size": 20
+            "user_defaults": {
+                "config": {
+                    "model": "gemini-2.5-flash",
+                    "temperature": 0.7,
+                    "max_tokens": 4096
+                },
+                "prompts": {}
             }
         }
     
@@ -223,6 +224,19 @@ class ConfigService:
             raise RuntimeError("ConfigService not initialized. Call initialize() first.")
         import copy
         return copy.deepcopy(self._config)
+
+    def get_genesis_template(self) -> Dict[str, Any]:
+        """
+        Return the complete genesis template configuration.
+
+        This exposes the full, environment-resolved configuration document
+        loaded from the `configurations` collection to downstream services
+        for inheritance-and-override composition.
+        """
+        if not self._initialized:
+            raise RuntimeError("ConfigService not initialized. Call initialize() first.")
+        import copy
+        return copy.deepcopy(self._config)
     
     def get_environment(self) -> str:
         """
@@ -243,6 +257,45 @@ class ConfigService:
             True if initialized, False otherwise
         """
         return self._initialized
+    
+    def get_llm_catalog(self) -> Dict[str, Dict]:
+        """
+        Get the LLM model catalog (model name -> provider mapping).
+        
+        Returns:
+            Dictionary mapping model names to their provider information
+        """
+        return self.get("llm.catalog", {})
+
+    def get_model_resolution(self) -> Dict[str, Any]:
+        """Return structure used to resolve friendly model aliases to provider IDs.
+
+        Expected structure inside catalog entries (optional):
+        - aliases: ["Kimi-K2", "Kimi-Free"] etc.
+        - id: provider-specific model id (if different from catalog key)
+        """
+        return self.get("llm.catalog", {})
+    
+    def get_user_defaults(self) -> Dict:
+        """
+        Get user default configuration (including config and prompts).
+        
+        Returns:
+            Dictionary containing default config and prompts
+        """
+        return self.get("user_defaults", {})
+    
+    def get_provider_config(self, provider_name: str) -> Dict:
+        """
+        Get configuration for a specific LLM provider.
+        
+        Args:
+            provider_name: Name of the provider (e.g., 'google', 'deepseek')
+            
+        Returns:
+            Dictionary containing provider configuration
+        """
+        return self.get(f"llm.providers.{provider_name}", {})
     
     async def update_configuration(self, config_data: Dict[str, Any]) -> bool:
         """

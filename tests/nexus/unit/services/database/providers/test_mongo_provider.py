@@ -54,17 +54,21 @@ class TestMongoProvider:
         mock_database = Mock()
         mock_messages_collection = Mock()
         mock_config_collection = Mock()
+        mock_identities_collection = Mock()
         
         # Attach collections as attributes as used by provider (attr access)
         mock_database.messages = mock_messages_collection
-        mock_database.system_configurations = mock_config_collection
+        mock_database.configurations = mock_config_collection
+        mock_database.identities = mock_identities_collection
 
         # Also support item access for database retrieval from client
         def mock_database_getitem(name):
             if name == "messages":
                 return mock_messages_collection
-            elif name == "system_configurations":
+            elif name == "configurations":
                 return mock_config_collection
+            elif name == "identities":
+                return mock_identities_collection
             raise KeyError(name)
         
         mock_database.__getitem__ = Mock(side_effect=mock_database_getitem)
@@ -91,6 +95,7 @@ class TestMongoProvider:
         # Verify indexes were created
         mock_messages_collection.create_index.assert_called_once()
         mock_config_collection.create_index.assert_called_once()
+        mock_identities_collection.create_index.assert_called_once()
 
     def test_insert_message_success(self, mocker):
         """Test successful message insertion."""
@@ -290,13 +295,13 @@ class TestMongoProvider:
         assert provider.config_collection is None
 
     def test_get_configuration_success(self, mocker):
-        """Test successful configuration retrieval."""
+        """Test successful configuration retrieval with direct structure."""
         # Mock MongoDB collection
         mock_collection = Mock()
         mock_config_doc = {
             '_id': Mock(),
             'environment': 'production',
-            'config_data': {'key': 'value'}
+            'key': 'value'  # Direct structure (no config_data wrapper)
         }
         mock_collection.find_one.return_value = mock_config_doc
         
@@ -305,7 +310,7 @@ class TestMongoProvider:
         
         config = provider.get_configuration("production")
         
-        assert config == {'key': 'value'}
+        assert config == {'key': 'value'}  # _id and environment are popped
         mock_collection.find_one.assert_called_once_with({"environment": "production"})
 
     def test_get_configuration_not_found(self, mocker):
@@ -323,13 +328,13 @@ class TestMongoProvider:
         mock_collection.find_one.assert_called_once_with({"environment": "nonexistent"})
 
     def test_upsert_configuration_success(self, mocker):
-        """Test successful configuration upsert."""
+        """Test successful configuration upsert with direct structure."""
         # Mock MongoDB collection
         mock_collection = Mock()
         mock_result = Mock()
         mock_result.upserted_id = "test_config_id"
         mock_result.modified_count = 0
-        mock_collection.update_one.return_value = mock_result
+        mock_collection.replace_one.return_value = mock_result
         
         provider = MongoProvider("mongodb://localhost:27017", "test_db")
         provider.config_collection = mock_collection
@@ -338,9 +343,10 @@ class TestMongoProvider:
         result = provider.upsert_configuration("production", config_data)
         
         assert result is True
-        mock_collection.update_one.assert_called_once_with(
+        # Verify replace_one is called with direct structure (no config_data wrapper)
+        mock_collection.replace_one.assert_called_once_with(
             {"environment": "production"},
-            {"$set": {"config_data": config_data}},
+            {"environment": "production", "key": "value"},
             upsert=True
         )
 
@@ -348,7 +354,7 @@ class TestMongoProvider:
         """Test configuration upsert when MongoDB operation fails."""
         # Mock MongoDB collection to raise OperationFailure
         mock_collection = Mock()
-        mock_collection.update_one.side_effect = OperationFailure("Update failed")
+        mock_collection.replace_one.side_effect = OperationFailure("Replace failed")
         
         provider = MongoProvider("mongodb://localhost:27017", "test_db")
         provider.config_collection = mock_collection

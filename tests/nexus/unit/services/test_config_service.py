@@ -75,25 +75,29 @@ class TestConfigService:
         with caplog.at_level(logging.INFO):
             await config_service.initialize('development')
 
-        # Assert: Verify fallback to hardcoded defaults
+        # Assert: Verify fallback to minimal emergency configuration
         assert config_service.is_initialized()
         assert config_service.get_environment() == 'development'
         
-        # Verify default configuration values are loaded
-        assert config_service.get('server.host') == '127.0.0.1'
-        assert config_service.get('server.port') == 8000
+        # Verify minimal emergency configuration values are loaded
         assert config_service.get('database.db_name') == 'NEXUS_DB_DEV'
-        assert config_service.get('llm.provider') == 'google'
-        assert config_service.get('llm.temperature') == 0.7
-        assert config_service.get('llm.max_tokens') == 4000
-        assert config_service.get('llm.providers.google.model') == 'gemini-2.5-flash'
         assert config_service.get('system.log_level') == 'INFO'
         assert config_service.get('system.max_tool_iterations') == 5
-        assert config_service.get('memory.history_context_size') == 20
+        assert config_service.get('user_defaults.config.model') == 'gemini-2.5-flash'
+        assert config_service.get('user_defaults.config.temperature') == 0.7
+        assert config_service.get('user_defaults.config.max_tokens') == 4096
+        # Catalog key contains hyphen, must access via dict
+        catalog = config_service.get('llm.catalog')
+        assert catalog is not None
+        assert 'gemini-2.5-flash' in catalog
+        assert catalog['gemini-2.5-flash']['provider'] == 'google'
+        # Note: api_key will be environment-variable-substituted, so just verify it's not None
+        api_key = config_service.get('llm.providers.google.api_key')
+        assert api_key is not None
 
         # Verify error was logged
         assert "Failed to load configuration from database" in caplog.text
-        assert "Using minimal default configuration as fallback" in caplog.text
+        assert "minimal emergency fallback configuration" in caplog.text
 
     @pytest.mark.asyncio
     async def test_initialize_falls_back_to_defaults_on_empty_db_config(self, config_service, mock_database_service, caplog):
@@ -105,7 +109,7 @@ class TestConfigService:
         with caplog.at_level(logging.WARNING):
             await config_service.initialize('production')
 
-        # Assert: Verify fallback to hardcoded defaults
+        # Assert: Verify fallback to minimal emergency configuration
         assert config_service.is_initialized()
         assert config_service.get_environment() == 'production'
         
@@ -114,7 +118,7 @@ class TestConfigService:
         
         # Verify warning was logged
         assert "No configuration found in database for environment: production" in caplog.text
-        assert "Loading minimal default configuration as fallback" in caplog.text
+        assert "minimal emergency fallback configuration" in caplog.text
 
     def test_get_configuration_before_initialization_raises_error(self, config_service):
         """Test that accessing configuration before initialization raises RuntimeError."""
@@ -343,3 +347,150 @@ class TestConfigService:
         assert config_copy == test_config
         config_copy['server']['host'] = 'modified'
         assert config_service.get('server.host') == 'localhost'  # Original unchanged
+
+    @pytest.mark.asyncio
+    async def test_get_llm_catalog(self, config_service, mock_database_service):
+        """Test get_llm_catalog returns correct model catalog."""
+        # Arrange: Mock database with llm catalog
+        config_with_catalog = {
+            "llm": {
+                "catalog": {
+                    "gemini-2.5-flash": {"provider": "google"},
+                    "deepseek-chat": {"provider": "deepseek"},
+                    "kimi-k2": {"provider": "openrouter"}
+                }
+            }
+        }
+        mock_database_service.get_configuration_async.return_value = config_with_catalog
+        await config_service.initialize('development')
+
+        # Act: Get LLM catalog
+        catalog = config_service.get_llm_catalog()
+
+        # Assert: Verify catalog structure
+        assert isinstance(catalog, dict)
+        assert len(catalog) == 3
+        assert catalog["gemini-2.5-flash"]["provider"] == "google"
+        assert catalog["deepseek-chat"]["provider"] == "deepseek"
+        assert catalog["kimi-k2"]["provider"] == "openrouter"
+
+    @pytest.mark.asyncio
+    async def test_get_llm_catalog_empty(self, config_service, mock_database_service):
+        """Test get_llm_catalog returns empty dict when catalog doesn't exist."""
+        # Arrange: Mock database without catalog
+        config_without_catalog = {"server": {"host": "localhost"}}
+        mock_database_service.get_configuration_async.return_value = config_without_catalog
+        await config_service.initialize('development')
+
+        # Act: Get LLM catalog
+        catalog = config_service.get_llm_catalog()
+
+        # Assert: Verify empty dict is returned
+        assert catalog == {}
+
+    @pytest.mark.asyncio
+    async def test_get_user_defaults(self, config_service, mock_database_service):
+        """Test get_user_defaults returns config and prompts defaults."""
+        # Arrange: Mock database with user defaults
+        config_with_defaults = {
+            "user_defaults": {
+                "config": {
+                    "model": "gemini-2.5-flash",
+                    "temperature": 0.8
+                },
+                "prompts": {
+                    "persona": "You are Xi, an AI assistant...",
+                    "system": "System instructions...",
+                    "tools": "Available tools..."
+                }
+            }
+        }
+        mock_database_service.get_configuration_async.return_value = config_with_defaults
+        await config_service.initialize('development')
+
+        # Act: Get user defaults
+        user_defaults = config_service.get_user_defaults()
+
+        # Assert: Verify user defaults structure
+        assert isinstance(user_defaults, dict)
+        assert "config" in user_defaults
+        assert "prompts" in user_defaults
+        assert user_defaults["config"]["model"] == "gemini-2.5-flash"
+        assert user_defaults["config"]["temperature"] == 0.8
+        assert user_defaults["prompts"]["persona"] == "You are Xi, an AI assistant..."
+        assert user_defaults["prompts"]["system"] == "System instructions..."
+        assert user_defaults["prompts"]["tools"] == "Available tools..."
+
+    @pytest.mark.asyncio
+    async def test_get_user_defaults_empty(self, config_service, mock_database_service):
+        """Test get_user_defaults returns empty dict when defaults don't exist."""
+        # Arrange: Mock database without user defaults
+        config_without_defaults = {"server": {"host": "localhost"}}
+        mock_database_service.get_configuration_async.return_value = config_without_defaults
+        await config_service.initialize('development')
+
+        # Act: Get user defaults
+        user_defaults = config_service.get_user_defaults()
+
+        # Assert: Verify empty dict is returned
+        assert user_defaults == {}
+
+    @pytest.mark.asyncio
+    async def test_get_provider_config(self, config_service, mock_database_service):
+        """Test get_provider_config returns correct provider configuration."""
+        # Arrange: Mock database with provider configurations
+        config_with_providers = {
+            "llm": {
+                "providers": {
+                    "google": {
+                        "api_key": "${GEMINI_API_KEY}",
+                        "base_url": "https://generativelanguage.googleapis.com/v1beta",
+                        "model": "gemini-2.5-flash"
+                    },
+                    "deepseek": {
+                        "api_key": "${DEEPSEEK_API_KEY}",
+                        "base_url": "https://api.deepseek.com",
+                        "model": "deepseek-chat"
+                    }
+                }
+            }
+        }
+        mock_database_service.get_configuration_async.return_value = config_with_providers
+        await config_service.initialize('development')
+
+        # Act: Get provider configs
+        google_config = config_service.get_provider_config("google")
+        deepseek_config = config_service.get_provider_config("deepseek")
+
+        # Assert: Verify provider configurations
+        # Note: api_key values may be substituted from environment variables.
+        # We only assert presence and other stable fields here.
+        assert isinstance(google_config, dict)
+        assert isinstance(google_config.get("api_key"), str)
+        assert google_config["base_url"] == "https://generativelanguage.googleapis.com/v1beta"
+        assert google_config["model"] == "gemini-2.5-flash"
+
+        assert isinstance(deepseek_config, dict)
+        assert isinstance(deepseek_config.get("api_key"), str)
+        assert deepseek_config["base_url"] == "https://api.deepseek.com"
+        assert deepseek_config["model"] == "deepseek-chat"
+
+    @pytest.mark.asyncio
+    async def test_get_provider_config_nonexistent(self, config_service, mock_database_service):
+        """Test get_provider_config returns empty dict for nonexistent provider."""
+        # Arrange: Mock database with limited providers
+        config_with_providers = {
+            "llm": {
+                "providers": {
+                    "google": {"api_key": "test"}
+                }
+            }
+        }
+        mock_database_service.get_configuration_async.return_value = config_with_providers
+        await config_service.initialize('development')
+
+        # Act: Get nonexistent provider config
+        nonexistent_config = config_service.get_provider_config("nonexistent_provider")
+
+        # Assert: Verify empty dict is returned
+        assert nonexistent_config == {}

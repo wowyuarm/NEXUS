@@ -15,7 +15,6 @@ from typing import Dict, Any
 from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
 from nexus.services.database.service import DatabaseService
-from nexus.services.identity import IdentityService
 
 logger = logging.getLogger(__name__)
 
@@ -28,22 +27,22 @@ class PersistenceService:
     the database for future context building and conversation history.
     """
 
-    def __init__(self, database_service: DatabaseService, identity_service: IdentityService | None = None):
+    def __init__(self, database_service: DatabaseService):
         """Initialize PersistenceService.
 
         Args:
             database_service: The DatabaseService instance for data operations
         """
         self.database_service = database_service
-        self.identity_service = identity_service
         logger.info("PersistenceService initialized")
 
     def subscribe_to_bus(self) -> None:
         """Subscribe to relevant topics on the NexusBus."""
         bus = self.database_service.bus
 
-        # Subscribe to new runs (captures initial human messages)
-        bus.subscribe(Topics.RUNS_NEW, self.handle_new_run)
+        # Subscribe to context build requests (only triggered for validated members)
+        # This ensures we only persist messages from users who passed the identity gate
+        bus.subscribe(Topics.CONTEXT_BUILD_REQUEST, self.handle_context_build_request)
 
         # Subscribe to LLM results (captures AI responses and tool call intents)
         bus.subscribe(Topics.LLM_RESULTS, self.handle_llm_result)
@@ -92,14 +91,17 @@ class PersistenceService:
         else:
             raise ValueError(f"Invalid run data format: {type(run_obj)}")
 
-    async def handle_new_run(self, message: Message) -> None:
-        """Handle new run events and persist the initial human message.
+    async def handle_context_build_request(self, message: Message) -> None:
+        """Handle context build requests and persist the initial human message.
+        
+        This method is triggered only for validated members who passed the identity gate,
+        ensuring we don't persist messages from unregistered visitors.
 
         Args:
             message: Message containing the Run object with user input
         """
         try:
-            logger.info(f"Handling new run for persistence: run_id={message.run_id}")
+            logger.info(f"Persisting human message for validated member: run_id={message.run_id}")
 
             # Extract user input and status from run data
             try:
@@ -108,18 +110,8 @@ class PersistenceService:
                 logger.error(f"Invalid run data format in new run message: {e}")
                 return
 
-            # Gatekeeper: Skip persistence for visitors (no identity on record)
-            try:
-                if self.identity_service:
-                    identity = await self.identity_service.get_identity(message.owner_key)
-                    if identity is None:
-                        logger.info(
-                            f"Skipping persistence for visitor owner_key={message.owner_key} (no identity)."
-                        )
-                        return
-            except Exception as e:
-                logger.error(f"Identity check failed during new run persistence: {e}")
-                return
+            # Trust OrchestratorService gatekeeper - if we received this message, user is a verified member
+            # No identity check needed here as Orchestrator already validated member status
 
             # Create a message representing the human input
             human_message = Message(

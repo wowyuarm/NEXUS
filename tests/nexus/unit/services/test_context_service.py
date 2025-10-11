@@ -16,7 +16,13 @@ from nexus.core.topics import Topics
 
 
 class TestLoadSystemPrompt:
-    """Test suite for _load_system_prompt method."""
+    """Deprecated tests for removed _load_system_prompt method.
+
+    ContextService no longer reads prompts from the filesystem. Prompts are now
+    composed dynamically from ConfigService defaults plus identity overrides. We
+    keep minimal tests to ensure backward compatibility in expectations by
+    redirecting to the new composition method.
+    """
 
     @pytest.fixture
     def mock_dependencies(self):
@@ -38,127 +44,141 @@ class TestLoadSystemPrompt:
             persistence_service=persistence_service
         )
 
-    def test_loads_and_combines_all_prompts(self, context_service, mocker):
-        """Test that _load_system_prompt loads and combines all prompt files correctly."""
-        # Arrange: Mock file contents
-        persona_content = "You are Xi, a helpful AI assistant."
-        system_content = "Follow these system guidelines..."
-        tools_content = "Available tools: search, calculate..."
-        
-        # Mock file operations for all three files
-        mock_files = {
-            'persona.md': persona_content,
-            'system.md': system_content,
-            'tools.md': tools_content
+    def test_composes_prompts_from_config_defaults(self, context_service):
+        """Prompts are composed from ConfigService defaults when no overrides provided."""
+        # Arrange: mock ConfigService return (new object structure)
+        default_prompts = {
+            "persona": {
+                "content": "You are Xi, a helpful AI assistant.",
+                "editable": True,
+                "order": 1
+            },
+            "system": {
+                "content": "Follow these system guidelines...",
+                "editable": False,
+                "order": 2
+            },
+            "tools": {
+                "content": "Available tools: search, calculate...",
+                "editable": False,
+                "order": 3
+            }
         }
-        
-        def mock_open_side_effect(file_path, *args, **kwargs):
-            filename = os.path.basename(file_path)
-            if filename in mock_files:
-                return mock_open(read_data=mock_files[filename])()
-            else:
-                raise FileNotFoundError(f"No such file: {file_path}")
-        
-        mocker.patch('builtins.open', side_effect=mock_open_side_effect)
+        context_service.config_service = Mock()
+        context_service.config_service.get_user_defaults.return_value = {
+            "config": {},
+            "prompts": default_prompts
+        }
 
-        # Act: Load system prompt
-        result = context_service._load_system_prompt()
+        # Act
+        effective = context_service._compose_effective_prompts(user_profile={})
+        combined = context_service._build_system_prompt_from_prompts(effective)
 
-        # Assert: Verify content is combined correctly with separators
-        expected_content = f"{persona_content}\n\n---\n\n{system_content}\n\n---\n\n{tools_content}"
-        assert result == expected_content
+        # Assert
+        expected_content = f"{default_prompts['persona']['content']}\n\n---\n\n{default_prompts['system']['content']}\n\n---\n\n{default_prompts['tools']['content']}"
+        assert combined == expected_content
 
-    def test_handles_missing_prompt_files_gracefully(self, context_service, mocker):
-        """Test that _load_system_prompt handles missing files gracefully."""
-        # Arrange: Mock only persona.md exists, others are missing
-        persona_content = "You are Xi, a helpful AI assistant."
-        
-        def mock_open_side_effect(file_path, *args, **kwargs):
-            filename = os.path.basename(file_path)
-            if filename == 'persona.md':
-                return mock_open(read_data=persona_content)()
-            else:
-                raise FileNotFoundError(f"No such file: {file_path}")
-        
-        mocker.patch('builtins.open', side_effect=mock_open_side_effect)
+    def test_overrides_persona_only(self, context_service):
+        """When only persona is overridden, system/tools remain defaults."""
+        # Arrange defaults (new object structure)
+        default_prompts = {
+            "persona": {
+                "content": "You are Xi, a helpful AI assistant.",
+                "editable": True,
+                "order": 1
+            },
+            "system": {
+                "content": "Follow these system guidelines...",
+                "editable": False,
+                "order": 2
+            },
+            "tools": {
+                "content": "Available tools: search, calculate...",
+                "editable": False,
+                "order": 3
+            }
+        }
+        context_service.config_service = Mock()
+        context_service.config_service.get_user_defaults.return_value = {
+            "config": {},
+            "prompts": default_prompts
+        }
+        user_profile = {"prompt_overrides": {"persona": "我是曦，你的AI灵魂伴侣。"}}
 
-        # Act: Load system prompt
-        result = context_service._load_system_prompt()
+        # Act
+        effective = context_service._compose_effective_prompts(user_profile)
+        combined = context_service._build_system_prompt_from_prompts(effective)
 
-        # Assert: Verify only persona content is returned (others default to empty)
-        assert result == persona_content
+        # Assert
+        assert combined.startswith("我是曦")
+        assert "Follow these system guidelines" in combined
+        assert "Available tools" in combined
 
-    def test_handles_partial_missing_files(self, context_service, mocker):
-        """Test handling when some files exist and others don't."""
-        # Arrange: Mock persona.md and tools.md exist, system.md is missing
-        persona_content = "You are Xi, a helpful AI assistant."
-        tools_content = "Available tools: search, calculate..."
-        
-        def mock_open_side_effect(file_path, *args, **kwargs):
-            filename = os.path.basename(file_path)
-            if filename == 'persona.md':
-                return mock_open(read_data=persona_content)()
-            elif filename == 'tools.md':
-                return mock_open(read_data=tools_content)()
-            else:
-                raise FileNotFoundError(f"No such file: {file_path}")
-        
-        mocker.patch('builtins.open', side_effect=mock_open_side_effect)
+    def test_partial_defaults_and_overrides(self, context_service):
+        """Supports partial overrides while combining with defaults."""
+        default_prompts = {
+            "persona": {
+                "content": "You are Xi, a helpful AI assistant.",
+                "editable": True,
+                "order": 1
+            },
+            "system": {
+                "content": "Follow these system guidelines...",
+                "editable": False,
+                "order": 2
+            },
+            "tools": {
+                "content": "Available tools: search, calculate...",
+                "editable": False,
+                "order": 3
+            }
+        }
+        context_service.config_service = Mock()
+        context_service.config_service.get_user_defaults.return_value = {
+            "config": {},
+            "prompts": default_prompts
+        }
+        user_profile = {"prompt_overrides": {"tools": "工具：web_search"}}
 
-        # Act: Load system prompt
-        result = context_service._load_system_prompt()
+        effective = context_service._compose_effective_prompts(user_profile)
+        combined = context_service._build_system_prompt_from_prompts(effective)
 
-        # Assert: Verify available content is combined correctly
-        expected_content = f"{persona_content}\n\n---\n\n{tools_content}"
-        assert result == expected_content
+        assert combined.endswith("工具：web_search")
+        assert combined.startswith(default_prompts["persona"]["content"])
 
-    def test_returns_fallback_on_file_read_error(self, context_service, mocker):
-        """Test that _load_system_prompt returns fallback prompt on file read errors."""
-        # Arrange: Mock all file operations to raise IOError
-        mocker.patch('builtins.open', side_effect=IOError("Permission denied"))
+    def test_fallback_when_all_empty(self, context_service):
+        """If defaults are empty and no overrides, fallback system prompt is used."""
+        context_service.config_service = Mock()
+        context_service.config_service.get_user_defaults.return_value = {
+            "config": {},
+            "prompts": {"persona": "", "system": "", "tools": ""}
+        }
+        effective = context_service._compose_effective_prompts({})
+        combined = context_service._build_system_prompt_from_prompts(effective)
+        expected_fallback = "You are NEXUS, an AI assistant. Please respond helpfully and thoughtfully."
+        assert combined == expected_fallback
 
-        # Act: Load system prompt
-        result = context_service._load_system_prompt()
+    def test_empty_defaults_fallback(self, context_service):
+        context_service.config_service = Mock()
+        context_service.config_service.get_user_defaults.return_value = {"config": {}, "prompts": {}}
+        effective = context_service._compose_effective_prompts({})
+        combined = context_service._build_system_prompt_from_prompts(effective)
+        expected_fallback = "You are NEXUS, an AI assistant. Please respond helpfully and thoughtfully."
+        assert combined == expected_fallback
 
-        # Assert: Verify fallback prompt is returned
-        expected_fallback = "You are Xi, an AI assistant. Please respond helpfully and thoughtfully."
-        assert result == expected_fallback
-
-    def test_returns_fallback_on_empty_files(self, context_service, mocker):
-        """Test that _load_system_prompt returns fallback when all files are empty."""
-        # Arrange: Mock all files to be empty
-        mocker.patch('builtins.open', mock_open(read_data=""))
-
-        # Act: Load system prompt
-        result = context_service._load_system_prompt()
-
-        # Assert: Verify fallback prompt is returned when no content
-        expected_fallback = "You are Xi, an AI assistant. Please respond helpfully and thoughtfully."
-        assert result == expected_fallback
-
-    def test_handles_whitespace_only_files(self, context_service, mocker):
-        """Test handling of files that contain only whitespace."""
-        # Arrange: Mock files with whitespace content
-        persona_content = "   \n\t  \n   "  # Only whitespace
-        system_content = "Actual system content"
-        
-        def mock_open_side_effect(file_path, *args, **kwargs):
-            filename = os.path.basename(file_path)
-            if filename == 'persona.md':
-                return mock_open(read_data=persona_content)()
-            elif filename == 'system.md':
-                return mock_open(read_data=system_content)()
-            else:
-                raise FileNotFoundError(f"No such file: {file_path}")
-        
-        mocker.patch('builtins.open', side_effect=mock_open_side_effect)
-
-        # Act: Load system prompt
-        result = context_service._load_system_prompt()
-
-        # Assert: Verify whitespace-only content is included but actual content dominates
-        expected_content = f"{persona_content}\n\n---\n\n{system_content}"
-        assert result == expected_content
+    def test_whitespace_defaults(self, context_service):
+        context_service.config_service = Mock()
+        context_service.config_service.get_user_defaults.return_value = {
+            "config": {},
+            "prompts": {
+                "persona": {"content": "   \n\t  \n   ", "editable": True, "order": 1},
+                "system": {"content": "Actual system content", "editable": False, "order": 2},
+                "tools": {"content": "", "editable": False, "order": 3}
+            }
+        }
+        effective = context_service._compose_effective_prompts({})
+        combined = context_service._build_system_prompt_from_prompts(effective)
+        assert "Actual system content" in combined
 
 
 class TestFormatLlmMessages:

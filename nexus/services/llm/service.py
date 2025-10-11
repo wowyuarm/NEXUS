@@ -43,63 +43,9 @@ class LLMService:
         self.bus = bus
         self.config_service = config_service
 
-        # Initialize the LLM provider based on configuration
-        self.provider = self._initialize_provider()
-        logger.info("LLMService initialized with provider")
+        # No longer initialize a single provider - providers are created dynamically per request
+        logger.info("LLMService initialized (dynamic provider mode)")
 
-    def _initialize_provider(self):
-        """Initialize the LLM provider based on configuration."""
-        provider_name = self.config_service.get("llm.provider", "google")
-
-        if provider_name == "google":
-            api_key = self.config_service.get("llm.providers.google.api_key")
-            base_url = self.config_service.get("llm.providers.google.base_url")
-            model = self.config_service.get("llm.providers.google.model", "gemini-2.5-flash")
-            timeout = self.config_service.get_int("llm.timeout", DEFAULT_TIMEOUT)
-
-            if not api_key:
-                raise ValueError("Google API key not found in configuration")
-            if not base_url:
-                raise ValueError("Google base URL not found in configuration")
-
-            return GoogleLLMProvider(api_key=api_key, base_url=base_url, model=model, timeout=timeout)
-
-        elif provider_name == "openrouter":
-            # Get basic OpenRouter configuration
-            api_key = self.config_service.get("llm.providers.openrouter.api_key")
-            base_url = self.config_service.get("llm.providers.openrouter.base_url", "https://openrouter.ai/api/v1")
-            model = self.config_service.get("llm.providers.openrouter.model", "moonshotai/kimi-k2:free")
-            timeout = self.config_service.get_int("llm.timeout", DEFAULT_TIMEOUT)
-
-            if not api_key:
-                raise ValueError("OpenRouter API key not found in configuration")
-
-            return OpenRouterLLMProvider(
-                api_key=api_key,
-                base_url=base_url,
-                model=model,
-                timeout=timeout
-            )
-
-        elif provider_name == "deepseek":
-            # Get basic DeepSeek configuration
-            api_key = self.config_service.get("llm.providers.deepseek.api_key")
-            base_url = self.config_service.get("llm.providers.deepseek.base_url", "https://api.deepseek.com")
-            model = self.config_service.get("llm.providers.deepseek.model", "deepseek-chat")
-            timeout = self.config_service.get_int("llm.timeout", DEFAULT_TIMEOUT)
-
-            if not api_key:
-                raise ValueError("DeepSeek API key not found in configuration")
-
-            return DeepSeekLLMProvider(
-                api_key=api_key,
-                base_url=base_url,
-                model=model,
-                timeout=timeout
-            )
-
-        else:
-            raise ValueError(f"Unsupported LLM provider: {provider_name}")
 
     def subscribe_to_bus(self) -> None:
         """Subscribe to LLM request topics."""
@@ -108,14 +54,14 @@ class LLMService:
 
     async def handle_llm_request(self, message: Message) -> None:
         """
-        Handle LLM completion requests.
+        Handle LLM completion requests with dynamic provider selection.
 
-        Extracts messages and tools from the request, applies universal LLM parameters
-        (temperature, max_tokens, timeout) from configuration, and forwards the request to the
-        configured LLM provider. Supports both streaming and non-streaming responses.
+        Extracts messages and tools from the request, composes effective configuration
+        from user profile and defaults, dynamically selects the appropriate provider,
+        and executes the LLM call. Supports both streaming and non-streaming responses.
 
         Args:
-            message: Message containing 'messages' list, 'tools' list and 'run_id'
+            message: Message containing 'messages' list, 'tools' list, and optional 'user_profile'
         """
         try:
             logger.info(f"Handling LLM request for run_id={message.run_id}")
@@ -130,25 +76,40 @@ class LLMService:
                 logger.error(f"No messages found in LLM request for run_id={run_id}")
                 return
 
+            # Extract user_profile from content (if provided by Orchestrator)
+            user_profile = content.get("user_profile", {})
+
             # If running in E2E fake mode, simulate streaming, tool call, and final result to avoid external dependencies
             if os.getenv("NEXUS_E2E_FAKE_LLM", "0") == "1":
                 await self._handle_fake_llm_flow(message, messages, tools)
                 return
 
-            # Get universal LLM parameters from configuration
-            temperature = self.config_service.get_float("llm.temperature", DEFAULT_TEMPERATURE)
-            max_tokens = self.config_service.get_int("llm.max_tokens", DEFAULT_MAX_TOKENS)
+            # Compose effective configuration (user overrides + defaults)
+            effective_config = self._compose_effective_config(user_profile)
+            
+            # Get final model name (friendly alias or provider id)
+            requested_model = effective_config.get('model')
+            model_name = self._resolve_model_name(requested_model)
+            temperature = effective_config.get('temperature', DEFAULT_TEMPERATURE)
+            max_tokens = effective_config.get('max_tokens', DEFAULT_MAX_TOKENS)
+            
+            logger.info(f"Using model '{model_name}' with temperature={temperature}, max_tokens={max_tokens} for run_id={run_id}")
+
+            # Dynamically get provider for this specific model
+            provider = self._get_provider_for_model(model_name)
 
             # Enable streaming by default for better UX
             stream = True
 
             # Call the LLM provider with tools and parameters
             if stream:
-                # Handle streaming response in real-time
-                await self._handle_real_time_streaming(message, messages, tools, temperature, max_tokens)
+                # Handle streaming response in real-time with dynamic provider
+                await self._execute_streaming_with_provider(
+                    provider, messages, tools, temperature, max_tokens, run_id, message.owner_key
+                )
             else:
                 # Handle non-streaming response
-                result = await self.provider.chat_completion(
+                result = await provider.chat_completion(
                     messages,
                     tools=tools,
                     temperature=temperature,
@@ -171,13 +132,142 @@ class LLMService:
             )
             await self.bus.publish(Topics.LLM_RESULTS, error_message)
 
-    async def _handle_real_time_streaming(self, original_message: Message, messages, tools, temperature, max_tokens) -> None:
-        """Handle real-time streaming LLM response."""
-        run_id = original_message.run_id
-        owner_key = original_message.owner_key
+    def _compose_effective_config(self, user_profile: Dict) -> Dict:
+        """
+        Compose effective LLM configuration by merging defaults with user overrides.
+        
+        Args:
+            user_profile: User profile containing config_overrides
+            
+        Returns:
+            Dictionary with effective configuration (model, temperature, max_tokens)
+        """
+        # Get default configuration from ConfigService
+        user_defaults = self.config_service.get_user_defaults()
+        default_config = user_defaults.get('config', {})
+        
+        # Get user overrides
+        config_overrides = user_profile.get('config_overrides', {})
+        
+        # Merge (overrides take precedence)
+        effective_config = {
+            'model': config_overrides.get('model', default_config.get('model', 'gemini-2.5-flash')),
+            'temperature': config_overrides.get('temperature', default_config.get('temperature', DEFAULT_TEMPERATURE)),
+            'max_tokens': config_overrides.get('max_tokens', default_config.get('max_tokens', DEFAULT_MAX_TOKENS))
+        }
+        
+        logger.info(f"Composed effective config with overrides: {list(config_overrides.keys())}")
+        return effective_config
 
-        # Get streaming response from provider
-        response = await self._create_streaming_response(messages, tools, temperature, max_tokens)
+    def _get_provider_for_model(self, model_name: str):
+        """
+        Dynamically instantiate the appropriate provider for a given model name.
+        
+        Args:
+            model_name: Name of the model to use
+            
+        Returns:
+            Instance of the appropriate LLM provider
+            
+        Raises:
+            ValueError: If provider is not supported
+        """
+        # Get model catalog from ConfigService
+        catalog = self.config_service.get_llm_catalog()
+        
+        # Check if model exists in catalog
+        if model_name not in catalog:
+            logger.warning(f"Model '{model_name}' not in catalog, falling back to default")
+            # Fallback to default model
+            user_defaults = self.config_service.get_user_defaults()
+            model_name = user_defaults.get('config', {}).get('model', 'gemini-2.5-flash')
+        
+        # Get provider name for this model
+        provider_name = catalog.get(model_name, {}).get('provider', 'google')
+        logger.info(f"Using provider: {provider_name} for model: {model_name}")
+        
+        # Get provider configuration
+        provider_config = self.config_service.get_provider_config(provider_name)
+        
+        if not provider_config:
+            raise ValueError(f"No configuration found for provider: {provider_name}")
+        
+        # Get timeout from user_defaults config
+        user_defaults = self.config_service.get_user_defaults()
+        default_config = user_defaults.get('config', {})
+        timeout = default_config.get('timeout', DEFAULT_TIMEOUT)
+        
+        # Instantiate the appropriate provider
+        if provider_name == "google":
+            return GoogleLLMProvider(
+                api_key=provider_config['api_key'],
+                base_url=provider_config['base_url'],
+                model=catalog.get(model_name, {}).get('id', model_name),
+                timeout=timeout
+            )
+        elif provider_name == "deepseek":
+            return DeepSeekLLMProvider(
+                api_key=provider_config['api_key'],
+                base_url=provider_config['base_url'],
+                model=catalog.get(model_name, {}).get('id', model_name),
+                timeout=timeout
+            )
+        elif provider_name == "openrouter":
+            return OpenRouterLLMProvider(
+                api_key=provider_config['api_key'],
+                base_url=provider_config['base_url'],
+                model=catalog.get(model_name, {}).get('id', model_name),
+                timeout=timeout
+            )
+        else:
+            raise ValueError(f"Unsupported provider: {provider_name}")
+
+    def _resolve_model_name(self, requested: str) -> str:
+        """Resolve a friendly model alias to catalog key/provider id.
+
+        Resolution order:
+        1) Exact catalog key match -> use as is
+        2) Alias match in any catalog entry's 'aliases' list -> use that key
+        3) If matches any entry's 'id' (provider id), normalize to that entry's key
+        4) Otherwise return as is
+        """
+        try:
+            catalog = self.config_service.get_llm_catalog() or {}
+            if requested in catalog:
+                return requested
+
+            for key, meta in catalog.items():
+                aliases = (meta or {}).get('aliases') or []
+                if isinstance(aliases, list) and requested in aliases:
+                    return key
+
+            for key, meta in catalog.items():
+                provider_id = (meta or {}).get('id') or key
+                if requested == provider_id:
+                    return key
+        except Exception:
+            pass
+        return requested
+
+    async def _execute_streaming_with_provider(
+        self, provider, messages, tools, temperature, max_tokens, run_id, owner_key
+    ):
+        """
+        Execute streaming LLM call with a specific provider instance.
+        
+        Args:
+            provider: LLM provider instance to use
+            messages: List of messages for the conversation
+            tools: List of available tools
+            temperature: Temperature parameter for generation
+            max_tokens: Maximum tokens to generate
+            run_id: Run identifier
+            owner_key: Owner's public key
+        """
+        # Get streaming response from the provided provider
+        response = await self._create_streaming_response_with_provider(
+            provider, messages, tools, temperature, max_tokens
+        )
 
         # Process streaming chunks and collect results
         content_chunks, tool_calls = await self._process_streaming_chunks(response, run_id, owner_key)
@@ -185,19 +275,20 @@ class LLMService:
         # Send final result
         await self._send_final_streaming_result(run_id, owner_key, content_chunks, tool_calls)
 
-    async def _create_streaming_response(self, messages, tools, temperature, max_tokens):
-        """Create streaming response from LLM provider."""
-        # Normalize messages to satisfy provider requirements (e.g., Google needs tool 'name')
+    async def _create_streaming_response_with_provider(self, provider, messages, tools, temperature, max_tokens):
+        """Create streaming response from a specific LLM provider."""
+        # Normalize messages to satisfy provider requirements
         normalized_messages = self._normalize_messages_for_provider(messages)
 
-        return await self.provider.client.chat.completions.create(
-            model=self.provider.default_model,
+        return await provider.client.chat.completions.create(
+            model=provider.default_model,
             messages=normalized_messages,
             temperature=temperature,
             max_tokens=max_tokens,
             tools=tools if tools else None,
             stream=True
         )
+
 
     def _normalize_messages_for_provider(self, messages: list[dict]) -> list[dict]:
         """Normalize messages to be compatible across providers.

@@ -100,3 +100,126 @@
 3.  一个来自未注册公钥的新WebSocket连接，在发送第一条消息后，会收到一条引导其执行`/identity`的系统消息，且不会触发任何后续的LLM或数据库历史查询操作。
 4.  一个已注册的公钥，在执行`/identity`指令后，系统状态不变。
 5.  一个已注册的公钥，在发送消息后，系统能够基于其`owner_key`正确地查询历史记录，并完成整个对话流程。
+
+---
+---
+
+*   **全景上下文 (Big Picture Context):**
+    *   **前置任务:** `DATA-SOVEREIGNTY-1.0`已完成，我们拥有了以`owner_key`为基础的数据隔离和身份验证“门禁”。
+    *   **本任务目标:** 在此基础上，激活系统的“个性化灵魂”。我们将实现“继承与覆写”的动态配置模型，并引入“模型即服务商”的抽象，最终让系统的每一次响应都能精确地反映当前用户的个人偏好和专属人格。
+    *   **预期产出:** 一个完全动态的后端系统。不同的用户，可以拥有不同的AI人格（Prompts）和AI引擎（模型、参数），并且这些配置都持久化在数据库中，与他们的身份绑定。
+
+---
+
+#### **第一部分：架构背景与最终设计**
+
+**1. 核心原则:**
+*   **继承与覆写:** 系统的生效配置，是在请求生命周期中，由“全局创世模板”和“用户个性化覆写”实时合成的。
+*   **模型即服务商:** 用户只与“模型（Model）”交互。系统内部负责将模型名解析为其对应的服务商（Provider）和认证信息。
+
+**2. 最终数据模型 (The Final Data Schema):**
+*   **`configurations` 集合 (单一文档，创世模板):**（**重要**：其他配置见根目录config.example.yml）
+    ```json
+    {
+      "system": { /* 不可覆写 */ },
+      "llm": {
+        "catalog": {
+          "gemini-2.5-flash": { "provider": "google" },
+          "deepseek-chat": { "provider": "deepseek" },
+          "kimi-k2": { "provider": "openrouter" }
+        },
+        "providers": {
+          "google": { "api_key": "${GEMINI_API_KEY}", ... },
+          "deepseek": { "api_key": "${DEEPSEEK_API_KEY}", ... }
+        }
+      },
+      "user_defaults": {
+        "config": {
+          "model": "gemini-2.5-flash",
+          "temperature": 0.8
+        },
+        "prompts": { # 必须见nexus/prompt/xi下的 markdown，合理迁移
+          "persona": "You are Nexus...",
+          "system": "You must operate...",
+          "tools": "You have access..."
+        }
+      },
+      "ui_editable_fields": { /* UI渲染元数据 */ }
+    }
+    ```
+*   **`identities` 集合 (每个用户一个文档):**
+    ```json
+    {
+      "public_key": "0x...",
+      "config_overrides": {
+        "model": "deepseek-chat" 
+      },
+      "prompt_overrides": {
+        "persona": "我是曦..."
+      }
+    }
+    ```
+
+---
+
+#### **第二部分：实施路径与TDD强制任务**
+
+**Phase 1: `ConfigService` 与 `IdentityService` 的能力升级**
+
+1.  **TDD - 编写失败的测试:**
+    *   **路径:** `tests/nexus/unit/services/test_config_service.py`
+        *   **行动:** 编写测试，模拟加载上述新的`configurations`数据结构，断言`ConfigService`能够正确解析并提供`llm.catalog`和`user_defaults`。
+    *   **路径:** `tests/nexus/unit/services/test_identity_service.py`
+        *   **行动:** 增强`test_create_identity_success`。现在，它必须断言新创建的`identity`文档中，`config_overrides`和`prompt_overrides`字段被初始化为空对象`{}`。
+
+2.  **实施 - 让测试通过:**
+    *   **`nexus/services/config.py` (`ConfigService`):**
+        *   修改其加载逻辑，以适应新的、统一的`configurations`集合。
+        *   提供新的getter方法，如`get_llm_catalog()`和`get_user_defaults()`。
+    *   **`nexus/services/identity.py` (`IdentityService`):**
+        *   修改`create_identity`方法。在创建新用户时，为其文档初始化`config_overrides: {}`和`prompt_overrides: {}`字段。
+
+---
+
+**Phase 2: 核心服务 (`ContextService`, `LLMService`) 的动态化革命**
+
+1.  **TDD - 编写失败的测试:**
+    *   **路径:** `tests/nexus/integration/services/test_context_service.py`
+        *   **行动:** 编写一个新的集成测试`test_context_composition_with_overrides()`。模拟一个拥有`prompt_overrides`的用户，断言`ContextService`最终生成的System Prompt**包含了**被覆写后的`persona`。
+    *   **路径:** `tests/nexus/integration/services/test_llm_service.py`
+        *   **行动:** 编写一个新的集成测试`test_llm_service_dynamic_provider_selection()`。模拟一个`config_overrides`中`model`为`deepseek-chat`的用户，断言`LLMService`在处理其请求时，**实例化了`DeepSeekLLMProvider`**，而不是默认的`GoogleLLMProvider`。
+
+2.  **实施 - 让测试通过:**
+    *   **`nexus/services/context.py` (`ContextService`):**
+        *   **核心改造:** 重构`handle_build_request`和`_load_system_prompt`（或新增`_compose_effective_prompts`方法）。
+        *   **新流程:**
+            1.  从`Orchestrator`传来的`user_profile`中，获取`prompt_overrides`。
+            2.  从`ConfigService`获取`user_defaults.prompts`作为基础。
+            3.  **实时合并:** 用`prompt_overrides`覆写基础Prompt，生成最终的`effective_prompts`。
+            4.  将`effective_prompts`中的`persona`, `system`, `tools`等部分拼接成最终的System Prompt字符串。
+    *   **`nexus/services/llm.py` (`LLMService`):**
+        *   **核心改造:** 重构`_initialize_provider`方法，将其更名为`_get_provider_for_model`，并接收`model_name`作为参数。`__init__`中不再实例化任何默认provider。
+        *   **重构`handle_llm_request`:**
+            1.  从`Orchestrator`传来的`user_profile`和`user_defaults`合成出`effective_config`。
+            2.  从`effective_config`中获取最终的`model`名。
+            3.  调用`self._get_provider_for_model(model)`**实时地、为本次请求**实例化一个正确的Provider。
+            4.  使用这个临时的Provider实例，执行LLM调用。
+
+---
+
+#### **第三部分：代码清理与正规化**
+
+*   **废除旧逻辑:**
+    *   **必须**移除`ContextService`中所有从本地文件系统 (`nexus/prompts/`) 加载`.md`文件的逻辑。代码Fallback机制应由`ConfigService`统一管理。
+*   **统一`owner_key`:**
+    *   对整个后端代码库进行一次最终审查，确保所有数据库交互、服务间数据传递，都已彻底摒弃`session_id`，完全统一到`owner_key`。
+
+#### **验收标准**
+
+1.  所有相关的测试文件均已创建或更新，并且所有测试用例100%通过。
+2.  新用户通过`/identity`验证后，其在`identities`集合中的文档被正确创建，并包含空的`overrides`字段。
+3.  该新用户发起对话时，系统使用的是`configurations`集合中定义的默认“枢 (Nexus)” Prompt和默认模型。
+4.  当通过数据库手动为该用户添加`config_overrides`（例如，将`model`改为`deepseek-chat`）后，该用户再次发起对话，后端日志必须明确显示系统**实例化了`DeepSeekLLMProvider`**来处理该请求。
+5.  当通过数据库手动为该用户添加`prompt_overrides`（例如，修改`persona`为“曦”）后，该用户再次发起对话，LLM接收到的System Prompt必须包含“曦”的文本。
+
+---

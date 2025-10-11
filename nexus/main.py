@@ -86,8 +86,9 @@ async def main() -> None:
     # Identity service for user identity management
     identity_service = IdentityService(db_service=database_service)
 
-    # Persistence service depends on database and identity services
-    persistence_service = PersistenceService(database_service, identity_service)
+    # Persistence service depends on database service only
+    # (Identity gating is handled by OrchestratorService)
+    persistence_service = PersistenceService(database_service)
 
     # Other services
     llm_service = LLMService(bus, config_service)

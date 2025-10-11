@@ -4,28 +4,23 @@ Context service for NEXUS.
 Responsible for building conversational context prior to LLM calls. It subscribes
 for context build requests and publishes the build outputs when ready.
 
-Enhanced with tool registry integration to provide available tool definitions
-to the LLM alongside the conversational context. Features intelligent system
-prompt construction by combining persona and tool descriptions.
+Enhanced with dynamic prompt composition that merges user-specific overrides with
+system defaults, enabling personalized AI personas. Integrates with tool registry
+to provide available tool definitions to the LLM.
 """
 
 import logging
-import os
 from typing import List, Dict
 from nexus.core.bus import NexusBus
-from nexus.core.models import Message, Role
+from nexus.core.models import Message, Run, Role
 from nexus.core.topics import Topics
 from nexus.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
 # Constants
-PROMPTS_SUBDIR = "prompts/xi"
-PERSONA_FILENAME = "persona.md"
-TOOLS_FILENAME = "tools.md"
-SYSTEM_FILENAME = "system.md"
 CONTENT_SEPARATOR = "\n\n---\n\n"
-FALLBACK_SYSTEM_PROMPT = "You are Xi, an AI assistant. Please respond helpfully and thoughtfully."
+FALLBACK_SYSTEM_PROMPT = "You are NEXUS, an AI assistant. Please respond helpfully and thoughtfully."
 
 # Conversation history and role mapping constants
 DEFAULT_HISTORY_LIMIT = 20  # Default number of recent messages to include in context
@@ -57,24 +52,35 @@ class ContextService:
         Handle context build requests.
 
         Args:
-            message: Message containing 'current_input', 'client_timestamp_utc', 'client_timezone_offset', and 'run_id'
+            message: Message containing Run object as content
         """
         try:
             logger.info(f"Handling context build request for run_id={message.run_id}")
 
-            # Extract current input and client timestamp from message content
-            content = message.content
-            current_input = content.get("current_input", "")
-            client_timestamp_utc = content.get("client_timestamp_utc", "")
-            client_timezone_offset = content.get("client_timezone_offset", 0)
-            run_id = message.run_id
-
-            if not current_input:
-                logger.error(f"No current_input found in context request for run_id={run_id}")
+            # Extract Run object from message content
+            run = message.content
+            if not isinstance(run, Run):
+                logger.error(f"Expected Run object in context build request for run_id={message.run_id}")
                 return
 
-            # Load system prompt from persona.md
-            system_prompt = self._load_system_prompt()
+            # Extract user_profile from Run.metadata
+            user_profile = run.metadata.get('user_profile', {}) if run.metadata else {}
+
+            # Extract current input from Run.history (first message)
+            current_input = self._extract_user_input_from_run(run)
+            if not current_input:
+                logger.error(f"No current_input found in Run.history for run_id={run.id}")
+                return
+
+            # Extract client timestamp from run metadata
+            client_timestamp_utc = run.metadata.get('client_timestamp_utc', '') if run.metadata else ''
+            client_timezone_offset = run.metadata.get('client_timezone_offset', 0) if run.metadata else 0
+
+            # Compose effective prompts (default + user overrides)
+            effective_prompts = self._compose_effective_prompts(user_profile)
+
+            # Build system prompt from composed prompts
+            system_prompt = self._build_system_prompt_from_prompts(effective_prompts)
 
             # Build messages list with history
             messages = await self._build_messages_with_history(
@@ -83,7 +89,7 @@ class ContextService:
                 current_input,
                 client_timestamp_utc,
                 client_timezone_offset,
-                run_id
+                run.id
             )
 
             # Get all available tool definitions
@@ -91,7 +97,7 @@ class ContextService:
 
             # Create response message
             response_message = Message(
-                run_id=run_id,
+                run_id=run.id,
                 owner_key=message.owner_key,
                 role=Role.SYSTEM,
                 content={
@@ -103,7 +109,7 @@ class ContextService:
 
             # Publish the context build response
             await self.bus.publish(Topics.CONTEXT_BUILD_RESPONSE, response_message)
-            logger.info(f"Published context build response for run_id={run_id}")
+            logger.info(f"Published context build response for run_id={run.id}")
 
         except Exception as e:
             logger.error(f"Error handling context build request for run_id={message.run_id}: {e}")
@@ -120,48 +126,64 @@ class ContextService:
             )
             await self.bus.publish(Topics.CONTEXT_BUILD_RESPONSE, error_message)
 
-    def _load_system_prompt(self) -> str:
-        """Load system prompt from prompts/xi/persona.md and tools.md files."""
-        try:
-            # Get the prompts directory path
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            nexus_dir = os.path.dirname(current_dir)
-            prompts_dir = os.path.join(nexus_dir, PROMPTS_SUBDIR)
+    def _extract_user_input_from_run(self, run: Run) -> str:
+        """Extract user input from the first message in run history."""
+        if run.history and isinstance(run.history[0].content, str):
+            return run.history[0].content
+        return ""
 
-            # Load prompt files
-            persona_content = self._load_prompt_file(prompts_dir, PERSONA_FILENAME, FALLBACK_SYSTEM_PROMPT)
-            system_content = self._load_prompt_file(prompts_dir, SYSTEM_FILENAME, "")
-            tools_content = self._load_prompt_file(prompts_dir, TOOLS_FILENAME, "")
+    def _compose_effective_prompts(self, user_profile: Dict) -> Dict[str, str]:
+        """
+        Compose effective prompts by merging defaults with user overrides.
+        
+        Args:
+            user_profile: User profile containing prompt_overrides
+            
+        Returns:
+            Dictionary with effective prompts (persona, system, tools)
+        """
+        # Get default prompts from ConfigService
+        user_defaults = self.config_service.get_user_defaults() if self.config_service else {}
+        default_prompts = user_defaults.get('prompts', {})
+        
+        # Get user overrides (always simple strings)
+        prompt_overrides = user_profile.get('prompt_overrides', {})
+        
+        # Helper to extract content from prompt object or string (backward compatible)
+        def get_prompt_content(prompt_value):
+            if isinstance(prompt_value, dict):
+                return prompt_value.get('content', '')
+            return prompt_value if isinstance(prompt_value, str) else ''
+        
+        # Merge (overrides take precedence)
+        effective_prompts = {
+            'persona': prompt_overrides.get('persona', get_prompt_content(default_prompts.get('persona', ''))),
+            'system': prompt_overrides.get('system', get_prompt_content(default_prompts.get('system', ''))),
+            'tools': prompt_overrides.get('tools', get_prompt_content(default_prompts.get('tools', '')))
+        }
+        
+        logger.info(f"Composed effective prompts with overrides: {list(prompt_overrides.keys())}")
+        return effective_prompts
 
-            # Combine content with separator
-            parts = []
-            if persona_content:
-                parts.append(persona_content)
-            if system_content:
-                parts.append(system_content)
-            if tools_content:
-                parts.append(tools_content)
-
-            combined_content = CONTENT_SEPARATOR.join(parts) if parts else FALLBACK_SYSTEM_PROMPT
-
-            logger.info("System prompt constructed successfully")
-            return combined_content
-
-        except Exception as e:
-            logger.error(f"Error loading system prompt: {e}")
-            return FALLBACK_SYSTEM_PROMPT
-
-    def _load_prompt_file(self, prompts_dir: str, filename: str, fallback: str) -> str:
-        """Load a single prompt file with error handling."""
-        file_path = os.path.join(prompts_dir, filename)
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            logger.info(f"Loaded {filename} content from {file_path}")
-            return content
-        except Exception as e:
-            logger.warning(f"Error loading {filename}: {e}")
-            return fallback
+    def _build_system_prompt_from_prompts(self, prompts: Dict[str, str]) -> str:
+        """
+        Build complete system prompt from prompts dictionary.
+        
+        Args:
+            prompts: Dictionary containing persona, system, and tools prompts
+            
+        Returns:
+            Complete system prompt string
+        """
+        parts = []
+        for key in ['persona', 'system', 'tools']:
+            content = prompts.get(key, '').strip()
+            if content:
+                parts.append(content)
+        
+        final_prompt = CONTENT_SEPARATOR.join(parts) if parts else FALLBACK_SYSTEM_PROMPT
+        logger.info("System prompt constructed successfully from prompts dictionary")
+        return final_prompt
 
     def _format_llm_messages(
         self,

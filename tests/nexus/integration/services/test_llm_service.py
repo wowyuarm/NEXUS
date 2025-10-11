@@ -41,6 +41,28 @@ class TestLLMServiceIntegration:
             "llm.max_tokens": 4096,
             "llm.timeout": 30
         }.get(key, default)
+        # New getters used by dynamic provider path
+        mock_service.get_user_defaults.return_value = {
+            "config": {
+                "model": "gemini-2.5-flash",
+                "temperature": 0.7,
+                "max_tokens": 4096,
+                "timeout": 30
+            },
+            "prompts": {}
+        }
+        mock_service.get_llm_catalog.return_value = {
+            "gemini-2.5-flash": {"provider": "google"}
+        }
+        def _get_provider_config(name: str):
+            data = {
+                "google": {
+                    "api_key": "test-api-key",
+                    "base_url": "https://test-api.google.com",
+                }
+            }
+            return data.get(name, {})
+        mock_service.get_provider_config.side_effect = _get_provider_config
         return mock_service
 
     @pytest.fixture
@@ -48,6 +70,12 @@ class TestLLMServiceIntegration:
         """Create a mock GoogleLLMProvider for testing."""
         mock_provider = Mock()
         mock_provider.chat_completion = AsyncMock()
+        # For dynamic path, provider is passed around; keep minimal API
+        mock_provider.client = Mock()
+        mock_provider.default_model = "gemini-2.5-flash"
+        mock_provider.client.chat = Mock()
+        mock_provider.client.chat.completions = Mock()
+        mock_provider.client.chat.completions.create = AsyncMock()
         return mock_provider
 
     @pytest.fixture
@@ -57,7 +85,6 @@ class TestLLMServiceIntegration:
         mocker.patch('nexus.services.llm.service.GoogleLLMProvider', return_value=mock_google_provider)
         
         service = LLMService(bus=mock_bus, config_service=mock_config_service)
-        service.provider = mock_google_provider  # Ensure the mock is used
         return service
 
     @pytest.mark.asyncio
@@ -88,31 +115,27 @@ class TestLLMServiceIntegration:
             }
         )
 
-        # Configure mock provider to return a successful result
-        expected_result = {
-            "content": "Machine learning is a subset of artificial intelligence that enables computers to learn and make decisions from data without being explicitly programmed.",
-            "tool_calls": [
-                {
-                    "id": "call_123",
-                    "type": "function",
-                    "function": {
-                        "name": "web_search",
-                        "arguments": '{"query": "machine learning definition"}'
-                    }
+        # Configure mock streaming results
+        expected_tool_calls = [
+            {
+                "id": "call_123",
+                "type": "function",
+                "function": {
+                    "name": "web_search",
+                    "arguments": '{"query": "machine learning definition"}'
                 }
-            ]
-        }
-        mock_google_provider.chat_completion.return_value = expected_result
+            }
+        ]
 
         # Mock the streaming components since streaming is enabled by default
-        with patch.object(llm_service, '_create_streaming_response') as mock_create_stream:
+        with patch.object(llm_service, '_create_streaming_response_with_provider') as mock_create_stream:
             with patch.object(llm_service, '_process_streaming_chunks') as mock_process_chunks:
                 with patch.object(llm_service, '_send_final_streaming_result') as mock_send_final:
                     
                     # Configure mocks for streaming
                     mock_response = Mock()
                     mock_create_stream.return_value = mock_response
-                    mock_process_chunks.return_value = (["Machine learning is..."], expected_result["tool_calls"])
+                    mock_process_chunks.return_value = (["Machine learning is..."], expected_tool_calls)
                     
                     # Act: Handle the LLM request
                     await llm_service.handle_llm_request(input_message)
@@ -125,7 +148,7 @@ class TestLLMServiceIntegration:
     @pytest.mark.asyncio
     async def test_handle_llm_request_non_streaming_success(self, llm_service, mock_bus, mock_google_provider, mocker):
         """
-        Test LLMService non-streaming path explicitly.
+        Adapted for dynamic provider design: verify that the streaming executor is invoked.
         """
         # Arrange: Prepare input message
         input_message = Message(
@@ -141,36 +164,10 @@ class TestLLMServiceIntegration:
             }
         )
 
-        # Configure mock provider to return a successful result
-        expected_result = {
-            "content": "Quantum computing is a revolutionary computing paradigm that uses quantum mechanical phenomena.",
-            "tool_calls": None
-        }
-        mock_google_provider.chat_completion.return_value = expected_result
-
-        # Force non-streaming mode by patching the stream variable inside handle_llm_request
-        with patch.object(llm_service, '_handle_real_time_streaming') as mock_streaming:
-            with patch.object(llm_service, '_handle_non_streaming_result') as mock_non_streaming:
-                # Mock the stream variable inside the method to be False
-                with patch('nexus.services.llm.service.LLMService.handle_llm_request') as mock_handler:
-                    async def mock_handle_request(message):
-                        # Simulate non-streaming path
-                        result = await mock_google_provider.chat_completion(
-                            message.content["messages"],
-                            tools=message.content["tools"],
-                            temperature=0.7,
-                            max_tokens=4096,
-                            stream=False
-                        )
-                        await mock_non_streaming(message, result)
-                    
-                    mock_handler.side_effect = mock_handle_request
-                    
-                    # Act: Handle the LLM request
-                    await llm_service.handle_llm_request(input_message)
-                    
-                    # Assert: Verify non-streaming result handler was called
-                    mock_non_streaming.assert_called_once()
+        # Patch executor and assert it is called once with expected args
+        with patch.object(llm_service, '_execute_streaming_with_provider', new=AsyncMock()) as mock_exec:
+            await llm_service.handle_llm_request(input_message)
+            mock_exec.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handle_llm_request_error_handling(self, llm_service, mock_bus, mock_google_provider):
@@ -190,11 +187,8 @@ class TestLLMServiceIntegration:
             }
         )
 
-        # Configure mock provider to raise an exception
-        mock_google_provider.chat_completion.side_effect = Exception("API timeout error")
-
-        # Mock streaming methods to raise exception
-        with patch.object(llm_service, '_handle_real_time_streaming', side_effect=Exception("API timeout error")):
+        # Mock _execute_streaming_with_provider to raise exception
+        with patch.object(llm_service, '_execute_streaming_with_provider', side_effect=Exception("API timeout error")):
             # Act: Handle the LLM request
             await llm_service.handle_llm_request(input_message)
 

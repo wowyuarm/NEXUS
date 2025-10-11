@@ -37,10 +37,12 @@ class TestOrchestratorFlows:
     def mock_identity_service(self):
         """Create a mock IdentityService for testing."""
         mock_service = AsyncMock()
-        # By default, assume user is registered (returns identity dict)
+        # By default, assume user is registered (returns identity dict with overrides)
         mock_service.get_identity.return_value = {
             "public_key": "test-public-key",
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
+            "config_overrides": {},
+            "prompt_overrides": {}
         }
         return mock_service
 
@@ -99,11 +101,19 @@ class TestOrchestratorFlows:
         assert ui_message.content["event"] == "run_started"
         assert ui_message.content["payload"]["user_input"] == "What is artificial intelligence?"
         
-        # Verify context build request
+        # Verify context build request - now expects Run object as content
         context_call = mock_bus.publish.call_args_list[1]
         assert context_call[0][0] == Topics.CONTEXT_BUILD_REQUEST
         context_message = context_call[0][1]
-        assert context_message.content["current_input"] == "What is artificial intelligence?"
+        # Content should be the Run object itself
+        assert isinstance(context_message.content, Run)
+        assert context_message.content.id == sample_run.id
+        # Verify user_profile is in Run.metadata
+        assert 'user_profile' in context_message.content.metadata
+        user_profile = context_message.content.metadata['user_profile']
+        assert user_profile['public_key'] == 'test-public-key'
+        assert 'config_overrides' in user_profile
+        assert 'prompt_overrides' in user_profile
         
         # Verify run is stored and status updated
         assert sample_run.id in orchestrator_service.active_runs
@@ -174,6 +184,73 @@ class TestOrchestratorFlows:
         
         # Verify run is completed and removed
         assert sample_run.id not in orchestrator_service.active_runs
+
+    @pytest.mark.asyncio
+    async def test_user_profile_propagation(self, orchestrator_service, mock_bus, mock_identity_service):
+        """
+        Test that user_profile is correctly injected into Run.metadata and propagated.
+        Verifies that identity information with overrides is properly attached to the Run.
+        """
+        # Arrange: Setup identity with custom overrides
+        mock_identity_service.get_identity.return_value = {
+            "public_key": "user-with-overrides",
+            "created_at": "2025-01-01T00:00:00Z",
+            "config_overrides": {"model": "deepseek-chat", "temperature": 0.9},
+            "prompt_overrides": {"persona": "I am Xi..."}
+        }
+        
+        # Create run with the identity's public_key
+        human_message = Message(
+            run_id="test-run-456",
+            owner_key="user-with-overrides",
+            role=Role.HUMAN,
+            content="Hello!"
+        )
+        
+        run = Run(
+            id="test-run-456",
+            owner_key="user-with-overrides",
+            status=RunStatus.PENDING,
+            history=[human_message]
+        )
+        
+        new_run_message = Message(
+            run_id="test-run-456",
+            owner_key="user-with-overrides",
+            role=Role.SYSTEM,
+            content=run
+        )
+        
+        # Act: Handle new run
+        await orchestrator_service.handle_new_run(new_run_message)
+        
+        # Assert: Verify identity service was called
+        mock_identity_service.get_identity.assert_called_once_with("user-with-overrides")
+        
+        # Verify user_profile was injected into Run.metadata
+        stored_run = orchestrator_service.active_runs["test-run-456"]
+        assert 'user_profile' in stored_run.metadata
+        
+        user_profile = stored_run.metadata['user_profile']
+        assert user_profile['public_key'] == "user-with-overrides"
+        assert user_profile['config_overrides'] == {"model": "deepseek-chat", "temperature": 0.9}
+        assert user_profile['prompt_overrides'] == {"persona": "I am Xi..."}
+        assert 'created_at' in user_profile
+        
+        # Verify context build request includes the Run object with user_profile
+        context_call = mock_bus.publish.call_args_list[1]  # Second call is CONTEXT_BUILD_REQUEST
+        assert context_call[0][0] == Topics.CONTEXT_BUILD_REQUEST
+        context_message = context_call[0][1]
+        
+        # Content should be the Run object
+        assert isinstance(context_message.content, Run)
+        assert context_message.content.id == "test-run-456"
+        
+        # Verify user_profile is accessible in the transmitted Run object
+        transmitted_user_profile = context_message.content.metadata.get('user_profile')
+        assert transmitted_user_profile is not None
+        assert transmitted_user_profile['config_overrides'] == {"model": "deepseek-chat", "temperature": 0.9}
+        assert transmitted_user_profile['prompt_overrides'] == {"persona": "I am Xi..."}
 
     @pytest.mark.asyncio
     async def test_single_tool_call_flow(self, orchestrator_service, mock_bus, sample_run):

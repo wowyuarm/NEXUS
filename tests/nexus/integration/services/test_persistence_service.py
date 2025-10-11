@@ -67,7 +67,7 @@ class TestPersistenceServiceIntegration:
         )
         
         # Act: Handle new run
-        await persistence_service.handle_new_run(new_run_message)
+        await persistence_service.handle_context_build_request(new_run_message)
         
         # Assert: Verify insert_message_async was called
         mock_database_service.insert_message_async.assert_called_once()
@@ -98,7 +98,7 @@ class TestPersistenceServiceIntegration:
         )
         
         # Act: Handle new run
-        await persistence_service.handle_new_run(new_run_message)
+        await persistence_service.handle_context_build_request(new_run_message)
         
         # Assert: Verify insert_message_async was called
         mock_database_service.insert_message_async.assert_called_once()
@@ -358,7 +358,7 @@ class TestPersistenceServiceIntegration:
         )
         
         # Act: Handle new run
-        await persistence_service.handle_new_run(invalid_run_message)
+        await persistence_service.handle_context_build_request(invalid_run_message)
         
         # Assert: Verify no message was persisted due to invalid format
         mock_database_service.insert_message_async.assert_not_called()
@@ -442,8 +442,10 @@ class TestPersistenceServiceIntegration:
         persistence_service.subscribe_to_bus()
         
         # Assert: Verify subscriptions to all required topics
+        # Note: PersistenceService subscribes to CONTEXT_BUILD_REQUEST (not RUNS_NEW)
+        # to ensure only validated members' messages are persisted
         expected_subscriptions = [
-            (Topics.RUNS_NEW, persistence_service.handle_new_run),
+            (Topics.CONTEXT_BUILD_REQUEST, persistence_service.handle_context_build_request),
             (Topics.LLM_RESULTS, persistence_service.handle_llm_result),
             (Topics.TOOLS_RESULTS, persistence_service.handle_tool_result)
         ]

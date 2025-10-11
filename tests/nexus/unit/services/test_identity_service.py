@@ -66,7 +66,7 @@ class TestIdentityService:
 
     @pytest.mark.asyncio
     async def test_create_identity_success(self):
-        """Test create_identity successfully creates a new identity."""
+        """Test create_identity successfully creates a new identity with overrides fields."""
         # Mock database service with provider
         mock_provider = Mock()
         mock_provider.create_identity = Mock(return_value=True)
@@ -86,6 +86,12 @@ class TestIdentityService:
         assert call_args['public_key'] == 'test_public_key_123'
         assert 'created_at' in call_args
         assert 'metadata' in call_args
+        
+        # Verify overrides fields are initialized as empty dicts
+        assert 'config_overrides' in call_args
+        assert call_args['config_overrides'] == {}
+        assert 'prompt_overrides' in call_args
+        assert call_args['prompt_overrides'] == {}
 
     @pytest.mark.asyncio
     async def test_create_identity_failure(self):
