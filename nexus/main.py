@@ -123,8 +123,13 @@ async def main() -> None:
             logger.info("%s subscribed to bus", svc.__class__.__name__)
 
     # 8) Get server configuration from config service
-    server_host = config_service.get("server.host", "127.0.0.1")
-    server_port = config_service.get_int("server.port", 8000)
+    # Production: prefer HOST/PORT env (e.g., Render). Development: use config with sensible defaults.
+    if environment == "production":
+        server_host = os.getenv("HOST", "0.0.0.0")
+        server_port = int(os.getenv("PORT", "8000"))
+    else:
+        server_host = config_service.get("server.host", "0.0.0.0")
+        server_port = config_service.get_int("server.port", 8000)
 
     # 9) Create unified FastAPI application
     app = FastAPI(title="NEXUS API", version="2.0.0")
