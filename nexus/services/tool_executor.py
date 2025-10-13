@@ -8,10 +8,12 @@ to the bus.
 
 import asyncio
 import logging
+from typing import Optional
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
 from nexus.tools.registry import ToolRegistry
+from nexus.services.config import ConfigService
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +21,10 @@ logger = logging.getLogger(__name__)
 TOOL_STATUS_SUCCESS = "success"
 TOOL_STATUS_ERROR = "error"
 TOOL_STATUS_UNKNOWN = "unknown"
+TOOL_STATUS_TIMEOUT = "timeout"
+
+# Default timeout for tool execution (in seconds)
+DEFAULT_TOOL_TIMEOUT = 20
 
 
 class ToolExecutorService:
@@ -28,19 +34,42 @@ class ToolExecutorService:
     This service listens for tool execution requests, dispatches them to the
     appropriate tool functions via the ToolRegistry, and publishes results
     back to the bus.
+    
+    Features:
+    - Asynchronous tool execution with timeout control
+    - Comprehensive error handling and reporting
+    - Configurable timeout duration
     """
 
-    def __init__(self, bus: NexusBus, tool_registry: ToolRegistry) -> None:
+    def __init__(
+        self, 
+        bus: NexusBus, 
+        tool_registry: ToolRegistry, 
+        config_service: Optional[ConfigService] = None
+    ) -> None:
         """
         Initialize the ToolExecutorService.
 
         Args:
             bus: The NexusBus instance for communication
             tool_registry: Registry containing available tools
+            config_service: Optional ConfigService for reading timeout configuration
         """
         self.bus = bus
         self.tool_registry = tool_registry
-        logger.info("ToolExecutorService initialized")
+        self.config_service = config_service
+        
+        # Get tool execution timeout from config, or use default
+        self.tool_timeout = DEFAULT_TOOL_TIMEOUT
+        if config_service:
+            self.tool_timeout = config_service.get_int(
+                "system.tool_execution_timeout", 
+                DEFAULT_TOOL_TIMEOUT
+            )
+        
+        logger.info(
+            f"ToolExecutorService initialized with timeout={self.tool_timeout}s"
+        )
 
     def subscribe_to_bus(self) -> None:
         """Subscribe to tool request topics on the NexusBus."""
@@ -120,9 +149,31 @@ class ToolExecutorService:
             if tool_function is None:
                 raise ValueError(f"Tool '{tool_name}' not found in registry")
 
-            # Execute tool function asynchronously using asyncio.to_thread
+            # Execute tool function asynchronously using asyncio.to_thread with timeout
             # This allows synchronous tool functions to run without blocking the event loop
-            result = await asyncio.to_thread(tool_function, **tool_args)
+            try:
+                result = await asyncio.wait_for(
+                    asyncio.to_thread(tool_function, **tool_args),
+                    timeout=self.tool_timeout
+                )
+            except asyncio.TimeoutError:
+                # Handle timeout specifically
+                timeout_msg = (
+                    f"Tool '{tool_name}' execution timed out after {self.tool_timeout}s"
+                )
+                logger.error(f"{timeout_msg} for run_id={run_id}")
+                
+                # Create and publish timeout error result
+                timeout_message = self._create_tool_result_message(
+                    run_id=run_id,
+                    owner_key=owner_key,
+                    result=timeout_msg,
+                    status=TOOL_STATUS_TIMEOUT,
+                    tool_name=tool_name,
+                    call_id=call_id
+                )
+                await self.bus.publish(Topics.TOOLS_RESULTS, timeout_message)
+                return
 
             # Create and publish success result
             result_message = self._create_tool_result_message(

@@ -28,5 +28,11 @@ aura/node_modules/
 .claude/
 .cursor/
 
+# 第三方
+lib/
+vendor/
+dist/
+.pyscn/
+
 # 自用脚本
 scripts/

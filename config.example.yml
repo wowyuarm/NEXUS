@@ -11,6 +11,8 @@
 system:
   log_level: "INFO"
   max_tool_iterations: 5
+  # 工具执行超时时间（秒）
+  tool_execution_timeout: 20
   # [新增] 定义应用名称，可下发给前端用于显示，进一步也可作用户自定义
   app_name: "YX Nexus"
 

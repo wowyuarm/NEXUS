@@ -7,6 +7,7 @@ dependencies are mocked to ensure isolation while testing the service's integrat
 with the event bus system.
 """
 
+import asyncio
 import pytest
 from unittest.mock import Mock, AsyncMock
 
@@ -33,9 +34,21 @@ class TestToolExecutorServiceIntegration:
         return mock_registry
 
     @pytest.fixture
-    def tool_executor_service(self, mock_bus, mock_tool_registry):
+    def mock_config_service(self):
+        """Create a mock ConfigService for testing."""
+        mock_config = Mock()
+        # Return default timeout of 20 seconds
+        mock_config.get_int = Mock(return_value=20)
+        return mock_config
+
+    @pytest.fixture
+    def tool_executor_service(self, mock_bus, mock_tool_registry, mock_config_service):
         """Create ToolExecutorService instance with mocked dependencies."""
-        return ToolExecutorService(bus=mock_bus, tool_registry=mock_tool_registry)
+        return ToolExecutorService(
+            bus=mock_bus, 
+            tool_registry=mock_tool_registry,
+            config_service=mock_config_service
+        )
 
     @pytest.mark.asyncio
     async def test_handle_tool_request_success(self, tool_executor_service, mock_bus, mock_tool_registry):
@@ -346,3 +359,87 @@ class TestToolExecutorServiceIntegration:
             Topics.TOOLS_REQUESTS,
             tool_executor_service.handle_tool_request
         )
+
+    @pytest.mark.asyncio
+    async def test_handle_tool_request_timeout(self, tool_executor_service, mock_bus, mock_tool_registry):
+        """
+        Test that ToolExecutorService correctly handles tool execution timeout.
+        """
+        # Arrange: Prepare input message
+        input_message = Message(
+            run_id="test-run-timeout",
+            owner_key="test-session-timeout",
+            role=Role.SYSTEM,
+            content={
+                "name": "slow_tool",
+                "args": {"duration": 30}
+            }
+        )
+
+        # Configure mock tool registry to return a slow function
+        def slow_tool_function(duration):
+            import time
+            time.sleep(duration)
+            return "completed"
+        
+        mock_tool_registry.get_tool_function.return_value = slow_tool_function
+        
+        # Override timeout for this test to be very short (1 second)
+        tool_executor_service.tool_timeout = 1
+
+        # Act: Handle the tool request
+        await tool_executor_service.handle_tool_request(input_message)
+
+        # Assert: Verify that timeout error response was published
+        mock_bus.publish.assert_called_once()
+        call_args = mock_bus.publish.call_args
+        
+        # Verify topic
+        assert call_args[0][0] == Topics.TOOLS_RESULTS
+        
+        # Verify timeout message structure
+        published_message = call_args[0][1]
+        assert published_message.run_id == "test-run-timeout"
+        assert published_message.owner_key == "test-session-timeout"
+        assert published_message.role == Role.TOOL
+        
+        # Verify timeout content
+        content = published_message.content
+        assert content["status"] == "timeout"
+        assert "timed out after" in content["result"]
+        assert content["tool_name"] == "slow_tool"
+
+    @pytest.mark.asyncio
+    async def test_config_service_timeout_configuration(self, mock_bus, mock_tool_registry):
+        """
+        Test that ToolExecutorService reads timeout from config service.
+        """
+        # Arrange: Create config service that returns custom timeout
+        mock_config = Mock()
+        mock_config.get_int = Mock(return_value=30)
+        
+        # Act: Create service with custom config
+        service = ToolExecutorService(
+            bus=mock_bus,
+            tool_registry=mock_tool_registry,
+            config_service=mock_config
+        )
+        
+        # Assert: Verify timeout was read from config
+        mock_config.get_int.assert_called_once_with("system.tool_execution_timeout", 20)
+        assert service.tool_timeout == 30
+
+    @pytest.mark.asyncio
+    async def test_no_config_service_uses_default_timeout(self, mock_bus, mock_tool_registry):
+        """
+        Test that ToolExecutorService uses default timeout when no config service provided.
+        """
+        # Act: Create service without config service
+        service = ToolExecutorService(
+            bus=mock_bus,
+            tool_registry=mock_tool_registry,
+            config_service=None
+        )
+        
+        # Assert: Verify default timeout is used
+        assert service.tool_timeout == 20

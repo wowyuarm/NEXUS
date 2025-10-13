@@ -92,7 +92,7 @@ async def main() -> None:
 
     # Other services
     llm_service = LLMService(bus, config_service)
-    tool_executor_service = ToolExecutorService(bus, tool_registry)
+    tool_executor_service = ToolExecutorService(bus, tool_registry, config_service)
 
     # Context service now depends on config and persistence services
     context_service = ContextService(bus, tool_registry, config_service, persistence_service)

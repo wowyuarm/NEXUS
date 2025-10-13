@@ -296,6 +296,7 @@ class LLMService:
         - Ensures tool-role messages include a non-empty 'name'. If missing, we
           backfill using the preceding assistant tool_calls matched by tool_call_id.
         - Ensures tool message content is a string (JSON-serialized if needed).
+        - Ensures all non-tool messages have string 'content' (convert None to empty string).
         - Leaves other roles untouched.
         """
         try:
@@ -318,7 +319,8 @@ class LLMService:
 
             normalized: list[dict] = []
             for msg in messages:
-                if msg.get("role") == "tool":
+                role = msg.get("role")
+                if role == "tool":
                     # Copy to avoid mutating the caller's list
                     tool_msg = dict(msg)
                     name = tool_msg.get("name") or tool_msg.get("tool_name") or ""
@@ -343,7 +345,12 @@ class LLMService:
 
                     normalized.append(tool_msg)
                 else:
-                    normalized.append(msg)
+                    # Ensure non-tool message content is a string (providers expect strings)
+                    non_tool_msg = dict(msg)
+                    content_val = non_tool_msg.get("content")
+                    if not isinstance(content_val, str):
+                        non_tool_msg["content"] = "" if content_val is None else str(content_val)
+                    normalized.append(non_tool_msg)
 
             return normalized
         except Exception:
@@ -357,27 +364,88 @@ class LLMService:
         then tool_call_started events are published after all content is streamed.
         """
         content_chunks = []
-        tool_calls = None
+        # Accumulate tool_calls across streaming deltas by index to avoid truncated JSON
+        # Structure: {index: {id, type, function: {name, arguments(str)}}}
+        aggregated_tool_calls: dict[int, dict] = {}
 
         async for chunk in response:
-            if chunk.choices:
-                delta = chunk.choices[0].delta
+            if not getattr(chunk, "choices", None):
+                continue
+            delta = chunk.choices[0].delta
 
-                # Handle content chunks - publish immediately for real-time streaming
-                if hasattr(delta, 'content') and delta.content:
-                    content_chunks.append(delta.content)
-                    await self._publish_text_chunk(run_id, owner_key, delta.content)
+            # Handle content chunks - publish immediately for real-time streaming
+            if hasattr(delta, 'content') and delta.content:
+                content_chunks.append(delta.content)
+                await self._publish_text_chunk(run_id, owner_key, delta.content)
 
-                # Collect tool calls but don't publish yet - wait until all content is streamed
-                if hasattr(delta, 'tool_calls') and delta.tool_calls:
-                    tool_calls = delta.tool_calls
+            # Collect and accumulate tool call deltas
+            if hasattr(delta, 'tool_calls') and delta.tool_calls:
+                for tc in delta.tool_calls:
+                    # Determine index (primary) for accumulation
+                    try:
+                        idx = getattr(tc, 'index', None)
+                    except Exception:
+                        idx = None
+                    if idx is None and isinstance(tc, dict):
+                        idx = tc.get('index')
+                    if idx is None:
+                        # Fallback to single-call index 0
+                        idx = 0
 
-        # After all content chunks are streamed, publish tool_call_started events
-        if tool_calls:
+                    entry = aggregated_tool_calls.get(idx)
+                    if entry is None:
+                        # Initialize entry
+                        tc_id = getattr(tc, 'id', '') if not isinstance(tc, dict) else tc.get('id', '')
+                        tc_type = getattr(tc, 'type', 'function') if not isinstance(tc, dict) else tc.get('type', 'function')
+                        entry = {
+                            "id": tc_id,
+                            "type": tc_type or "function",
+                            "function": {"name": "", "arguments": ""}
+                        }
+                        aggregated_tool_calls[idx] = entry
+
+                    # Update id/type if provided later
+                    try:
+                        if not entry.get("id"):
+                            entry["id"] = getattr(tc, 'id', '') if not isinstance(tc, dict) else tc.get('id', '')
+                        if not entry.get("type"):
+                            entry["type"] = getattr(tc, 'type', 'function') if not isinstance(tc, dict) else tc.get('type', 'function')
+                    except Exception:
+                        pass
+
+                    # Merge function name and arguments (arguments arrive in parts)
+                    fn = getattr(tc, 'function', None) if not isinstance(tc, dict) else tc.get('function', {})
+                    if fn is not None:
+                        try:
+                            name_piece = getattr(fn, 'name', None) if not isinstance(tc, dict) else fn.get('name')
+                        except Exception:
+                            name_piece = None
+                        if name_piece:
+                            entry["function"]["name"] = name_piece
+
+                        try:
+                            args_piece = getattr(fn, 'arguments', None) if not isinstance(tc, dict) else fn.get('arguments')
+                        except Exception:
+                            args_piece = None
+                        if args_piece is not None:
+                            if isinstance(args_piece, str):
+                                entry["function"]["arguments"] += args_piece
+                            else:
+                                try:
+                                    import json as _json
+                                    entry["function"]["arguments"] += _json.dumps(args_piece, ensure_ascii=False)
+                                except Exception:
+                                    entry["function"]["arguments"] += str(args_piece)
+
+        # Convert aggregated tool calls to ordered list by index
+        aggregated_list = [aggregated_tool_calls[i] for i in sorted(aggregated_tool_calls.keys())] if aggregated_tool_calls else None
+
+        # After all content chunks are streamed, publish tool_call_started events with aggregated calls
+        if aggregated_list:
             logger.info(f"All text chunks streamed for run_id={run_id}, now publishing tool_call_started events")
-            await self._publish_tool_call_events(run_id, owner_key, tool_calls)
+            await self._publish_tool_call_events(run_id, owner_key, aggregated_list)
 
-        return content_chunks, tool_calls
+        return content_chunks, aggregated_list
 
     async def _publish_text_chunk(self, run_id: str, owner_key: str, chunk: str) -> None:
         """Publish a single text chunk via LLM_RESULTS for Orchestrator forwarding."""
