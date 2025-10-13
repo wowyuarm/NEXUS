@@ -80,11 +80,9 @@ class MongoProvider(DatabaseProvider):
             logger.info(f"Successfully connected to MongoDB: {self.db_name}")
 
         except ConnectionFailure as e:
-            logger.error(f"Failed to connect to MongoDB: {e}")
-            raise
+            self._log_and_raise_connection_error("Failed to connect to MongoDB", e)
         except Exception as e:
-            logger.error(f"Unexpected error during MongoDB connection: {e}")
-            raise
+            self._log_and_raise_connection_error("Unexpected error during MongoDB connection", e)
 
     def disconnect(self) -> None:
         """Close connection to MongoDB."""
@@ -128,11 +126,9 @@ class MongoProvider(DatabaseProvider):
                 return False
 
         except OperationFailure as e:
-            logger.error(f"MongoDB operation failed during message insertion: {e}")
-            return False
+            return self._handle_operation_failure("message insertion", e)
         except Exception as e:
-            logger.error(f"Unexpected error during message insertion: {e}")
-            return False
+            return self._handle_unexpected_error("message insertion", e)
 
     def get_messages_by_owner_key(self, owner_key: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Retrieve messages for a specific owner (user identity) from MongoDB.
@@ -166,11 +162,9 @@ class MongoProvider(DatabaseProvider):
             return messages
 
         except OperationFailure as e:
-            logger.error(f"MongoDB operation failed during message retrieval: {e}")
-            return []
+            return self._handle_operation_failure_list("message retrieval", e)
         except Exception as e:
-            logger.error(f"Unexpected error during message retrieval: {e}")
-            return []
+            return self._handle_unexpected_error_list("message retrieval", e)
 
     def health_check(self) -> bool:
         """Check if the MongoDB connection is healthy.
@@ -223,11 +217,9 @@ class MongoProvider(DatabaseProvider):
             return None
 
         except OperationFailure as e:
-            logger.error(f"MongoDB operation failed during configuration retrieval: {e}")
-            return None
+            return self._handle_operation_failure_none("configuration retrieval", e)
         except Exception as e:
-            logger.error(f"Unexpected error during configuration retrieval: {e}")
-            return None
+            return self._handle_unexpected_error_none("configuration retrieval", e)
 
     def upsert_configuration(self, environment: str, config_data: Dict[str, Any]) -> bool:
         """Insert or update configuration for a specific environment.
@@ -263,11 +255,9 @@ class MongoProvider(DatabaseProvider):
                 return False
 
         except OperationFailure as e:
-            logger.error(f"MongoDB operation failed during configuration upsert: {e}")
-            return False
+            return self._handle_operation_failure("configuration upsert", e)
         except Exception as e:
-            logger.error(f"Unexpected error during configuration upsert: {e}")
-            return False
+            return self._handle_unexpected_error("configuration upsert", e)
 
     def find_identity_by_public_key(self, public_key: str) -> Optional[Dict[str, Any]]:
         """Find an identity by its public key.
@@ -296,11 +286,9 @@ class MongoProvider(DatabaseProvider):
                 return None
 
         except OperationFailure as e:
-            logger.error(f"MongoDB operation failed during identity retrieval: {e}")
-            return None
+            return self._handle_operation_failure_none("identity retrieval", e)
         except Exception as e:
-            logger.error(f"Unexpected error during identity retrieval: {e}")
-            return None
+            return self._handle_unexpected_error_none("identity retrieval", e)
 
     def create_identity(self, identity_data: Dict[str, Any]) -> bool:
         """Create a new identity in the database.
@@ -326,11 +314,9 @@ class MongoProvider(DatabaseProvider):
                 return False
 
         except OperationFailure as e:
-            logger.error(f"MongoDB operation failed during identity creation: {e}")
-            return False
+            return self._handle_operation_failure("identity creation", e)
         except Exception as e:
-            logger.error(f"Unexpected error during identity creation: {e}")
-            return False
+            return self._handle_unexpected_error("identity creation", e)
 
     def update_identity_field(self, public_key: str, field_name: str, field_value: Any) -> bool:
         """Update a specific field in an identity document.
@@ -364,8 +350,35 @@ class MongoProvider(DatabaseProvider):
                 return False
 
         except OperationFailure as e:
-            logger.error(f"MongoDB operation failed during identity update: {e}")
-            return False
+            return self._handle_operation_failure("identity update", e)
         except Exception as e:
-            logger.error(f"Unexpected error during identity update: {e}")
-            return False
+            return self._handle_unexpected_error("identity update", e)
+
+    # Centralized error handling helpers
+    def _log_and_raise_connection_error(self, prefix: str, error: Exception) -> None:
+        logger.error(f"{prefix}: {error}")
+        raise
+
+    def _handle_operation_failure(self, action: str, error: Exception) -> bool:
+        logger.error(f"MongoDB operation failed during {action}: {error}")
+        return False
+
+    def _handle_unexpected_error(self, action: str, error: Exception) -> bool:
+        logger.error(f"Unexpected error during {action}: {error}")
+        return False
+
+    def _handle_operation_failure_none(self, action: str, error: Exception):
+        logger.error(f"MongoDB operation failed during {action}: {error}")
+        return None
+
+    def _handle_unexpected_error_none(self, action: str, error: Exception):
+        logger.error(f"Unexpected error during {action}: {error}")
+        return None
+
+    def _handle_operation_failure_list(self, action: str, error: Exception) -> list:
+        logger.error(f"MongoDB operation failed during {action}: {error}")
+        return []
+
+    def _handle_unexpected_error_list(self, action: str, error: Exception) -> list:
+        logger.error(f"Unexpected error during {action}: {error}")
+        return []

@@ -17,6 +17,11 @@ import logging
 from typing import List, Dict, Any
 from openai import AsyncOpenAI
 from .base import LLMProvider
+from .common import (
+    build_chat_api_params,
+    handle_non_streaming_response,
+    handle_streaming_response,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,32 +85,27 @@ class OpenRouterLLMProvider(LLMProvider):
             stream = kwargs.get("stream", False)
 
             logger.info(
-                f"Requesting chat completion with model={model}, "
-                f"messages_count={len(messages)}, tools_count={len(tools)}, stream={stream}"
+                f"Requesting chat completion with model={model}, messages_count={len(messages)}, "
+                f"tools_count={len(tools)}, stream={stream}"
             )
 
-            # Prepare API call parameters
-            api_params = {
-                "model": model,
-                "messages": messages,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-                "stream": stream
-            }
-
-            # Add tools if provided
-            if tools:
-                api_params["tools"] = tools
+            # Prepare API call parameters via common util
+            api_params = build_chat_api_params(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=stream,
+                tools=tools,
+            )
 
             # Make the API call
             response = await self.client.chat.completions.create(**api_params)
 
+            # Delegate response parsing to common utils
             if stream:
-                # Handle streaming response
-                return await self._handle_streaming_response(response)
-            else:
-                # Handle non-streaming response
-                return await self._handle_non_streaming_response(response)
+                return await handle_streaming_response(response)
+            return await handle_non_streaming_response(response)
 
         except Exception as e:
             logger.error(f"Error in OpenRouter chat completion: {e}")
@@ -113,87 +113,7 @@ class OpenRouterLLMProvider(LLMProvider):
 
 
 
-    async def _handle_non_streaming_response(self, response) -> Dict[str, Any]:
-        """Handle non-streaming response from the OpenRouter API."""
-        # Extract content and tool calls from response
-        message = response.choices[0].message if response.choices else None
-        content = message.content if message else None
-
-        # Extract tool calls safely
-        tool_calls = None
-        if message and hasattr(message, 'tool_calls'):
-            tool_calls = message.tool_calls
-
-        # Convert tool_calls to the expected format if present
-        formatted_tool_calls = None
-        if tool_calls:
-            formatted_tool_calls = []
-            for tool_call in tool_calls:
-                formatted_tool_calls.append({
-                    "id": tool_call.id,
-                    "type": tool_call.type,
-                    "function": {
-                        "name": tool_call.function.name,
-                        "arguments": tool_call.function.arguments
-                    }
-                })
-
-        logger.info(
-            f"OpenRouter chat completion successful, "
-            f"content_length={len(content) if content else 0}, "
-            f"tool_calls_count={len(formatted_tool_calls) if formatted_tool_calls else 0}"
-        )
-
-        return {
-            "content": content,
-            "tool_calls": formatted_tool_calls
-        }
-
-    async def _handle_streaming_response(self, response) -> Dict[str, Any]:
-        """Handle streaming response from the OpenRouter API."""
-        content_chunks = []
-        tool_calls = None
-
-        async for chunk in response:
-            if chunk.choices:
-                delta = chunk.choices[0].delta
-
-                # Collect content chunks
-                if hasattr(delta, 'content') and delta.content:
-                    content_chunks.append(delta.content)
-
-                # Check for tool calls in the final chunk
-                if hasattr(delta, 'tool_calls') and delta.tool_calls:
-                    tool_calls = delta.tool_calls
-
-        # Combine all content chunks
-        full_content = ''.join(content_chunks) if content_chunks else None
-
-        # Convert tool_calls to the expected format if present
-        formatted_tool_calls = None
-        if tool_calls:
-            formatted_tool_calls = []
-            for tool_call in tool_calls:
-                formatted_tool_calls.append({
-                    "id": tool_call.id,
-                    "type": tool_call.type,
-                    "function": {
-                        "name": tool_call.function.name,
-                        "arguments": tool_call.function.arguments
-                    }
-                })
-
-        logger.info(
-            f"OpenRouter streaming completion successful, "
-            f"content_length={len(full_content) if full_content else 0}, "
-            f"tool_calls_count={len(formatted_tool_calls) if formatted_tool_calls else 0}"
-        )
-
-        return {
-            "content": full_content,
-            "tool_calls": formatted_tool_calls,
-            "content_chunks": content_chunks  # Include chunks for streaming
-        }
+    # Provider-specific handlers are deduplicated via common utilities
 
     async def list_models(self) -> List[Dict[str, Any]]:
         """

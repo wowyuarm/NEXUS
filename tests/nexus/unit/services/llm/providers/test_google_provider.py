@@ -11,6 +11,7 @@ from unittest.mock import Mock, MagicMock, AsyncMock, patch
 import asyncio
 
 from nexus.services.llm.providers.google import GoogleLLMProvider
+from nexus.services.llm.providers.common import handle_streaming_response, handle_non_streaming_response
 
 
 class TestGoogleLLMProvider:
@@ -302,7 +303,7 @@ class TestGoogleLLMProvider:
         mock_response = AsyncMock()
         mock_response.__aiter__ = Mock(return_value=mock_async_iter())
         
-        result = await provider._handle_streaming_response(mock_response)
+        result = await handle_streaming_response(mock_response)
         
         assert result["content"] == "Hello world!"
         assert result["tool_calls"] is None
@@ -338,7 +339,7 @@ class TestGoogleLLMProvider:
         mock_response = AsyncMock()
         mock_response.__aiter__ = Mock(return_value=mock_async_iter())
         
-        result = await provider._handle_streaming_response(mock_response)
+        result = await handle_streaming_response(mock_response)
         
         assert result["content"] is None
         assert result["tool_calls"] is not None
@@ -367,7 +368,7 @@ class TestGoogleLLMProvider:
         # No tool_calls attribute
         del mock_message.tool_calls
         
-        result = await provider._handle_non_streaming_response(mock_response)
+        result = await handle_non_streaming_response(mock_response)
         
         assert result["content"] == "Test response"
         assert result["tool_calls"] is None
@@ -384,7 +385,7 @@ class TestGoogleLLMProvider:
         mock_response = Mock()
         mock_response.choices = []
         
-        result = await provider._handle_non_streaming_response(mock_response)
+        result = await handle_non_streaming_response(mock_response)
         
         assert result["content"] is None
         assert result["tool_calls"] is None
