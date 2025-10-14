@@ -14,10 +14,11 @@ logger = logging.getLogger(__name__)
 # Command definition
 COMMAND_DEFINITION = {
     "name": "identity",
-    "description": "Verify your identity and display your public key through cryptographic signature",
+    "description": "Verify your identity and display your public key through signature",
     "usage": "/identity",
     "handler": "websocket",
     "requiresSignature": True,  # This command requires cryptographic signature
+    "requiresGUI": True,  # This command opens a GUI modal panel in the frontend
     "examples": [
         "/identity"
     ]
@@ -27,6 +28,14 @@ COMMAND_DEFINITION = {
 async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
     """
     Execute the identity command.
+
+    NOTE: This command has requiresGUI=True, which means the frontend will open
+    a modal panel instead of executing this function through the normal WebSocket flow.
+    
+    This execute() function serves as a fallback or for future backend-initiated
+    identity operations. In normal user-initiated flows from the GUI, the frontend
+    handles identity management through the modal panel, and this function will not
+    be invoked via WebSocket command execution.
 
     Creates or retrieves user identity in the database, establishing the user
     as a registered member with data persistence capabilities.

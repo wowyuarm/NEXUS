@@ -57,6 +57,14 @@ export interface Command {
   /** Optional: Whether command requires signature authentication */
   requiresSignature?: boolean;
   
+  /** 
+   * Optional: Whether command requires a GUI modal instead of inline execution.
+   * When true, the command executor will open a modal panel rather than
+   * executing the command through the normal flow. The command name should
+   * match a valid ModalType.
+   */
+  requiresGUI?: boolean;
+  
   /** Optional: Additional metadata */
   metadata?: Record<string, unknown>;
 }
@@ -89,6 +97,13 @@ export function isWebSocketCommand(command: Command): boolean {
  */
 export function isClientCommand(command: Command): boolean {
   return command.handler === 'client';
+}
+
+/**
+ * Type guard to check if a command requires GUI modal
+ */
+export function isGUICommand(command: Command): boolean {
+  return command.requiresGUI === true;
 }
 
 

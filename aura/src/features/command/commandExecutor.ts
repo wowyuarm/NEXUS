@@ -11,12 +11,14 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import type { Command, CommandResult } from './command.types';
-import { isClientCommand, isWebSocketCommand, isRestCommand } from './command.types';
+import { isClientCommand, isWebSocketCommand, isRestCommand, isGUICommand } from './command.types';
 import { websocketManager } from '@/services/websocket/manager';
 import { IdentityService } from '@/services/identity/identity';
 import { useChatStore } from '@/features/chat/store/chatStore';
 import { useCommandStore } from './store/commandStore';
 import type { Message } from '@/features/chat/types';
+import { useUIStore } from '@/stores/uiStore';
+import type { ModalType } from '@/stores/uiStore';
 
 /**
  * Execute a client-side command
@@ -228,10 +230,24 @@ export async function executeCommand(
   command: Command,
   args?: Record<string, unknown>
 ): Promise<CommandResult> {
-  console.log(`[CommandExecutor] Executing command: ${command.name} (handler: ${command.handler})`);
+  console.log(`[CommandExecutor] Executing command: ${command.name} (handler: ${command.handler}, requiresGUI: ${command.requiresGUI})`);
 
   try {
-    // Route to appropriate handler
+    // GUI command routing - open modal instead of executing through normal flow
+    // This represents the transition from dialogue mode to maintenance mode
+    if (isGUICommand(command)) {
+      const modalType = command.name as Exclude<ModalType, null>;
+      useUIStore.getState().openModal(modalType);
+      
+      console.log(`[CommandExecutor] Opened GUI modal: ${modalType}`);
+      
+      return {
+        status: 'success',
+        message: `Opening ${command.name} panel`
+      };
+    }
+    
+    // Route to appropriate handler for non-GUI commands
     if (isClientCommand(command)) {
       return await executeClientCommand(command);
     } else if (isWebSocketCommand(command)) {
