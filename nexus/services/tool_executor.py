@@ -4,6 +4,21 @@ Tool Executor service for NEXUS.
 Responsible for executing registered tools upon request messages received via
 NexusBus. Handles tool execution asynchronously and publishes results back
 to the bus.
+
+Key features:
+- Async tool execution: Uses asyncio.to_thread to run synchronous tool functions
+  without blocking the event loop
+- Timeout control: Configurable execution timeout (system.tool_execution_timeout)
+  to prevent hanging tools
+- Error handling: Comprehensive error handling with detailed error messages
+- Result standardization: Publishes standardized result messages with status
+  (success/error/timeout) and result payload
+- Tool registry integration: Dynamically retrieves tool functions from ToolRegistry
+- Argument validation: Ensures tool arguments are properly formatted as dictionaries
+
+Tool execution flow:
+TOOLS_REQUESTS → validate request → get tool from registry → execute with timeout →
+publish result to TOOLS_RESULTS → OrchestratorService handles result
 """
 
 import asyncio

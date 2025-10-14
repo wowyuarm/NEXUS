@@ -1,9 +1,20 @@
 """
 Configuration service for NEXUS.
 
-This service manages all configuration loading from YAML files, database with environment awareness.
+This service manages all configuration loading from database with environment awareness.
 It provides a unified interface for accessing configuration values throughout the system
-with fallback to hardcoded defaults for resilience.
+with fallback to minimal hardcoded defaults for resilience. The authoritative source for
+all configuration is the 'configurations' collection in the database, which should be
+initialized using scripts/init_configurations.py.
+
+Key features:
+- Database-driven configuration management (development/production environments)
+- Dot-notation access to nested configuration values (e.g., 'llm.providers.google.api_key')
+- Environment variable substitution in configuration values (e.g., '${GEMINI_API_KEY}')
+- Type-safe getters (get_bool, get_int, get_float)
+- LLM catalog and provider configuration management
+- User defaults for personalization (config and prompts)
+- Async configuration updates through database service
 """
 
 import os

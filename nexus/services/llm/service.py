@@ -4,15 +4,25 @@ LLM service for NEXUS.
 This service handles LLM requests by coordinating with pluggable LLM providers.
 It subscribes to LLM request topics on the NexusBus and publishes results.
 
-Features:
-- Real-time streaming responses with configurable chunk delays
-- Universal LLM parameters (temperature, max_tokens, timeout) from configuration
-- Consistent behavior across different LLM providers
-- Automatic text chunk publishing for streaming effects via Topics.LLM_RESULTS
+Key features:
+- Dynamic provider selection: Instantiates appropriate LLM provider (Google, DeepSeek,
+  OpenRouter) based on requested model from LLM catalog
+- User personalization: Composes effective configuration from user profile overrides
+  and system defaults (model, temperature, max_tokens)
+- Model alias resolution: Supports friendly model names (e.g., "Kimi-K2") mapped to
+  provider-specific IDs through catalog
+- Real-time streaming: Publishes text chunks with configurable delays for realistic
+  streaming UX
+- Tool call aggregation: Accumulates streaming tool call deltas to prevent truncated JSON
+- Event ordering: Ensures all text chunks are published before tool_call_started events
+- Message normalization: Ensures provider compatibility by backfilling missing tool names
+  and converting content to strings
+- E2E test mode: Fake LLM flow (NEXUS_E2E_FAKE_LLM=1) for isolated testing
 
-The service publishes text chunks and tool-call-start events to Topics.LLM_RESULTS during
+Event flow:
+The service publishes text_chunk and tool_call_started events to Topics.LLM_RESULTS during
 streaming for the Orchestrator to forward to UI (preserving order). It then sends the final
-result with any tool calls to the LLM_RESULTS topic as a consolidated message.
+result with complete tool calls to LLM_RESULTS as a consolidated message.
 """
 
 import logging

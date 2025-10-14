@@ -4,9 +4,16 @@ Context service for NEXUS.
 Responsible for building conversational context prior to LLM calls. It subscribes
 for context build requests and publishes the build outputs when ready.
 
-Enhanced with dynamic prompt composition that merges user-specific overrides with
-system defaults, enabling personalized AI personas. Integrates with tool registry
-to provide available tool definitions to the LLM.
+Key features:
+- Dynamic prompt composition: Merges user-specific overrides with system defaults
+  for personalized AI personas (persona, system, tools prompts)
+- Tool registry integration: Provides available tool definitions to the LLM
+- Conversation history: Loads recent messages from database for short-term memory
+- Context revolution paradigm: Implements "thinking loop invariance" by keeping
+  system prompts and history immutable while injecting dynamic context (timestamp,
+  user input) in structured XML format
+- Run deduplication: Filters out current run messages to prevent duplicate inputs
+- Timezone-aware timestamp formatting for accurate temporal context
 """
 
 import logging

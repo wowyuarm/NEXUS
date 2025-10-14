@@ -5,6 +5,17 @@ This service subscribes to key events on the NexusBus and persists
 messages to the database for conversation history. It acts as the bridge between
 the event-driven system and the persistent storage layer.
 
+Key features:
+- Selective persistence: Only persists messages from validated members (users who
+  passed the identity gatekeeper in OrchestratorService)
+- Multi-role message handling: Persists human inputs, AI responses, and tool results
+- Context build integration: Listens to CONTEXT_BUILD_REQUEST (post-gatekeeper)
+  to ensure only member messages are saved
+- Streaming-aware: Skips intermediate streaming events and only persists final
+  AI responses and tool results
+- History retrieval: Provides async interface for loading recent conversation
+  history for context building (short-term memory)
+
 Key classes:
 - PersistenceService: Main service handling message persistence
 """

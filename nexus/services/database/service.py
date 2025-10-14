@@ -5,6 +5,22 @@ This service provides an async wrapper around database providers and handles
 all database operations for the NEXUS system. It manages the database connection
 and provides async methods for message persistence and retrieval.
 
+Key features:
+- Async wrapper: Wraps synchronous MongoDB operations using asyncio.to_thread
+  to prevent blocking the event loop
+- Connection management: Handles database connection lifecycle (connect, disconnect)
+- Message persistence: Async interface for inserting messages into the database
+- History retrieval: Async interface for loading conversation history by owner_key
+- Configuration management: Async methods for loading and updating environment-specific
+  configuration from the 'configurations' collection
+- Provider abstraction: Uses pluggable database providers (currently MongoProvider)
+  for flexibility and testability
+
+Database collections:
+- messages: Conversation history (human inputs, AI responses, tool results)
+- identities: User identities with config/prompt overrides
+- configurations: Environment-specific system configuration (development, production)
+
 Key classes:
 - DatabaseService: Main service class providing async database operations
 """

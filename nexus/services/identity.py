@@ -6,9 +6,24 @@ for the sovereign personalization architecture. It determines whether a user
 is a "visitor" (unregistered) or "member" (registered) based on their public_key.
 
 Key responsibilities:
-- Retrieve user identity by public_key
-- Create new user identities
-- Provide get_or_create functionality for identity management
+- Identity retrieval: Get identity by public_key to distinguish visitors from members
+- Identity creation: Create new identities with empty config/prompt overrides
+- Get-or-create pattern: Convenience method for identity initialization
+- User profile management: Retrieve structured user_profile with config_overrides
+  and prompt_overrides for downstream personalization
+- Config updates: Update user configuration overrides (model, temperature, max_tokens)
+- Prompt updates: Update user prompt overrides (persona, system, tools)
+
+Sovereign personalization architecture:
+Each user's identity document contains:
+- public_key: Ethereum-style public key (user identity)
+- config_overrides: User-specific LLM configuration (overrides system defaults)
+- prompt_overrides: User-specific prompt customizations (persona, system, tools)
+- created_at: Identity creation timestamp
+
+The IdentityService acts as the gatekeeper by providing identity verification
+to OrchestratorService, which halts unregistered visitors and injects user_profile
+into Run metadata for registered members.
 """
 
 import logging

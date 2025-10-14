@@ -6,15 +6,25 @@ calls, and tool execution via the NexusBus. Manages the state machine for Runs
 and implements the complete Agentic Loop with tool calling capabilities.
 
 Key responsibilities:
-- Run lifecycle management and state transitions
-- Tool call detection and orchestration with multi-tool synchronization
-- Safety valve enforcement (max iterations)
-- History management for multi-turn tool interactions
-- Synchronization of multiple concurrent tool executions
+- Identity gatekeeper: Validates user identity before processing runs, distinguishing
+  between "visitors" (unregistered) and "members" (registered users)
+- User profile injection: Enriches Run metadata with user_profile (config/prompt overrides)
+  for downstream personalization in ContextService and LLMService
+- Run lifecycle management: Tracks run state transitions (BUILDING_CONTEXT, 
+  AWAITING_LLM_DECISION, AWAITING_TOOL_RESULT, COMPLETED, TIMED_OUT)
+- Tool call orchestration: Detects tool calls from LLM responses, publishes tool
+  requests, and synchronizes multiple concurrent tool executions
+- Safety valve enforcement: Limits tool calling iterations (configurable max_tool_iterations)
+  to prevent infinite loops
+- History management: Maintains run history with AI messages and tool results for
+  multi-turn tool interactions
+- Event forwarding: Relays streaming events (text_chunk, tool_call_started) from
+  LLM_RESULTS to UI_EVENTS to preserve ordering through a single UI gateway
 
-Note: During streaming, LLMService publishes interim events (text_chunk,
-tool_call_started) to Topics.LLM_RESULTS. Orchestrator forwards them to
-Topics.UI_EVENTS to preserve ordering and a single UI gateway.
+Event flow:
+RUNS_NEW → identity check → CONTEXT_BUILD_REQUEST → CONTEXT_BUILD_RESPONSE → 
+LLM_REQUESTS → LLM_RESULTS → (tool calls?) → TOOLS_REQUESTS → TOOLS_RESULTS → 
+LLM_REQUESTS (loop) → UI_EVENTS (run_finished)
 """
 
 import logging

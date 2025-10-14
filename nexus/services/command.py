@@ -4,6 +4,23 @@ Command Service for NEXUS.
 Provides a deterministic command processing engine with auto-discovery capabilities.
 This service handles command execution, error handling, and result publishing
 through the event bus system.
+
+Key features:
+- Auto-discovery: Automatically discovers and registers commands from the
+  nexus.commands.definition package at initialization
+- Command registry: Maintains registry of command executors and metadata
+- Cryptographic verification: Supports signature verification for sensitive
+  commands (requiresSignature flag) using Ethereum-style ECDSA signatures
+- Execution context: Injects services and verified public key into command
+  execution context for command access to system resources
+- Structured payloads: Supports both legacy string commands ("/ping") and
+  structured payloads with auth data ({"command": "/identity", "auth": {...}})
+- Error handling: Gracefully handles unknown commands, signature failures,
+  and execution errors with informative responses
+
+Command discovery:
+Commands are discovered from nexus.commands.definition modules. Each module
+should export a COMMAND_DEFINITION dict and an execute() async function.
 """
 
 import logging
