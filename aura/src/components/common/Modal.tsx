@@ -20,6 +20,7 @@
 
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FRAMER_TRANSITION } from '@/lib/motion';
 
 interface ModalProps {
   /** Whether the modal is currently open */
@@ -80,7 +81,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
+            transition={FRAMER_TRANSITION}
             onClick={onClose}
             className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xl"
             aria-hidden="true"
@@ -93,10 +94,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              transition={{
-                duration: 0.2,
-                ease: [0.22, 1, 0.36, 1], // Physical bounce-back easing
-              }}
+              transition={FRAMER_TRANSITION}
               className="pointer-events-auto"
               onClick={(e) => e.stopPropagation()} // Prevent backdrop click from bubbling
             >

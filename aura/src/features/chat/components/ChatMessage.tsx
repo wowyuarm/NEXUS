@@ -25,6 +25,7 @@ import { ToolCallCard } from './ToolCallCard';
 import { useTypewriter } from '../hooks/useTypewriter';
 import type { Message, SystemMessageContent } from '../types';
 import type { RunStatus } from '../store/chatStore';
+import { FRAMER_TRANSITION } from '@/lib/motion';
 
 
 interface ChatMessageProps {
@@ -266,7 +267,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       className="flex-1 min-w-0 relative ml-6"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
+      transition={FRAMER_TRANSITION}
     >
       {/* Timestamp - hover to show, top right */}
       <div className="absolute top-0 right-0">

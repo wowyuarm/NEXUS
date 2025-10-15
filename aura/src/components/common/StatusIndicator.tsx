@@ -1,8 +1,9 @@
 // src/components/common/StatusIndicator.tsx
 // 通用状态指示器组件 - 合并加载、空状态和错误状态的展示
 import React from 'react';
-import { motion, cubicBezier } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { FRAMER_TRANSITION, MOTION_EXCEPTIONS } from '@/lib/motion';
 
 interface StatusIndicatorProps {
   variant: 'loading' | 'empty' | 'error';
@@ -25,7 +26,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
   const fadeInAnimation = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.4, ease: cubicBezier(0.4, 0, 0.2, 1) }
+    transition: FRAMER_TRANSITION
   };
 
   // Loading状态的渲染
@@ -51,9 +52,9 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
           )}
           animate={{ rotate: 360 }}
           transition={{
-            duration: 1,
-            repeat: Infinity,
-            ease: 'linear'
+            duration: MOTION_EXCEPTIONS.spin.duration,
+            repeat: MOTION_EXCEPTIONS.spin.repeat,
+            ease: MOTION_EXCEPTIONS.spin.ease
           }}
         >
           <div className="absolute inset-0 border-2 border-transparent border-t-foreground rounded-full" />

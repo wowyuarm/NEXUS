@@ -196,7 +196,7 @@ describe('IdentityPanel', () => {
       const textarea = screen.getByPlaceholderText(/请输入 12 或 24 个助记词/i);
       await user.type(textarea, 'test test test test test test test test test test test junk');
 
-      const confirmButton = screen.getByText(/确认导入/i);
+      const confirmButton = screen.getByRole('button', { name: /确认导入/i });
       fireEvent.click(confirmButton);
 
       // Assert: Should import, reconnect, and create system message
@@ -319,7 +319,7 @@ describe('IdentityPanel', () => {
       const importButton = screen.getByText(/导入已有身份/i);
       fireEvent.click(importButton);
 
-      const confirmButton = screen.getByText(/确认导入/i);
+      const confirmButton = screen.getByRole('button', { name: /确认导入/i });
       
       // Assert: Confirm button should be disabled for empty input
       expect(confirmButton).toBeDisabled();
@@ -337,7 +337,7 @@ describe('IdentityPanel', () => {
       const textarea = screen.getByPlaceholderText(/请输入 12 或 24 个助记词/i);
       await user.type(textarea, 'test mnemonic');
 
-      const confirmButton = screen.getByText(/确认导入/i);
+      const confirmButton = screen.getByRole('button', { name: /确认导入/i });
       
       // Assert: Confirm button should be enabled
       expect(confirmButton).not.toBeDisabled();

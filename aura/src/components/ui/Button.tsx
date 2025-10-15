@@ -52,7 +52,7 @@ export const Button: React.FC<ButtonProps> = ({
     'appearance-none',
     'disabled:cursor-not-allowed',
     // Add CSS transition for background/border/shadow changes (0.4s unified)
-    'transition-all duration-[400ms] ease-out',
+    'transition-all duration-400 ease-out',
     fullWidth && 'w-full'
   ];
 

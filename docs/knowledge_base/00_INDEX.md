@@ -17,3 +17,11 @@ This section is designed to answer the fundamental "Why?" behind our work. Befor
 
 4.  **[04 Core Concepts](./04_CORE_CONCEPTS.md)**
     *   A glossary of the essential nouns and verbs of our ecosystem. It defines key terms like `Message`, `Run`, `Session`, and `Agentic Loop`, providing a shared language for all contributors.
+
+## Technical Deep Dives
+
+5.  **[Frontend Technical References](./frontend_references/)**
+    *   Design-driven technical documentation for the AURA frontend. Each document bridges design philosophy with technical implementation, reflecting the unique nature of frontend engineering where user experience and code quality are inseparable.
+
+6.  **[Backend Technical References](./technical_references/)**
+    *   Implementation-level documentation for NEXUS backend subsystems. Covers environment configuration, command system, identity architecture, and dynamic personalization—the invisible engine that powers the experience.

@@ -16,15 +16,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ToolCall } from '../types';
+import { MOTION_CONFIG, MOTION_EXCEPTIONS } from '@/lib/motion';
 
-// Animation constants
+// Animation constants - unified with global motion config
 const ANIMATION_DURATIONS = {
-  SPIN: 1,
-  GLOW: 2,
-  SCALE: 0.3,
-  EXPAND: 0.3,
-  CHEVRON: 0.2,
-  FADE_IN: 0.4
+  SPIN: MOTION_EXCEPTIONS.spin.duration, // 1s - continuous rotation (exception)
+  STANDARD: MOTION_CONFIG.duration, // 0.4s - all state transitions
 } as const;
 
 // UX constants
@@ -70,7 +67,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
       <motion.div
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
-        transition={{ duration: ANIMATION_DURATIONS.SCALE, ease: 'easeOut' }}
+        transition={{ duration: ANIMATION_DURATIONS.STANDARD, ease: 'easeOut' }}
         className="w-4 h-4 rounded-full border border-border flex items-center justify-center"
       >
         <IconComponent className="w-2.5 h-2.5 text-foreground" />
@@ -92,8 +89,8 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
         x: 0
       }}
       transition={{
-        opacity: { duration: ANIMATION_DURATIONS.FADE_IN, ease: 'easeOut' },
-        y: { duration: ANIMATION_DURATIONS.FADE_IN, ease: 'easeOut' }
+        opacity: { duration: ANIMATION_DURATIONS.STANDARD, ease: 'easeOut' },
+        y: { duration: ANIMATION_DURATIONS.STANDARD, ease: 'easeOut' }
       }}
       className={cn(
         // Liquid Glass Material
@@ -107,7 +104,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
         'w-full min-w-0',
 
         // Interactive (match ChatInput): subtle contrast ring via border color
-        'cursor-pointer transition-colors duration-200',
+        'cursor-pointer transition-colors duration-400 ease-out',
         'hover:border-foreground/20'
       )}
       onClick={() => {
@@ -133,7 +130,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
         {/* Expand/Collapse indicator */}
         <motion.div
           animate={{ rotate: isExpanded ? 180 : 0 }}
-          transition={{ duration: ANIMATION_DURATIONS.CHEVRON }}
+          transition={{ duration: ANIMATION_DURATIONS.STANDARD, ease: 'easeOut' }}
           className="text-secondary-foreground"
         >
           <ChevronDown className="w-4 h-4" />
@@ -147,7 +144,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: ANIMATION_DURATIONS.EXPAND, ease: 'easeInOut' }}
+            transition={{ duration: ANIMATION_DURATIONS.STANDARD, ease: 'easeOut' }}
             className="overflow-hidden"
           >
             <div className="pt-4 space-y-3">

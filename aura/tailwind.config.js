@@ -75,6 +75,9 @@ export default {
         'material-breath': 'material-breath 4s ease-in-out infinite',
         'text-condense': 'text-condense 0.5s ease-out forwards',
       },
+      transitionDuration: {
+        '400': '400ms',
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],
