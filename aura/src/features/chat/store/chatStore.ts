@@ -54,6 +54,10 @@ export interface ChatActions {
   clearError: () => void;
 
   executeCommand: (command: string, availableCommands?: Command[]) => Promise<{ status: string; message: string; data?: Record<string, unknown> } | undefined>;
+  
+  // New actions for identity panel
+  setVisitorMode: (isVisitor: boolean) => void;
+  createSystemMessage: (command: string, result: string) => void;
 }
 
 export type ChatStore = ChatState & ChatActions;
@@ -516,6 +520,24 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     // Use the new commandExecutor from the new architecture
     const { executeCommand: execute } = await import('@/features/command/commandExecutor');
     return await execute(commandDef);
+  },
+
+  setVisitorMode: (isVisitor: boolean) => {
+    set({ visitorMode: isVisitor });
+  },
+
+  createSystemMessage: (command: string, result: string) => {
+    const sysMsg: Message = {
+      id: uuidv4(),
+      role: 'SYSTEM',
+      content: { command, result },
+      timestamp: new Date(),
+      metadata: { status: 'completed' }
+    };
+    
+    set((state) => ({
+      messages: [...state.messages, sysMsg]
+    }));
   }
 }));
 

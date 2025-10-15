@@ -202,6 +202,28 @@ export class WebSocketManager {
     this.isConnected = false;
   }
 
+  /**
+   * Reconnect to WebSocket with optional new identity
+   * Useful for identity switching scenarios (import/export)
+   * 
+   * @param newPublicKey - Optional new public key to use for reconnection
+   */
+  async reconnect(newPublicKey?: string): Promise<void> {
+    console.log('🔄 Reconnecting WebSocket...', newPublicKey ? 'with new identity' : '');
+    
+    // Disconnect first
+    this.disconnect();
+    
+    // If a new public key is provided, update it
+    // Otherwise, connect() will fetch the current identity
+    if (newPublicKey) {
+      this.publicKey = newPublicKey;
+    }
+    
+    // Reconnect with the (possibly new) identity
+    await this.connect();
+  }
+
   sendMessage(input: string): void {
     if (!this.isConnected || !this.ws) {
       console.error('Cannot send message: WebSocket not connected');

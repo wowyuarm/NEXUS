@@ -92,76 +92,90 @@
 ---
 ---
 
-    *   `MODAL-SYSTEM-FOUNDATION-1.0`已完成，我们拥有了通用的`<Modal>`和`<Panel>`组件，以及`uiStore`。
-    *   后端`DATA-SOVEREIGNTY-1.0`已完成，具备了身份的创建、验证和数据隔离能力。
-    *   **本任务目标:** 构建一个功能完备、交互优雅的`IdentityPanel.tsx`，并将其与后端的身份服务深度集成，最终实现用户对“知觉密钥”的完全掌控（创建、备份、恢复）。
+ `MODAL-SYSTEM-FOUNDATION-1.0`已完成。我们拥有一个通用的模态交互系统 (`<Modal>`, `<Panel>`, `uiStore`)。（你需要了解清楚，有足够全面上下文）
+    *   **本任务目标:** 在此模态系统之上，构建一个功能完备、体验优雅的`/identity` GUI面板。这个面板是用户行使其“自我主权”的核心工具，必须做到安全、直观、且反馈清晰。
 
 ---
 
 #### **第一部分：设计哲学与预期效果 (The "Why" & The "What")**
 
 **1. 核心原则:**
-*   **主权可视化:** 这个面板是用户“数字主权”的唯一具象化体现。它的设计必须传达出**安全、可靠、尽在掌控**的感觉。
-*   **状态驱动:** 面板的形态和功能，必须严格地由用户当前的身份状态（访客 vs. 成员）驱动，为不同状态的用户提供最符合其当前需求的引导和工具。
-*   **静默反馈:** 对身份的操作是系统级的“维护”行为，其反馈应在面板内部完成（例如图标、状态文本），**不应**在主聊天流中产生任何新的`SYSTEM`消息，以保持对话的纯粹性。
+*   **主权可视化:** 这个面板不是一个简单的信息展示，它是用户“知觉密钥”所有权的**物理化身**。它的设计必须传达出安全、私密和掌控感。
+*   **状态驱动的清晰度:** 面板的形态和可执行的操作，必须严格根据用户当前的身份状态（“访客”或“成员”）进行变化，为用户提供清晰、无歧义的引导。
+*   **反馈闭环:** 用户的每一个关键操作，都必须得到**双重反馈**：面板内的**即时反馈**（用于即时确认），和对话流中的**永久记录**（用于事后追溯）。
 
 **2. 预期的视觉与交互效果:**
-*   **触发:** 用户执行`/identity`指令，`<Modal>`以我们已定义的动画打开，其中包裹着`<IdentityPanel />`。
-*   **面板布局:** 采用简洁、大间距的垂直布局，营造出从容、重要的氛围。所有按钮都应是清晰、有引导性的。
-*   **“访客”视图:**
-    *   **标题:** `Anchor Your Identity`
-    *   **内容:**
-        *   一段简短的说明文字，解释创建或恢复身份的重要性。
-        *   一个主操作按钮：“**Create New Identity**”。
-        *   一个次要操作链接或按钮：“**Restore Existing Identity**”。
-*   **“成员”视图:**
-    *   **标题:** `Identity Management`
-    *   **内容:**
-        *   一个标题为`Your Being Address`的区域，清晰地显示用户截断后的公钥（例如`0x1234...abcd`），并提供一个“复制”按钮。
-        *   一个标题为`Backup (Export)`的区域，包含“**Show Mnemonic Phrase**”按钮。
-        *   一个标题为`Switch (Import)`的区域，包含“**Import from Mnemonic**”按钮。
-*   **反馈机制:**
-    *   所有操作（创建、恢复）在点击后，按钮应显示加载状态。
-    *   操作成功后，按钮旁边出现一个绿色的“√”图标，并可能有简短的成功文本提示（如“Identity Created!”），持续2秒。
-    *   **关键:** 身份创建或恢复成功后，**必须**自动触发一次**WebSocket重连**或**页面刷新**，以确保整个应用的状态（特别是`visitorMode`）被正确更新。
+*   **触发:** 用户在`CommandPalette`中选择并执行`/identity`指令。
+*   **呈现:** 一个标题为“身份管理 (Identity Management)”的`<Panel />`在`<Modal />`中平滑出现。
+*   **条件化UI:**
+    *   **如果用户是“访客” (`visitorMode === true`):**
+        *   面板将显示引导性文本，如“您当前为访客身份，对话历史不会被保存。”
+        *   提供两个核心按钮：“**创建新身份**”和“**导入已有身份**”。
+    *   **如果用户是“成员” (`visitorMode === false`):**
+        *   面板将显示用户的“存在地址”（公钥）。
+        *   提供两个核心按钮：“**导出身份 (备份)**”和“**切换/导入身份**”。
+*   **交互反馈:**
+    *   **点击“创建/导入/导出”后:** 按钮进入加载状态。操作成功后，按钮旁出现一个绿色的“✓”图标和简短的成功提示文本（例如“身份已创建！”、“助记词已复制到剪贴板！”），持续2-3秒后消失。
+    *   **关闭面板后:** 对话流中出现一条`SYSTEM`消息，记录本次操作的结果，例如`■ /identity (created)`，结果区显示“新的主权身份已成功锚定。”
 
 ---
 
 #### **第二部分：架构与实施路径 (The "How")**
 
-**Phase 1: 专用指令的后端定义 (Backend Command Scaffolding)**
+**Phase 1: 前端能力增强 (Frontend Capability Enhancement)**
 
-**目标:** 创建专用于面板内部操作的、需要签名的后端指令。
+1.  **`aura/src/services/identity/identity.ts` (核心能力):**
+    *   **TDD先行:** 为即将新增的方法编写测试。
+    *   **新增`exportMnemonic()`:**
+        *   从`localStorage`读取私钥。
+        *   实例化`ethers.Wallet`。
+        *   返回`wallet.mnemonic.phrase`。
+    *   **新增`importFromMnemonic(mnemonic: string)`:**
+        *   使用`ethers.Wallet.fromPhrase(mnemonic)`验证助记词并创建钱包实例。
+        *   获取其`privateKey`和`publicKey`。
+        *   用新的`privateKey`**覆写**`localStorage`中的`nexus_private_key`。
+        *   返回新的`publicKey`。
+2.  **`aura/src/features/chat/store/chatStore.ts`:**
+    *   **新增`setVisitorMode(isVisitor: boolean)` action**，用于控制访客状态。
+    *   **新增`createFinalSystemMessage(command: string, result: string)` action**，用于在前端直接创建一条`status: 'completed'`的`SYSTEM`消息。
 
-1.  **`nexus/commands/definition/identity_create.py` (新增):**
-    *   **`COMMAND_DEFINITION`:** `name: 'identity-create'`, `handler: 'websocket'`, `requiresSignature: True`。**不包含`requiresGUI`**，这是一个纯逻辑指令。
-    *   **`execute`函数:** 调用`IdentityService.get_or_create_identity`，并返回成功或失败的结果。
-2.  **`nexus/commands/definition/identity.py` (修改):**
-    *   它的`COMMAND_DEFINITION`保持`requiresGUI: True`不变。
-    *   它的`execute`函数可以被清空或保留为Fallback，因为它的主要职责已由前端`commandExecutor`转移为“打开Modal”。
+**Phase 2: 后端指令适配 (Backend Command Adaptation)**
 
-**Phase 2: 前端面板的构建与逻辑实现 (Frontend Panel Construction)**
+1.  **`nexus/commands/definition/identity.py`:**
+    *   **简化与聚焦:** 我们不再需要复杂的子指令。`/identity`本身的核心职责，在GUI模式下，就是**创建身份**。
+    *   **重构`execute`函数:** 它的功能保持不变（调用`identity_service.get_or_create_identity`），但返回的成功消息应更专注于“创建/验证成功”这一点。
+    *   **移除`requiresGUI: True`:** 这个元数据现在由前端的`commandExecutor`来决定。后端的`/identity`指令应该是一个纯粹的、可被调用的`websocket`指令。
 
-1.  **TDD - 编写组件测试:**
-    *   **路径:** `aura/src/features/command/components/__tests__/IdentityPanel.test.tsx` (新建)。
-    *   **行动:** 编写测试用例，模拟不同的`visitorMode`状态，断言面板渲染出正确的视图（访客 vs. 成员）。模拟按钮点击，断言`commandExecutor`被以正确的参数调用。
-2.  **创建`IdentityPanel.tsx`组件:**
-    *   **路径:** `aura/src/features/command/components/IdentityPanel.tsx`。
-    *   **状态感知:** 组件需要从`chatStore`中`use`出`visitorMode`状态，以决定渲染哪个视图。
-    *   **“创建”逻辑:**
-        *   “Create New Identity”按钮的`onClick`处理器，应调用`commandExecutor.executeCommand`并传入一个代表`/identity-create`的`Command`对象。
-    *   **“导出”逻辑:**
-        *   “Show Mnemonic Phrase”按钮的`onClick`，调用`IdentityService.getMnemonic()`（一个需要你新增的方法），并在UI上显示助记词和安全警告。这是一个**纯客户端**操作。
-    *   **“导入”逻辑:**
-        *   “Import from Mnemonic”会展现一个输入框。用户输入并确认后，前端`IdentityService`会调用一个`restoreFromMnemonic`（需要新增）的方法。
-        *   这个方法将在**客户端**从助记词恢复私钥，存入`localStorage`，然后**可以**选择性地调用一个新的`/identity-verify-restoration`指令通知后端（可选），但最关键的是**触发页面刷新/重连**。
-3.  **`IdentityService.ts` 增强:**
-    *   **新增`getMnemonic()`:** 从`localStorage`读取私钥，实例化`Wallet`，返回`wallet.mnemonic.phrase`。
-    *   **新增`restoreFromMnemonic(phrase)`:** 从`phrase`创建`Wallet`，获取其私钥，并将其写入`localStorage`。
+**Phase 3: GUI面板的构建与集成 (The Main Event)**
+
+1.  **`aura/src/features/command/components/IdentityPanel.tsx` (新建):**
+    *   **TDD/Component-Testing先行:** 使用`@testing-library/react`编写组件测试。
+    *   **状态获取:** 从`chatStore`中`use`出`visitorMode`状态，从`identityStore`获取`publicKey`。
+    *   **条件渲染:** 使用`visitorMode`来渲染“访客”或“成员”的UI视图。
+    *   **按钮逻辑 - “创建新身份”:**
+        1.  调用`commandExecutor.executeCommand('/identity')`。这是一个`websocket`指令。
+        2.  在Promise的`.then()`中，显示成功的即时反馈，并触发WebSocket重连（或页面刷新），让后端“门禁”重新验证新成员身份。
+        3.  在`.finally()`中，调用`uiStore.closeModal()`。
+    *   **按钮逻辑 - “导出身份”:**
+        1.  调用`IdentityService.exportMnemonic()`。
+        2.  将返回的助记词安全地展示给用户（例如，在一个需要用户确认才能显示的区域），并提供“复制到剪贴板”的功能。
+        3.  显示成功的即时反馈。
+    *   **按钮逻辑 - “导入身份”:**
+        1.  从输入框获取助记词。
+        2.  调用`IdentityService.importFromMnemonic(mnemonic)`。
+        3.  成功后，用返回的新`publicKey`**立即触发WebSocket重连** (`websocketManager.reconnect(newPublicKey)`)。
+        4.  显示成功的即时反馈，关闭Modal。
+2.  **`aura/src/app/App.tsx`:**
+    *   将`<IdentityPanel />`的占位符，替换为真正的组件实例。
+3.  **`aura/src/features/command/commandExecutor.ts`:**
+    *   修改`executeCommand`函数：
+        *   对于`/identity`指令，不再直接发送WebSocket请求，而是调用`uiStore.getState().openModal('identity')`。
 
 #### **验收标准**
 
-1.  所有新模块和组件都有对应的、通过的测试。
-2.  **访客流程:** 新浏览器访问，发送消息被拦截 -> 执行`/identity` -> 弹出“访客视图”面板 -> 点击“创建” -> 看到成功反馈 -> 面板关闭，WebSocket自动重连 -> 再次发送消息，对话正常进行。
-3.  **成员流程:** 已验证用户执行`/identity` -> 弹出“成员视图”面板 -> 点击“备份”，能看到正确的助记词 -> 点击“导入”，输入助记词后，能成功切换身份（通过刷新/重连验证）。
-4.  所有操作的反馈都严格限制在面板内部，主聊天流保持干净。
+1.  **访客流程:** 新浏览器访问，输入`/identity`，弹出的面板**必须**显示“创建”和“导入”按钮。
+    *   点击“创建”，操作成功后，关闭面板，对话流中出现一条记录消息。再次打开面板，**必须**切换到“成员”视图。
+2.  **成员流程:** 已有身份的浏览器访问，输入`/identity`，弹出的面板**必须**显示公钥和“导出”、“切换/导入”按钮。
+    *   点击“导出”，**必须**能正确显示并复制助记词。
+3.  **恢复流程:** 在访客状态下，点击“导入”，粘贴从成员流程中导出的助记词，操作成功后，关闭面板，**必须**能看到之前的对话历史被无缝加载回来。
+4.  **反馈闭环:** 所有关键操作（创建、导入）成功并关闭面板后，对话流中**必须**留下一条对应的、格式正确的`SYSTEM`消息记录。

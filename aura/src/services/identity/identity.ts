@@ -12,26 +12,6 @@ export interface CommandAuth {
 
 const STORAGE_KEY = 'nexus_private_key';
 
-// Helper function to generate a random private key that works in both browser and Node.js
-async function generatePrivateKey(): Promise<string> {
-  // Generate 32 random bytes (256 bits) for private key
-  const randomBytes = new Uint8Array(32);
-
-  if (typeof window !== 'undefined' && window.crypto) {
-    // Browser environment
-    window.crypto.getRandomValues(randomBytes);
-  } else {
-    // Node.js environment - use dynamic import instead of require
-    const crypto = await import('crypto');
-    crypto.randomFillSync(randomBytes);
-  }
-
-  // Convert to hex string and add 0x prefix
-  return '0x' + Array.from(randomBytes)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
 export const IdentityService = {
   /**
    * Get or create user identity
@@ -50,12 +30,11 @@ export const IdentityService = {
           publicKey: wallet.address
         };
       } else {
-        // Generate new identity
-        const privateKey = await generatePrivateKey();
-        const wallet = new Wallet(privateKey);
+        // Generate new identity with mnemonic support
+        const wallet = Wallet.createRandom();
 
         // Persist private key to localStorage
-        localStorage.setItem(STORAGE_KEY, privateKey);
+        localStorage.setItem(STORAGE_KEY, wallet.privateKey);
 
         return {
           privateKey: wallet.privateKey,
@@ -63,13 +42,12 @@ export const IdentityService = {
         };
       }
     } catch (error) {
-      // Handle storage errors gracefully by generating new identity
+      // Handle storage errors gracefully by generating new identity with mnemonic
       console.warn('Storage error, generating new identity:', error);
-      const privateKey = await generatePrivateKey();
-      const wallet = new Wallet(privateKey);
+      const wallet = Wallet.createRandom();
 
       try {
-        localStorage.setItem(STORAGE_KEY, privateKey);
+        localStorage.setItem(STORAGE_KEY, wallet.privateKey);
       } catch (fallbackError) {
         console.warn('Failed to persist identity to localStorage:', fallbackError);
       }
@@ -142,6 +120,66 @@ export const IdentityService = {
     } catch (error) {
       console.error('Failed to sign command:', error);
       throw error;
+    }
+  },
+
+  /**
+   * Export mnemonic phrase for identity backup
+   * Returns the 12 or 24 word mnemonic phrase if the identity was created with one.
+   * For legacy identities created without mnemonic, returns null.
+   * 
+   * @returns Mnemonic phrase or null if identity doesn't have one
+   * @throws Error if no identity exists in storage
+   */
+  exportMnemonic(): string | null {
+    try {
+      const privateKey = localStorage.getItem(STORAGE_KEY);
+      
+      if (!privateKey) {
+        throw new Error('No identity found. Please create an identity first.');
+      }
+
+      // Create wallet instance from private key
+      const wallet = new Wallet(privateKey);
+      
+      // Check if wallet is an HDNodeWallet (has mnemonic)
+      // Only wallets created with Wallet.createRandom() or Wallet.fromPhrase() have mnemonics
+      if ('mnemonic' in wallet && wallet.mnemonic && typeof wallet.mnemonic === 'object' && 'phrase' in wallet.mnemonic) {
+        return (wallet.mnemonic as { phrase: string }).phrase;
+      }
+      
+      // Return null for legacy identities without mnemonic
+      return null;
+    } catch (error) {
+      console.error('Failed to export mnemonic:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Import identity from mnemonic phrase
+   * Validates the mnemonic and overwrites the current identity.
+   * This enables identity restoration and cross-device identity portability.
+   * 
+   * @param mnemonic - 12 or 24 word mnemonic phrase
+   * @returns The public key (address) of the imported identity
+   * @throws Error if mnemonic is invalid
+   */
+  async importFromMnemonic(mnemonic: string): Promise<string> {
+    try {
+      // Validate and create wallet from mnemonic
+      // This will throw if mnemonic is invalid
+      const wallet = Wallet.fromPhrase(mnemonic.trim());
+      
+      // Overwrite existing identity with new one
+      localStorage.setItem(STORAGE_KEY, wallet.privateKey);
+      
+      console.log('✅ Identity imported successfully:', wallet.address);
+      
+      return wallet.address;
+    } catch (error) {
+      console.error('Failed to import identity from mnemonic:', error);
+      throw new Error('Invalid mnemonic phrase. Please check and try again.');
     }
   }
 };

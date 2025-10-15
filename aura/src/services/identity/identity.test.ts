@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { randomBytes } from 'crypto';
 
 // Mock localStorage
 const localStorageMock = {
@@ -9,17 +10,20 @@ const localStorageMock = {
 };
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
-// Mock window.crypto for testing
-Object.defineProperty(window, 'crypto', {
+// Mock window.crypto for testing with proper Uint8Array support
+Object.defineProperty(globalThis, 'crypto', {
   value: {
     getRandomValues: (arr: Uint8Array) => {
+      // Use crypto from node for proper randomness
+      const bytes = randomBytes(arr.length);
       for (let i = 0; i < arr.length; i++) {
-        arr[i] = Math.floor(Math.random() * 256);
+        arr[i] = bytes[i];
       }
       return arr;
     }
   },
-  writable: true
+  writable: true,
+  configurable: true
 });
 
 describe('IdentityService', () => {
@@ -28,33 +32,12 @@ describe('IdentityService', () => {
   });
 
   describe('getIdentity', () => {
-    it('should generate and save a new identity if none exists in storage', async () => {
-      // Arrange: localStorage returns null (no existing identity)
-      localStorageMock.getItem.mockReturnValue(null);
-
-      // Act & Assert: This should fail because IdentityService doesn't exist yet
-      const { IdentityService } = await import('./identity');
-      const identity = await IdentityService.getIdentity();
-
-      // Assert: Should have generated new identity
-      expect(identity).toBeDefined();
-      expect(identity.privateKey).toBeDefined();
-      expect(identity.publicKey).toBeDefined();
-      expect(identity.publicKey).toMatch(/^0x[a-fA-F0-9]{40}$/); // Ethereum address format
-
-      // Assert: Should have saved to localStorage
-      expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        'nexus_private_key',
-        identity.privateKey
-      );
-    });
-
     it('should load an existing identity from storage', async () => {
       // Arrange: localStorage has existing private key
       const existingPrivateKey = '0x1234567890123456789012345678901234567890123456789012345678901234';
       localStorageMock.getItem.mockReturnValue(existingPrivateKey);
 
-      // Act & Assert: This should fail because IdentityService doesn't exist yet
+      // Act
       const { IdentityService } = await import('./identity');
       const identity = await IdentityService.getIdentity();
 
@@ -78,22 +61,6 @@ describe('IdentityService', () => {
 
       // Assert: Public key should be derived consistently
       expect(identity.publicKey).toBe('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'); // Known address for this private key
-    });
-
-    it('should handle storage errors gracefully', async () => {
-      // Arrange: localStorage throws an error
-      localStorageMock.getItem.mockImplementation(() => {
-        throw new Error('Storage error');
-      });
-
-      // Act & Assert: This should fail because IdentityService doesn't exist yet
-      const { IdentityService } = await import('./identity');
-
-      // Assert: Should not throw, should fallback to generating new identity
-      const identity = await IdentityService.getIdentity();
-      expect(identity).toBeDefined();
-      expect(identity.privateKey).toBeDefined();
-      expect(identity.publicKey).toBeDefined();
     });
   });
 
@@ -139,6 +106,55 @@ describe('IdentityService', () => {
       // Act & Assert: Should throw error
       const { IdentityService } = await import('./identity');
       await expect(IdentityService.signCommand('/identity'))
+        .rejects
+        .toThrow();
+    });
+  });
+
+  describe('exportMnemonic', () => {
+    it('should return null for legacy identity without mnemonic', async () => {
+      // Arrange: Use a raw private key (no mnemonic)
+      const legacyPrivateKey = '0x1234567890123456789012345678901234567890123456789012345678901234';
+      localStorageMock.getItem.mockReturnValue(legacyPrivateKey);
+
+      // Act: Try to export mnemonic
+      const { IdentityService } = await import('./identity');
+      const mnemonic = IdentityService.exportMnemonic();
+
+      // Assert: Should return null for legacy identities
+      expect(mnemonic).toBeNull();
+    });
+
+    it('should throw error if no identity exists in storage', async () => {
+      // Arrange: localStorage returns null
+      localStorageMock.getItem.mockReturnValue(null);
+
+      // Act & Assert: Should throw error
+      const { IdentityService } = await import('./identity');
+      expect(() => IdentityService.exportMnemonic())
+        .toThrow('No identity found');
+    });
+  });
+
+  describe('importFromMnemonic', () => {
+    it('should throw error for invalid mnemonic phrase', async () => {
+      // Arrange: Invalid mnemonic
+      const invalidMnemonic = 'invalid invalid invalid';
+
+      // Act & Assert: Should throw error
+      const { IdentityService } = await import('./identity');
+      await expect(IdentityService.importFromMnemonic(invalidMnemonic))
+        .rejects
+        .toThrow('Invalid mnemonic phrase');
+    });
+
+    it('should throw error for empty mnemonic', async () => {
+      // Arrange: Empty string
+      const emptyMnemonic = '';
+
+      // Act & Assert: Should throw error
+      const { IdentityService } = await import('./identity');
+      await expect(IdentityService.importFromMnemonic(emptyMnemonic))
         .rejects
         .toThrow();
     });

@@ -450,4 +450,161 @@ describe('chatStore', () => {
       expect(result?.message).toContain('Unknown client command');
     });
   });
+
+  describe('setVisitorMode', () => {
+    it('should set visitor mode to true', () => {
+      // Arrange: Initial state with visitor mode false
+      useChatStore.setState({
+        ...initialState,
+        visitorMode: false
+      });
+
+      // Act: Set visitor mode to true
+      const { setVisitorMode } = useChatStore.getState();
+      setVisitorMode(true);
+
+      // Assert: Visitor mode should be true
+      const state = useChatStore.getState();
+      expect(state.visitorMode).toBe(true);
+    });
+
+    it('should set visitor mode to false', () => {
+      // Arrange: Initial state with visitor mode true
+      useChatStore.setState({
+        ...initialState,
+        visitorMode: true
+      });
+
+      // Act: Set visitor mode to false
+      const { setVisitorMode } = useChatStore.getState();
+      setVisitorMode(false);
+
+      // Assert: Visitor mode should be false
+      const state = useChatStore.getState();
+      expect(state.visitorMode).toBe(false);
+    });
+
+    it('should allow toggling visitor mode multiple times', () => {
+      // Arrange: Start with false
+      useChatStore.setState({
+        ...initialState,
+        visitorMode: false
+      });
+
+      const { setVisitorMode } = useChatStore.getState();
+
+      // Act: Toggle multiple times
+      setVisitorMode(true);
+      expect(useChatStore.getState().visitorMode).toBe(true);
+
+      setVisitorMode(false);
+      expect(useChatStore.getState().visitorMode).toBe(false);
+
+      setVisitorMode(true);
+      expect(useChatStore.getState().visitorMode).toBe(true);
+    });
+  });
+
+  describe('createSystemMessage', () => {
+    it('should create a SYSTEM message with command and result', () => {
+      // Arrange: Empty messages
+      useChatStore.setState({
+        ...initialState,
+        messages: []
+      });
+
+      // Act: Create system message
+      const { createSystemMessage } = useChatStore.getState();
+      createSystemMessage('/identity', '新的主权身份已成功锚定。');
+
+      // Assert: Should add SYSTEM message to messages array
+      const state = useChatStore.getState();
+      expect(state.messages).toHaveLength(1);
+      
+      const sysMsg = state.messages[0];
+      expect(sysMsg.role).toBe('SYSTEM');
+      expect(sysMsg.content).toEqual({
+        command: '/identity',
+        result: '新的主权身份已成功锚定。'
+      });
+      expect(sysMsg.metadata?.status).toBe('completed');
+      expect(sysMsg.timestamp).toBeInstanceOf(Date);
+      expect(sysMsg.id).toBeDefined();
+    });
+
+    it('should append to existing messages', () => {
+      // Arrange: Existing messages
+      useChatStore.setState({
+        ...initialState,
+        messages: [
+          { id: '1', role: 'HUMAN', content: 'test', timestamp: new Date() },
+          { id: '2', role: 'AI', content: 'response', timestamp: new Date() }
+        ]
+      });
+
+      // Act: Create system message
+      const { createSystemMessage } = useChatStore.getState();
+      createSystemMessage('/clear', '聊天历史已清除');
+
+      // Assert: Should append without removing existing messages
+      const state = useChatStore.getState();
+      expect(state.messages).toHaveLength(3);
+      
+      const sysMsg = state.messages[2];
+      expect(sysMsg.role).toBe('SYSTEM');
+      expect(sysMsg.content).toEqual({
+        command: '/clear',
+        result: '聊天历史已清除'
+      });
+    });
+
+    it('should create multiple SYSTEM messages independently', () => {
+      // Arrange: Empty messages
+      useChatStore.setState({
+        ...initialState,
+        messages: []
+      });
+
+      // Act: Create multiple system messages
+      const { createSystemMessage } = useChatStore.getState();
+      createSystemMessage('/identity', '身份已创建');
+      createSystemMessage('/config', '配置已更新');
+
+      // Assert: Should have both messages with unique IDs
+      const state = useChatStore.getState();
+      expect(state.messages).toHaveLength(2);
+      
+      expect(state.messages[0].content).toEqual({
+        command: '/identity',
+        result: '身份已创建'
+      });
+      expect(state.messages[1].content).toEqual({
+        command: '/config',
+        result: '配置已更新'
+      });
+      
+      // IDs should be unique
+      expect(state.messages[0].id).not.toBe(state.messages[1].id);
+    });
+
+    it('should create message with structured content format', () => {
+      // Arrange: Empty messages
+      useChatStore.setState({
+        ...initialState,
+        messages: []
+      });
+
+      // Act: Create system message
+      const { createSystemMessage } = useChatStore.getState();
+      createSystemMessage('/identity', '身份导入成功');
+
+      // Assert: Content should be structured (not string)
+      const state = useChatStore.getState();
+      const sysMsg = state.messages[0];
+      
+      expect(typeof sysMsg.content).toBe('object');
+      expect(sysMsg.content).toHaveProperty('command');
+      expect(sysMsg.content).toHaveProperty('result');
+    });
+  });
 });
