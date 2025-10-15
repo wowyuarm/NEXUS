@@ -262,7 +262,7 @@ export const IdentityPanel: React.FC = () => {
             icon={<UserPlus size={18} />}
             onClick={handleCreateIdentity}
             disabled={createFeedback.state === 'loading'}
-            className="w-full"
+            fullWidth
           >
             {createFeedback.state === 'loading' ? '创建中...' : '创建新身份'}
           </Button>
@@ -276,7 +276,7 @@ export const IdentityPanel: React.FC = () => {
               variant="outline"
               icon={<Upload size={18} />}
               onClick={() => setShowImportInput(true)}
-              className="w-full"
+              fullWidth
             >
               导入已有身份
             </Button>
@@ -336,7 +336,7 @@ export const IdentityPanel: React.FC = () => {
           icon={<Download size={18} />}
           onClick={handleExportMnemonic}
           disabled={exportFeedback.state === 'loading'}
-          className="w-full"
+          fullWidth
         >
           {exportFeedback.state === 'loading' ? '导出中...' : '导出身份（备份）'}
         </Button>
@@ -345,12 +345,14 @@ export const IdentityPanel: React.FC = () => {
           <div className="space-y-3 p-4 bg-muted/30 rounded-lg border border-border/40">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-foreground">助记词</span>
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={showMnemonic ? <EyeOff size={16} /> : <Eye size={16} />}
+                iconOnly
                 onClick={() => setShowMnemonic(!showMnemonic)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showMnemonic ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+                aria-label={showMnemonic ? "隐藏助记词" : "显示助记词"}
+              />
             </div>
             
             {showMnemonic && (
@@ -365,7 +367,7 @@ export const IdentityPanel: React.FC = () => {
                   variant="outline"
                   icon={<Copy size={18} />}
                   onClick={handleCopyMnemonic}
-                  className="w-full"
+                  fullWidth
                 >
                   复制到剪贴板
                 </Button>
@@ -388,7 +390,7 @@ export const IdentityPanel: React.FC = () => {
             variant="outline"
             icon={<Upload size={18} />}
             onClick={() => setShowImportInput(true)}
-            className="w-full"
+            fullWidth
           >
             切换/导入身份
           </Button>

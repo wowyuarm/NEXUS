@@ -92,7 +92,10 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
               'p-1.5 text-secondary-foreground/60 rounded',
               'opacity-0 group-hover:opacity-100 transition-all duration-200',
               'hover:text-secondary-foreground hover:bg-muted/50',
-              'focus:outline-none'
+              // Fully suppress any focus/active rings
+              'outline-none focus:outline-none focus-visible:outline-none active:outline-none',
+              'ring-0 focus:ring-0 focus-visible:ring-0 active:ring-0',
+              'appearance-none'
             )}
             aria-label={copied ? "已复制" : "复制代码"}
           >
@@ -131,7 +134,10 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
               'text-secondary-foreground/60 bg-card/50 backdrop-blur-sm',
               'opacity-0 group-hover:opacity-100 transition-all duration-200',
               'hover:text-secondary-foreground hover:bg-muted/50',
-              'focus:outline-none'
+              // Fully suppress any focus/active rings
+              'outline-none focus:outline-none focus-visible:outline-none active:outline-none',
+              'ring-0 focus:ring-0 focus-visible:ring-0 active:ring-0',
+              'appearance-none'
             )}
             aria-label={copied ? "已复制" : "复制代码"}
           >

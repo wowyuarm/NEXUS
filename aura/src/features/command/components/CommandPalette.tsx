@@ -10,11 +10,13 @@
  * - Instant response: Uses predefined commands for immediate filtering
  * - Natural integration: Appears as part of the ChatInput flow
  * - Minimal footprint: Simple, focused interface
+ * - Unified interaction: Uses Button component with variant='command'
  */
 
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui';
 import type { Command } from '../command.types';
 
 interface CommandPaletteProps {
@@ -77,36 +79,41 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         >
           {filteredCommands.length > 0 ? (
             filteredCommands.map((command, index) => (
-              <motion.button
+              <motion.div
                 key={command.name}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: index * 0.02 }}
-                className={cn(
-                  "w-full px-4 py-3 text-left border-b border-border last:border-b-0 transition-colors",
-                  "hover:bg-accent/50 focus:bg-accent/50 outline-none",
-                  selectedIndex === index && "bg-accent/30"
-                )}
-                onClick={() => handleCommandClick(command)}
-                onMouseEnter={() => onSelectIndex(index)}
               >
-                {/* 结构化双列布局 */}
-                <div className="flex items-baseline gap-4">
-                  {/* 左列：指令名称 - 固定最小宽度，font-mono */}
-                  <div className="min-w-[8rem] flex-shrink-0">
-                    <span className="font-mono text-sm text-foreground">
-                      /{command.name}
-                    </span>
+                <Button
+                  variant="command"
+                  size="md"
+                  fullWidth
+                  className={cn(
+                    "transition-colors outline-none",
+                    selectedIndex === index && "bg-accent/30"
+                  )}
+                  onClick={() => handleCommandClick(command)}
+                  onMouseEnter={() => onSelectIndex(index)}
+                >
+                  {/* Structured two-column layout */}
+                  <div className="flex items-baseline gap-4">
+                    {/* Left column: Command name - fixed min width, font-mono */}
+                    <div className="min-w-[8rem] flex-shrink-0">
+                      <span className="font-mono text-sm text-foreground">
+                        /{command.name}
+                      </span>
+                    </div>
+                    
+                    {/* Right column: Command description - fills remaining space */}
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-secondary-foreground">
+                        {command.description}
+                      </span>
+                    </div>
                   </div>
-                  
-                  {/* 右列：指令描述 - 自动填充剩余空间 */}
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-secondary-foreground">
-                      {command.description}
-                    </span>
-                  </div>
-                </div>
-              </motion.button>
+                </Button>
+              </motion.div>
             ))
           ) : (
             // Silent empty state - no text, just empty space
