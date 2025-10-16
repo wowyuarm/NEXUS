@@ -197,7 +197,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     const commandResult = message.metadata?.commandResult as { status?: string; message?: string; data?: Record<string, unknown> } | undefined;
     const messageText = typeof commandResult?.message === 'string' ? commandResult?.message : undefined;
 
-    const hasDetails = Boolean(messageText) || Boolean(result);
+    // Deduplication: if result is a string and equals messageText, don't show result
+    // This prevents showing "pong\npong" for commands that return { message: "pong" }
+    const isDuplicateResult = typeof result === 'string' && result === messageText;
+    const shouldShowResult = result && !isDuplicateResult;
+
+    const hasDetails = Boolean(messageText) || Boolean(shouldShowResult);
 
     return (
       <div className="space-y-3">
@@ -218,8 +223,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
           </div>
         )}
 
-        {/* Result area - only when result exists */}
-        {result && (
+        {/* Result area - only when result exists and is not a duplicate of messageText */}
+        {shouldShowResult && (
           <div className="text-sm" data-testid="system-result">
             {typeof result === 'string' ? (
               <MarkdownRenderer content={result} />

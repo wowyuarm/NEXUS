@@ -299,9 +299,136 @@ case 'help': {
 
 ---
 
+#### Handler Type 2.5: WebSocket with GUI (Modal-based Commands)
+
+**When**: Command requires both backend execution AND interactive UI panel (e.g., `/identity`)
+
+**Architectural Pattern**: GUI commands are **WebSocket commands with an additional presentation layer**. They follow the same pending → completed message flow but open a modal panel for rich user interaction.
+
+**Key Design Principle**: 
+> **"Dual Feedback Mechanism"** - GUI commands provide two independent layers of feedback:
+> 1. **Panel-internal feedback**: Immediate visual confirmation (loading/success/error states)
+> 2. **Chat flow feedback**: Persistent system message with backend-verified data (pending → completed)
+
+**Process**:
+
+1. **Command Detection** (executeCommand checks `requiresGUI`):
+   ```typescript
+   if (isGUICommand(command)) {
+     useUIStore.getState().openModal('identity');  // Open modal panel
+     // Note: Still follows WebSocket flow, modal is just presentation
+   }
+   ```
+
+2. **User Interaction** (inside modal panel, e.g., IdentityPanel):
+   - User performs action (create identity, import, delete)
+   - Panel shows immediate feedback: `setFeedback({ state: 'loading' })`
+
+3. **Create Pending Message** (CRITICAL - must happen before sending command):
+   ```typescript
+   const pendingMsg: Message = {
+     id: uuidv4(),
+     role: 'SYSTEM',
+     content: { 
+       command: '/identity', 
+       result: '身份已在 NEXUS 系统中创建...'  // Loading text
+     },
+     timestamp: new Date(),
+     metadata: { status: 'pending' }
+   };
+   useChatStore.setState(state => ({ messages: [...state.messages, pendingMsg] }));
+   ```
+
+4. **Sign and Send Command** (same as standard WebSocket):
+   ```typescript
+   const auth = await IdentityService.signCommand('/identity');
+   websocketManager.sendCommand('/identity', auth);
+   ```
+
+5. **Panel Shows Success** (immediate UI feedback, doesn't wait for backend):
+   ```typescript
+   setFeedback({ state: 'success', message: '身份已创建！' });
+   ```
+
+6. **Backend Returns Result** → `handleCommandResult` updates pending message:
+   ```typescript
+   // Finds pending message, updates to completed
+   updatedMessages[messageIndex] = {
+     ...existingMsg,
+     content: {
+       command: '/identity',
+       result: resultObj.message || resultObj.data  // Backend data
+     },
+     metadata: { status: 'completed', commandResult: resultObj }
+   };
+   ```
+
+**Result Priority** (as of 2025-10-16 refactor):
+```typescript
+// Priority: message (user-friendly text) > data (structured object) > fallback
+result: resultObj.message || resultObj.data || 'Command completed'
+```
+
+**Backend Response Format**:
+```python
+return {
+    "status": "success",
+    "message": "新的主权身份已成功创建！存在地址：xxxxx...xxx",  # User-friendly
+    "data": {
+        "public_key": public_key,
+        "verified": True,
+        "is_new": True
+    }
+}
+```
+
+**Why This Architecture?**
+
+1. **Consistency**: All WebSocket commands (GUI or not) follow identical message flow
+2. **No Duplicate Messages**: Only one system message per action (pending gets updated, not replaced)
+3. **Data Accuracy**: Backend is single source of truth, frontend doesn't hardcode results
+4. **User Experience**: Panel provides instant feedback while backend processes asynchronously
+
+**Special Case: Pure Frontend Operations**
+
+Some GUI operations don't involve backend (e.g., identity import from mnemonic):
+```typescript
+// Import is client-side only, create completed message directly
+const completedMsg: Message = {
+  id: uuidv4(),
+  role: 'SYSTEM',
+  content: { 
+    command: '/identity/import', 
+    result: `身份已导入。存在地址：${newPublicKey}`
+  },
+  timestamp: new Date(),
+  metadata: { 
+    status: 'completed',
+    commandResult: {
+      status: 'success',
+      data: { public_key: newPublicKey, action: 'import' }
+    }
+  }
+};
+```
+
+**Reference Implementation**: `aura/src/features/command/components/IdentityPanel.tsx`
+
+**Command Definition** (backend):
+```python
+COMMAND_DEFINITION = {
+    "name": "identity",
+    "handler": "websocket",
+    "requiresSignature": True,
+    "requiresGUI": True,  # Triggers modal in frontend
+}
+```
+
+---
+
 #### Handler Type 3: REST
 
-**When**: Future stateless operations (not currently used)
+**When**: Future stateless operations (e.g., `/config`, `/prompt` - planned)
 
 **Process**:
 1. Construct HTTP request from `command.restOptions`
@@ -316,6 +443,8 @@ interface RestOptions {
   headers?: Record<string, string>;
 }
 ```
+
+**Future Development**: REST-based GUI commands may follow similar dual-feedback pattern, but using HTTP instead of WebSocket for backend communication.
 
 ---
 
@@ -378,6 +507,7 @@ interface Command {
   usage: string;  // With / prefix for display (e.g., "/ping")
   handler: CommandHandler;
   requiresSignature?: boolean;
+  requiresGUI?: boolean;  // Triggers modal panel (e.g., identity)
   examples: string[];  // With / prefix (e.g., ["/ping"])
   restOptions?: RestOptions;
 }
@@ -398,7 +528,8 @@ COMMAND_DEFINITION = {
     "usage": str,  # With / prefix (external presentation)
     "handler": "client" | "websocket" | "rest",
     "examples": list[str],  # With / prefix
-    "requiresSignature": bool  # optional
+    "requiresSignature": bool,  # optional, triggers signature verification
+    "requiresGUI": bool  # optional, triggers modal panel in frontend
 }
 ```
 
@@ -689,6 +820,85 @@ if (Array.isArray(value)) {
 
 ---
 
+### Issue 6: GUI Command Creates Duplicate System Messages
+
+**Symptoms**: Executing `/identity` creates two system messages in chat
+
+**Root Cause**: Frontend manually creates completed message AND backend result triggers another one
+
+**Fixed In**: 2025-10-16 refactor (GUI commands now follow unified pending → completed flow)
+
+**Solution**:
+
+**❌ Old (incorrect) pattern**:
+```typescript
+// GUI panel action handler
+websocketManager.sendCommand('/identity', auth);
+createSystemMessage('/identity', '身份已创建');  // ❌ Manual creation
+// Later: handleCommandResult creates another message → DUPLICATE
+```
+
+**✅ New (correct) pattern**:
+```typescript
+// Step 1: Create pending message BEFORE sending
+const pendingMsg: Message = {
+  id: uuidv4(),
+  role: 'SYSTEM',
+  content: { command: '/identity', result: '正在处理...' },
+  metadata: { status: 'pending' }
+};
+useChatStore.setState(state => ({ messages: [...state.messages, pendingMsg] }));
+
+// Step 2: Send command
+websocketManager.sendCommand('/identity', auth);
+
+// Step 3: handleCommandResult automatically updates pending → completed
+// Result: Only ONE system message
+```
+
+**Verification**: Execute GUI command → check chat → only one system message appears
+
+**Reference**: `aura/src/features/command/components/IdentityPanel.tsx` (lines 113-144)
+
+---
+
+### Issue 7: GUI Command Shows Generic "Command completed" Instead of Meaningful Message
+
+**Symptoms**: System message shows `"Command completed"` instead of actual result
+
+**Root Cause**: Backend doesn't return `message` field, frontend falls back to generic text
+
+**Solution**:
+
+**Backend** - Always include `message` field:
+```python
+# ❌ Missing message field
+return {
+    "status": "success",
+    "data": {"key": "value"}
+}
+
+# ✅ Include user-friendly message
+return {
+    "status": "success",
+    "message": "操作成功！详细信息：xxxxx",  # User-facing text
+    "data": {"key": "value"}  # Structured data
+}
+```
+
+**Frontend** - Result priority (as of 2025-10-16):
+```typescript
+// chatStore.ts handleCommandResult
+result: resultObj.message || resultObj.data || 'Command completed'
+// Priority: message (text) > data (object) > fallback
+```
+
+**Files**:
+- Backend: `nexus/commands/definition/identity.py` (lines 110-126, 147-167)
+- Frontend: `aura/src/features/chat/store/chatStore.ts` (lines 418-430, 440-450)
+
+---
+
 ## Adding a New Command
 
 ### Step 1: Create Command Module
@@ -759,6 +969,141 @@ Registered command: mycommand from nexus.commands.definition.my_command
 AURA will fetch updated command list on next page load via `/api/v1/commands`.
 
 **Verify**: Type `/` in chat → see new command in palette
+
+---
+
+### GUI Command Variant (Modal-based)
+
+**When to Use**: Command requires rich user interaction (forms, multi-step workflows, complex state)
+
+**Examples**: `/identity` (create/import/export identity), `/config` (future), `/prompt` (future)
+
+#### Backend: Enable GUI Mode
+
+**File**: `nexus/commands/definition/my_gui_command.py`
+
+```python
+COMMAND_DEFINITION = {
+    "name": "myguicommand",
+    "handler": "websocket",  # or "rest" for future REST-based GUI commands
+    "requiresGUI": True,  # ✅ Triggers modal panel
+    "requiresSignature": True,  # optional, if needed
+    # ... other fields
+}
+
+async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Execute the GUI command.
+    
+    Returns:
+        Dict with status, message (user-friendly text), and data
+    """
+    # Your backend logic here
+    
+    return {
+        "status": "success",
+        "message": "操作成功！详细信息：xxxxx",  # ✅ User-friendly message
+        "data": {
+            "key": "value",
+            # Structured data for programmatic use
+        }
+    }
+```
+
+**Critical**: Always return a `message` field with user-friendly text. This will be displayed in the chat system message.
+
+#### Frontend: Create Modal Panel Component
+
+**File**: `aura/src/features/command/components/MyGUICommandPanel.tsx`
+
+```typescript
+import { useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { useChatStore } from '@/features/chat/store/chatStore';
+import { websocketManager } from '@/services/websocket/manager';
+import type { Message } from '@/features/chat/types';
+
+export const MyGUICommandPanel: React.FC = () => {
+  const [feedback, setFeedback] = useState<{ state: 'idle' | 'loading' | 'success' | 'error' }>({ state: 'idle' });
+
+  const handleAction = async () => {
+    setFeedback({ state: 'loading' });
+    
+    try {
+      // Step 1: Create PENDING system message BEFORE sending command
+      const pendingMsg: Message = {
+        id: uuidv4(),
+        role: 'SYSTEM',
+        content: { 
+          command: '/myguicommand', 
+          result: '正在处理...'  // Loading text
+        },
+        timestamp: new Date(),
+        metadata: { status: 'pending' }
+      };
+      useChatStore.setState((state) => ({
+        messages: [...state.messages, pendingMsg]
+      }));
+      
+      // Step 2: Send command to backend
+      websocketManager.sendCommand('/myguicommand');
+      
+      // Step 3: Show in-panel success (immediate UI feedback)
+      setFeedback({ state: 'success' });
+      
+      // handleCommandResult will automatically update the pending message
+      // when backend returns the result
+      
+    } catch (error) {
+      setFeedback({ state: 'error' });
+    }
+  };
+
+  return (
+    <div>
+      {/* Your UI here */}
+      <button onClick={handleAction}>Execute</button>
+      {feedback.state === 'loading' && <p>Loading...</p>}
+      {feedback.state === 'success' && <p>Success!</p>}
+    </div>
+  );
+};
+```
+
+**Architecture Pattern Checklist**:
+
+- ✅ **DO**: Create pending message BEFORE sending command
+- ✅ **DO**: Use `resultObj.message` priority in backend response
+- ✅ **DO**: Show immediate panel feedback for UX
+- ✅ **DO**: Let `handleCommandResult` update the pending message automatically
+- ❌ **DON'T**: Create system message manually after command (causes duplicates)
+- ❌ **DON'T**: Hardcode result text in frontend (use backend data)
+
+#### Register Modal in UIStore
+
+**File**: `aura/src/stores/uiStore.ts`
+
+```typescript
+type ModalType = 'identity' | 'myguicommand' | null;  // Add your modal type
+```
+
+**File**: `aura/src/App.tsx` (or modal container)
+
+```typescript
+{activeModal === 'myguicommand' && <MyGUICommandPanel />}
+```
+
+#### Test GUI Command Flow
+
+1. Execute `/myguicommand` in chat
+2. **Verify**:
+   - Modal opens
+   - Pending message appears in chat: `"正在处理..."`
+   - User performs action → panel shows success
+   - Backend returns → pending message updates to completed with backend data
+   - **Only one system message** in chat (no duplicates)
+
+**Reference**: `IdentityPanel.tsx` is the canonical example of this pattern.
 
 ---
 
@@ -889,8 +1234,9 @@ COMMAND_DEFINITION = {"requiresSignature": True}
 - `aura/src/features/command/commandExecutor.ts` - Execution router
 - `aura/src/features/command/hooks/useCommandLoader.ts` - Discovery hook
 - `aura/src/features/command/components/CommandPalette.tsx` - UI component
+- `aura/src/features/command/components/IdentityPanel.tsx` - GUI command reference implementation
 - `aura/src/features/chat/components/ChatMessage.tsx` - Result rendering
-- `aura/src/features/chat/store/chatStore.ts` - Result handling
+- `aura/src/features/chat/store/chatStore.ts` - Result handling (handleCommandResult)
 
 ### External Resources
 
@@ -899,7 +1245,15 @@ COMMAND_DEFINITION = {"requiresSignature": True}
 
 ---
 
-**Last Updated**: 2025-10-07  
+**Last Updated**: 2025-10-16  
 **Version**: NEXUS v0.2.0  
 **Maintainer**: AI Collaboration Team
+
+**Recent Updates**:
+- 2025-10-16: Added comprehensive GUI command (modal-based) architecture documentation
+  - Handler Type 2.5: WebSocket with GUI pattern
+  - Dual feedback mechanism architecture
+  - Message priority refactor (message > data)
+  - GUI command development guide
+  - Common issues: duplicate messages and generic results
 

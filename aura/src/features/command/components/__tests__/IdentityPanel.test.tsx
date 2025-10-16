@@ -12,13 +12,22 @@ import { IdentityPanel } from '../IdentityPanel';
 
 // Mock dependencies
 vi.mock('@/features/chat/store/chatStore', () => ({
-  useChatStore: vi.fn((selector) => {
-    const state = {
-      visitorMode: false,
-      createSystemMessage: vi.fn()
-    };
-    return selector ? selector(state) : state;
-  })
+  useChatStore: Object.assign(
+    vi.fn((selector) => {
+      const state = {
+        visitorMode: false,
+        createSystemMessage: vi.fn()
+      };
+      return selector ? selector(state) : state;
+    }),
+    {
+      setState: vi.fn(),
+      getState: vi.fn(() => ({
+        visitorMode: false,
+        createSystemMessage: vi.fn()
+      }))
+    }
+  )
 }));
 
 vi.mock('@/stores/uiStore', () => ({
@@ -179,7 +188,7 @@ describe('IdentityPanel', () => {
       fireEvent.click(importButton);
 
       // Assert: Should show textarea for mnemonic input
-      const textarea = screen.getByPlaceholderText(/请输入 12 或 24 个助记词/i);
+      const textarea = screen.getByPlaceholderText(/请输入助记词/i);
       expect(textarea).toBeInTheDocument();
       expect(screen.getByText(/确认导入/i)).toBeInTheDocument();
       expect(screen.getByText(/取消/)).toBeInTheDocument();
@@ -197,7 +206,7 @@ describe('IdentityPanel', () => {
       const importButton = screen.getByText(/切换\/导入身份/i);
       fireEvent.click(importButton);
 
-      const textarea = screen.getByPlaceholderText(/请输入 12 或 24 个助记词/i);
+      const textarea = screen.getByPlaceholderText(/请输入助记词/i);
       await user.type(textarea, 'test test test test test test test test test test test junk');
 
       const confirmButton = screen.getByRole('button', { name: /确认导入/i });
@@ -220,7 +229,7 @@ describe('IdentityPanel', () => {
       const importButton = screen.getByText(/切换\/导入身份/i);
       fireEvent.click(importButton);
 
-      expect(screen.getByPlaceholderText(/请输入 12 或 24 个助记词/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/请输入助记词/i)).toBeInTheDocument();
 
       // Act: Cancel
       const cancelButton = screen.getByText(/取消/);
@@ -310,7 +319,7 @@ describe('IdentityPanel', () => {
       fireEvent.click(importButton);
 
       // Assert: Should show import interface
-      const textarea = screen.getByPlaceholderText(/请输入 12 或 24 个助记词/i);
+      const textarea = screen.getByPlaceholderText(/请输入助记词/i);
       expect(textarea).toBeInTheDocument();
       expect(screen.getByText(/确认导入/i)).toBeInTheDocument();
     });
@@ -338,7 +347,7 @@ describe('IdentityPanel', () => {
       const importButton = screen.getByText(/导入已有身份/i);
       fireEvent.click(importButton);
 
-      const textarea = screen.getByPlaceholderText(/请输入 12 或 24 个助记词/i);
+      const textarea = screen.getByPlaceholderText(/请输入助记词/i);
       await user.type(textarea, 'test mnemonic');
 
       const confirmButton = screen.getByRole('button', { name: /确认导入/i });

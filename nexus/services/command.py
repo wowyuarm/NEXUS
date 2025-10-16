@@ -225,7 +225,7 @@ class CommandService:
                 verified_public_key = verification_result.get('public_key')
 
             # Build execution context
-            context = self._build_execution_context(command_name, verified_public_key)
+            context = self._build_execution_context(command_name, command_str, verified_public_key)
 
             # Execute the command
             try:
@@ -273,12 +273,16 @@ class CommandService:
     def _parse_command_name(self, content: str) -> str:
         """
         Parse the command name from the message content.
+        
+        For commands with sub-paths (e.g., "/identity/delete"), this returns
+        only the base command name (e.g., "identity"). The full command string
+        is passed separately in the execution context for internal routing.
 
         Args:
-            content: The raw command string (e.g., "/ping" or "ping")
+            content: The raw command string (e.g., "/ping" or "/identity/delete")
 
         Returns:
-            The parsed command name
+            The parsed base command name (e.g., "ping" or "identity")
 
         Raises:
             ValueError: If command name is empty or invalid
@@ -292,7 +296,11 @@ class CommandService:
         if not command:
             raise ValueError("Command name cannot be empty")
 
-        return command
+        # For commands with sub-paths (e.g., "identity/delete"), extract only the base command
+        # The full command string is passed in context['command'] for internal routing
+        base_command = command.split('/')[0]
+
+        return base_command
 
     def _verify_signature(self, command_str: str, auth_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -386,12 +394,13 @@ class CommandService:
                 "message": f"Authentication failed: {str(e)}"
             }
 
-    def _build_execution_context(self, command_name: str, public_key: Optional[str] = None) -> Dict[str, Any]:
+    def _build_execution_context(self, command_name: str, command_str: str, public_key: Optional[str] = None) -> Dict[str, Any]:
         """
         Build the execution context for a command.
 
         Args:
-            command_name: Name of the command being executed
+            command_name: Name of the command being executed (parsed, without leading slash)
+            command_str: The full original command string (e.g., "/identity/delete")
             public_key: Verified public key (if signature verification was performed)
 
         Returns:
@@ -399,6 +408,7 @@ class CommandService:
         """
         context = {
             'command_name': command_name,
+            'command': command_str,  # Pass the full command string for routing within commands
             'command_definitions': self._command_definitions,
             **self.services  # Inject all available services
         }
@@ -407,7 +417,7 @@ class CommandService:
         if public_key:
             context['public_key'] = public_key
 
-        logger.debug(f"Built execution context for command '{command_name}'")
+        logger.debug(f"Built execution context for command '{command_name}' (full: '{command_str}')")
         return context
 
     async def _publish_result(self, original_message: Message, result: Dict[str, Any]) -> None:

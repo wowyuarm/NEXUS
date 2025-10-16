@@ -415,11 +415,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           : existingMsg.content.command;
         
         // Update with structured content
+        // Priority: message (user-friendly text) > data (structured object) > fallback
         updatedMessages[messageIndex] = {
           ...existingMsg,
           content: {
             command: existingCommand,
-            result: resultObj.data || resultObj.message || 'Command completed'
+            result: resultObj.message || resultObj.data || 'Command completed'
           },
           metadata: {
             ...existingMsg.metadata,
@@ -436,12 +437,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
 
       // If no pending message found, append a new SYSTEM message with structured content
+      // Priority: message (user-friendly text) > data (structured object) > fallback
       const newMessage: Message = {
         id: uuidv4(),
         role: 'SYSTEM',
         content: {
           command: commandText || 'unknown',
-          result: resultObj.data || resultObj.message || 'Command completed'
+          result: resultObj.message || resultObj.data || 'Command completed'
         },
         timestamp: new Date(),
         metadata: { status: 'completed', commandResult: resultObj }

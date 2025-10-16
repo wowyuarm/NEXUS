@@ -107,10 +107,16 @@ async def _handle_create_or_verify_identity(public_key: str, identity_service) -
     else:
         logger.info(f"Existing identity verified for public_key={public_key}")
     
+    # Create meaningful message for frontend display
+    if is_new:
+        message = f"新的主权身份已成功创建！存在地址：{public_key[:10]}...{public_key[-8:]}"
+    else:
+        message = f"身份已验证！存在地址：{public_key[:10]}...{public_key[-8:]}"
+    
     # Return success with identity information
-    # Note: message field is for potential future use, currently not displayed in GUI
     return {
         "status": "success",
+        "message": message,
         "data": {
             "public_key": public_key,
             "verified": True,
@@ -138,8 +144,10 @@ async def _handle_delete_identity(public_key: str, identity_service) -> Dict[str
     
     if success:
         logger.info(f"Identity deleted successfully for public_key={public_key}")
+        message = f"身份已从NEXUS系统中清除。存在地址：{public_key[:10]}...{public_key[-8:]}"
         return {
             "status": "success",
+            "message": message,
             "data": {
                 "public_key": public_key,
                 "deleted": True
@@ -148,8 +156,10 @@ async def _handle_delete_identity(public_key: str, identity_service) -> Dict[str
     else:
         # Deletion failed or identity didn't exist
         logger.warning(f"Identity deletion failed or not found for public_key={public_key}")
+        message = "⚠️ 未找到身份记录或删除失败"
         return {
             "status": "warning",
+            "message": message,
             "data": {
                 "public_key": public_key,
                 "deleted": False

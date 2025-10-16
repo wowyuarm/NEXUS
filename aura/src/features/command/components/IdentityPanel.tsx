@@ -22,6 +22,8 @@ import { useChatStore } from '@/features/chat/store/chatStore';
 import { useUIStore } from '@/stores/uiStore';
 import { IdentityService } from '@/services/identity/identity';
 import { websocketManager } from '@/services/websocket/manager';
+import { v4 as uuidv4 } from 'uuid';
+import type { Message } from '@/features/chat/types';
 
 type FeedbackState = 'idle' | 'loading' | 'success' | 'error';
 
@@ -32,7 +34,6 @@ interface ActionFeedback {
 
 export const IdentityPanel: React.FC = () => {
   const visitorMode = useChatStore((state) => state.visitorMode);
-  const createSystemMessage = useChatStore((state) => state.createSystemMessage);
   const closeModal = useUIStore((state) => state.closeModal);
   
   const [publicKey, setPublicKey] = useState<string>('');
@@ -110,14 +111,28 @@ export const IdentityPanel: React.FC = () => {
       const newIdentity = await IdentityService.getIdentity();
       console.log('✅ New identity created:', newIdentity.publicKey);
       
+      // Create PENDING system message (waiting for backend confirmation)
+      // This follows the standard WebSocket command flow: pending → completed
+      const pendingMsg: Message = {
+        id: uuidv4(),
+        role: 'SYSTEM',
+        content: { 
+          command: '/identity', 
+          result: '身份已在 NEXUS 系统中创建...' 
+        },
+        timestamp: new Date(),
+        metadata: { status: 'pending' }
+      };
+      useChatStore.setState((state) => ({
+        messages: [...state.messages, pendingMsg]
+      }));
+      
       // Sign and send /identity command to backend to register in database
       const auth = await IdentityService.signCommand('/identity');
       websocketManager.sendCommand('/identity', auth);
       
-      // Note: In GUI mode, we don't wait for backend response.
-      // The frontend directly creates the system message for user feedback.
-      
-      // Show in-panel success feedback
+      // Show in-panel success feedback (immediate UI feedback)
+      // Note: This is separate from the chat message flow
       setCreateFeedback({ 
         state: 'success', 
         message: '身份已创建！' 
@@ -126,8 +141,8 @@ export const IdentityPanel: React.FC = () => {
       // Reconnect WebSocket to establish member session
       await websocketManager.reconnect();
       
-      // Create system message for chat history (permanent record)
-      createSystemMessage('/identity', '新的主权身份已成功锚定');
+      // handleCommandResult will automatically update the pending message to completed
+      // when the backend returns the result
       
       // Close modal after short delay
       setTimeout(() => {
@@ -171,7 +186,26 @@ export const IdentityPanel: React.FC = () => {
       await websocketManager.reconnect(newPublicKey);
       
       // Create system message for chat history (permanent record)
-      createSystemMessage('/identity', `身份已导入。存在地址：${newPublicKey.slice(0, 10)}...${newPublicKey.slice(-8)}`);
+      // Note: Import is a pure frontend operation, so we create a completed message directly
+      const completedMsg: Message = {
+        id: uuidv4(),
+        role: 'SYSTEM',
+        content: { 
+          command: '/identity/import', 
+          result: `身份已导入。存在地址：${newPublicKey}`
+        },
+        timestamp: new Date(),
+        metadata: { 
+          status: 'completed',
+          commandResult: {
+            status: 'success',
+            data: { public_key: newPublicKey, action: 'import' }
+          }
+        }
+      };
+      useChatStore.setState((state) => ({
+        messages: [...state.messages, completedMsg]
+      }));
       
       // Close modal after short delay
       setTimeout(() => {
@@ -224,7 +258,7 @@ export const IdentityPanel: React.FC = () => {
       await navigator.clipboard.writeText(exportedMnemonic);
       setExportFeedback({ 
         state: 'success', 
-        message: '助记词已复制到剪贴板！' 
+        message: '助记词已复制！' 
       });
     } catch (error) {
       console.error('Failed to copy mnemonic:', error);
@@ -243,23 +277,38 @@ export const IdentityPanel: React.FC = () => {
     setResetFeedback({ state: 'loading' });
     
     try {
-      // Step 1: Sign and send delete request to backend (before clearing localStorage)
-      console.log('🗑️ Deleting identity from backend database...');
+      // Step 1: Create PENDING system message (waiting for backend confirmation)
+      // This follows the standard WebSocket command flow: pending → completed
+      const pendingMsg: Message = {
+        id: uuidv4(),
+        role: 'SYSTEM',
+        content: { 
+          command: '/identity/delete', 
+          result: '正在从 NEXUS 系统清除身份...' 
+        },
+        timestamp: new Date(),
+        metadata: { status: 'pending' }
+      };
+      useChatStore.setState((state) => ({
+        messages: [...state.messages, pendingMsg]
+      }));
+      
+      // Step 2: Sign and send delete request to backend (before clearing localStorage)
+      console.log('Deleting identity from backend database...');
       const auth = await IdentityService.signCommand('/identity/delete');
       websocketManager.sendCommand('/identity/delete', auth);
       
       // Wait briefly for backend to process
       await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Step 2: Clear identity from localStorage (private key + mnemonic)
+      // Step 3: Clear identity from localStorage (private key + mnemonic)
       console.log('🧹 Clearing local identity data...');
       IdentityService.clearIdentity();
       
-      // Step 3: Create system message for chat history (permanent record)
-      // Note: In GUI mode, frontend creates system message directly
-      createSystemMessage('/identity', '身份已从系统中清除');
+      // handleCommandResult will automatically update the pending message to completed
+      // when the backend returns the result
       
-      // Show in-panel success feedback
+      // Show in-panel success feedback (immediate UI feedback)
       setResetFeedback({ 
         state: 'success', 
         message: '身份已完全清除' 
@@ -345,7 +394,7 @@ export const IdentityPanel: React.FC = () => {
               <Textarea
                 value={mnemonicInput}
                 onChange={(e) => setMnemonicInput(e.target.value)}
-                placeholder="请输入 12 或 24 个助记词，用空格分隔..."
+                placeholder="请输入助记词"
                 minRows={3}
                 className="h-24 text-sm"
               />
@@ -434,7 +483,7 @@ export const IdentityPanel: React.FC = () => {
                 </Button>
                 
                 <p className="text-xs text-red-500">
-                  ⚠️ 请妥善保管助记词，切勿泄露。助记词是恢复身份的唯一凭证。
+                  ⚠️ 请妥善保管助记词，切勿泄露。助记词是恢复/切换身份的唯一凭证。
                 </p>
               </div>
             )}
@@ -460,7 +509,7 @@ export const IdentityPanel: React.FC = () => {
             <Textarea
               value={mnemonicInput}
               onChange={(e) => setMnemonicInput(e.target.value)}
-              placeholder="请输入 12 或 24 个助记词，用空格分隔..."
+              placeholder="请输入助记词"
               minRows={3}
               className="h-24 text-sm"
             />
