@@ -16,7 +16,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Check, Copy, Download, Upload, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { Check, Copy, Download, Upload, UserPlus, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { Button, Textarea } from '@/components/ui';
 import { useChatStore } from '@/features/chat/store/chatStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -44,6 +44,8 @@ export const IdentityPanel: React.FC = () => {
   const [createFeedback, setCreateFeedback] = useState<ActionFeedback>({ state: 'idle' });
   const [importFeedback, setImportFeedback] = useState<ActionFeedback>({ state: 'idle' });
   const [exportFeedback, setExportFeedback] = useState<ActionFeedback>({ state: 'idle' });
+  const [resetFeedback, setResetFeedback] = useState<ActionFeedback>({ state: 'idle' });
+  const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
 
   // Load current identity on mount
   useEffect(() => {
@@ -80,23 +82,42 @@ export const IdentityPanel: React.FC = () => {
     }
   }, [exportFeedback.state]);
 
+  useEffect(() => {
+    if (resetFeedback.state === 'success') {
+      const timer = setTimeout(() => setResetFeedback({ state: 'idle' }), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [resetFeedback.state]);
+
   /**
    * Create new identity via WebSocket /identity command
+   * For visitor mode, this will clear any old identity and create a fresh one with mnemonic
    */
   const handleCreateIdentity = async () => {
     setCreateFeedback({ state: 'loading' });
     
     try {
-      // Sign and send /identity command to backend
-      const auth = await IdentityService.signCommand('/identity');
+      // In visitor mode, ensure we create a completely new identity
+      // Clear any old/legacy identity from localStorage first
+      if (visitorMode && IdentityService.hasIdentity()) {
+        console.log('🧹 Clearing old identity before creating new one...');
+        IdentityService.clearIdentity();
+      }
       
-      // Send command via WebSocket (bypassing GUI routing)
+      // Generate new identity with mnemonic support
+      // This must be called AFTER clearing old identity to ensure a fresh one is created
+      console.log('🔑 Generating new identity with mnemonic support...');
+      const newIdentity = await IdentityService.getIdentity();
+      console.log('✅ New identity created:', newIdentity.publicKey);
+      
+      // Sign and send /identity command to backend to register in database
+      const auth = await IdentityService.signCommand('/identity');
       websocketManager.sendCommand('/identity', auth);
       
-      // Wait for backend response via WebSocket event
-      // The chatStore will handle the command_result event and update visitorMode
+      // Note: In GUI mode, we don't wait for backend response.
+      // The frontend directly creates the system message for user feedback.
       
-      // Show success feedback
+      // Show in-panel success feedback
       setCreateFeedback({ 
         state: 'success', 
         message: '身份已创建！' 
@@ -105,8 +126,8 @@ export const IdentityPanel: React.FC = () => {
       // Reconnect WebSocket to establish member session
       await websocketManager.reconnect();
       
-      // Create system message for permanent record
-      createSystemMessage('/identity', '新的主权身份已成功锚定。');
+      // Create system message for chat history (permanent record)
+      createSystemMessage('/identity', '新的主权身份已成功锚定');
       
       // Close modal after short delay
       setTimeout(() => {
@@ -140,7 +161,7 @@ export const IdentityPanel: React.FC = () => {
       // Import identity from mnemonic (overwrites localStorage)
       const newPublicKey = await IdentityService.importFromMnemonic(mnemonicInput);
       
-      // Show success feedback
+      // Show in-panel success feedback
       setImportFeedback({ 
         state: 'success', 
         message: '身份已导入！' 
@@ -149,7 +170,7 @@ export const IdentityPanel: React.FC = () => {
       // Reconnect WebSocket with new identity
       await websocketManager.reconnect(newPublicKey);
       
-      // Create system message for permanent record
+      // Create system message for chat history (permanent record)
       createSystemMessage('/identity', `身份已导入。存在地址：${newPublicKey.slice(0, 10)}...${newPublicKey.slice(-8)}`);
       
       // Close modal after short delay
@@ -176,14 +197,6 @@ export const IdentityPanel: React.FC = () => {
     
     try {
       const mnemonic = IdentityService.exportMnemonic();
-      
-      if (!mnemonic) {
-        setExportFeedback({ 
-          state: 'error', 
-          message: '此身份无助记词（旧版本创建）' 
-        });
-        return;
-      }
       
       setExportedMnemonic(mnemonic);
       setShowMnemonic(true);
@@ -218,6 +231,53 @@ export const IdentityPanel: React.FC = () => {
       setExportFeedback({ 
         state: 'error', 
         message: '复制失败' 
+      });
+    }
+  };
+
+  /**
+   * Clear/Reset current identity
+   * This deletes the identity from both backend database and local storage
+   */
+  const handleResetIdentity = async () => {
+    setResetFeedback({ state: 'loading' });
+    
+    try {
+      // Step 1: Sign and send delete request to backend (before clearing localStorage)
+      console.log('🗑️ Deleting identity from backend database...');
+      const auth = await IdentityService.signCommand('/identity/delete');
+      websocketManager.sendCommand('/identity/delete', auth);
+      
+      // Wait briefly for backend to process
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Step 2: Clear identity from localStorage (private key + mnemonic)
+      console.log('🧹 Clearing local identity data...');
+      IdentityService.clearIdentity();
+      
+      // Step 3: Create system message for chat history (permanent record)
+      // Note: In GUI mode, frontend creates system message directly
+      createSystemMessage('/identity', '身份已从系统中清除');
+      
+      // Show in-panel success feedback
+      setResetFeedback({ 
+        state: 'success', 
+        message: '身份已完全清除' 
+      });
+      
+      // Close modal and cleanup
+      closeModal();
+      websocketManager.disconnect();
+      
+      // Reload page to reset to visitor mode
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    } catch (error) {
+      console.error('Failed to reset identity:', error);
+      setResetFeedback({ 
+        state: 'error', 
+        message: error instanceof Error ? error.message : '清除失败' 
       });
     }
   };
@@ -427,6 +487,54 @@ export const IdentityPanel: React.FC = () => {
             {renderFeedback(importFeedback)}
           </div>
         )}
+      </div>
+
+      {/* Reset Identity Section */}
+      <div className="space-y-3 pt-4 border-t border-border border-dashed">
+        <div className="p-3 bg-muted/20 rounded-lg border border-border/30">
+          <p className="text-xs text-muted-foreground mb-3">
+            ⚠️ 危险操作：清除当前身份将删除本地存储的密钥。如果您没有备份助记词，将<span className="text-red-500 font-medium">永久丢失</span>此身份！
+          </p>
+          
+          {!showResetConfirm ? (
+            <Button
+              variant="ghost"
+              icon={<Trash2 size={16} />}
+              onClick={() => setShowResetConfirm(true)}
+              fullWidth
+              className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+            >
+              清除当前身份
+            </Button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-red-600 dark:text-red-400 font-medium">
+                确认要清除当前身份吗？此操作不可撤销！
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={handleResetIdentity}
+                  disabled={resetFeedback.state === 'loading'}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                >
+                  {resetFeedback.state === 'loading' ? '清除中...' : '确认清除'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowResetConfirm(false);
+                    setResetFeedback({ state: 'idle' });
+                  }}
+                  className="flex-1"
+                >
+                  取消
+                </Button>
+              </div>
+              {renderFeedback(resetFeedback)}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

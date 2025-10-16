@@ -112,17 +112,37 @@ describe('IdentityService', () => {
   });
 
   describe('exportMnemonic', () => {
-    it('should return null for legacy identity without mnemonic', async () => {
-      // Arrange: Use a raw private key (no mnemonic)
-      const legacyPrivateKey = '0x1234567890123456789012345678901234567890123456789012345678901234';
-      localStorageMock.getItem.mockReturnValue(legacyPrivateKey);
+    it('should export mnemonic for identity with mnemonic', async () => {
+      // Arrange: Identity with mnemonic in localStorage
+      const testPrivateKey = '0x1234567890123456789012345678901234567890123456789012345678901234';
+      const testMnemonic = 'test test test test test test test test test test test junk';
+      localStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === 'nexus_private_key') return testPrivateKey;
+        if (key === 'nexus_mnemonic') return testMnemonic;
+        return null;
+      });
 
-      // Act: Try to export mnemonic
+      // Act: Export mnemonic
       const { IdentityService } = await import('./identity');
       const mnemonic = IdentityService.exportMnemonic();
 
-      // Assert: Should return null for legacy identities
-      expect(mnemonic).toBeNull();
+      // Assert: Should return the mnemonic
+      expect(mnemonic).toBe(testMnemonic);
+    });
+
+    it('should throw error for legacy identity without mnemonic', async () => {
+      // Arrange: Legacy identity without mnemonic
+      const legacyPrivateKey = '0x1234567890123456789012345678901234567890123456789012345678901234';
+      localStorageMock.getItem.mockImplementation((key: string) => {
+        if (key === 'nexus_private_key') return legacyPrivateKey;
+        if (key === 'nexus_mnemonic') return null; // No mnemonic
+        return null;
+      });
+
+      // Act & Assert: Should throw error with helpful message
+      const { IdentityService } = await import('./identity');
+      expect(() => IdentityService.exportMnemonic())
+        .toThrow('No mnemonic found');
     });
 
     it('should throw error if no identity exists in storage', async () => {

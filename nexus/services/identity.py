@@ -233,5 +233,30 @@ class IdentityService:
         
         return success
 
+    async def delete_identity(self, public_key: str) -> bool:
+        """Delete an identity from the database.
+        
+        This is typically called when a user wants to permanently remove their identity.
+        
+        Args:
+            public_key: The user's public key
+            
+        Returns:
+            bool: True if deletion was successful, False otherwise
+        """
+        logger.info(f"Deleting identity for public_key={public_key}")
+        
+        success = await asyncio.to_thread(
+            self.db_service.provider.delete_identity,
+            public_key
+        )
+        
+        if success:
+            logger.info(f"Successfully deleted identity for public_key={public_key}")
+        else:
+            logger.warning(f"Failed to delete identity (may not exist) for public_key={public_key}")
+        
+        return success
+
 
 

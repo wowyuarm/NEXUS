@@ -11,6 +11,7 @@ export interface CommandAuth {
 }
 
 const STORAGE_KEY = 'nexus_private_key';
+const MNEMONIC_KEY = 'nexus_mnemonic';
 
 export const IdentityService = {
   /**
@@ -33,8 +34,15 @@ export const IdentityService = {
         // Generate new identity with mnemonic support
         const wallet = Wallet.createRandom();
 
-        // Persist private key to localStorage
+        // Persist both private key AND mnemonic to localStorage
+        // This is critical: storing only privateKey loses the mnemonic forever!
         localStorage.setItem(STORAGE_KEY, wallet.privateKey);
+        
+        // Save mnemonic phrase separately for backup/export
+        if (wallet.mnemonic && typeof wallet.mnemonic === 'object' && 'phrase' in wallet.mnemonic) {
+          localStorage.setItem(MNEMONIC_KEY, (wallet.mnemonic as { phrase: string }).phrase);
+          console.log('✅ Mnemonic saved to localStorage');
+        }
 
         return {
           privateKey: wallet.privateKey,
@@ -48,6 +56,10 @@ export const IdentityService = {
 
       try {
         localStorage.setItem(STORAGE_KEY, wallet.privateKey);
+        // Also save mnemonic in error fallback
+        if (wallet.mnemonic && typeof wallet.mnemonic === 'object' && 'phrase' in wallet.mnemonic) {
+          localStorage.setItem(MNEMONIC_KEY, (wallet.mnemonic as { phrase: string }).phrase);
+        }
       } catch (fallbackError) {
         console.warn('Failed to persist identity to localStorage:', fallbackError);
       }
@@ -61,10 +73,13 @@ export const IdentityService = {
 
   /**
    * Clear stored identity (for testing or logout)
+   * Removes both private key and mnemonic from localStorage
    */
   clearIdentity(): void {
     try {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(MNEMONIC_KEY);
+      console.log('🧹 Identity cleared (private key and mnemonic)');
     } catch (error) {
       console.warn('Failed to clear identity from localStorage:', error);
     }
@@ -125,13 +140,17 @@ export const IdentityService = {
 
   /**
    * Export mnemonic phrase for identity backup
-   * Returns the 12 or 24 word mnemonic phrase if the identity was created with one.
-   * For legacy identities created without mnemonic, returns null.
+   * Returns the 12 or 24 word mnemonic phrase.
    * 
-   * @returns Mnemonic phrase or null if identity doesn't have one
-   * @throws Error if no identity exists in storage
+   * IMPORTANT: This reads directly from localStorage, not from wallet.mnemonic,
+   * because wallets created with new Wallet(privateKey) lose their mnemonic.
+   * 
+   * All identities created after v0.2.0 will have mnemonics.
+   * 
+   * @returns Mnemonic phrase
+   * @throws Error if no identity or mnemonic exists in storage
    */
-  exportMnemonic(): string | null {
+  exportMnemonic(): string {
     try {
       const privateKey = localStorage.getItem(STORAGE_KEY);
       
@@ -139,17 +158,15 @@ export const IdentityService = {
         throw new Error('No identity found. Please create an identity first.');
       }
 
-      // Create wallet instance from private key
-      const wallet = new Wallet(privateKey);
+      // Read mnemonic directly from localStorage
+      const mnemonic = localStorage.getItem(MNEMONIC_KEY);
       
-      // Check if wallet is an HDNodeWallet (has mnemonic)
-      // Only wallets created with Wallet.createRandom() or Wallet.fromPhrase() have mnemonics
-      if ('mnemonic' in wallet && wallet.mnemonic && typeof wallet.mnemonic === 'object' && 'phrase' in wallet.mnemonic) {
-        return (wallet.mnemonic as { phrase: string }).phrase;
+      if (!mnemonic) {
+        throw new Error('No mnemonic found. This identity was created with an older version. Please clear and recreate your identity.');
       }
       
-      // Return null for legacy identities without mnemonic
-      return null;
+      console.log('✅ Mnemonic exported successfully');
+      return mnemonic;
     } catch (error) {
       console.error('Failed to export mnemonic:', error);
       throw error;
@@ -160,6 +177,8 @@ export const IdentityService = {
    * Import identity from mnemonic phrase
    * Validates the mnemonic and overwrites the current identity.
    * This enables identity restoration and cross-device identity portability.
+   * 
+   * IMPORTANT: Saves both private key AND mnemonic to localStorage.
    * 
    * @param mnemonic - 12 or 24 word mnemonic phrase
    * @returns The public key (address) of the imported identity
@@ -172,9 +191,12 @@ export const IdentityService = {
       const wallet = Wallet.fromPhrase(mnemonic.trim());
       
       // Overwrite existing identity with new one
+      // Save BOTH private key and mnemonic
       localStorage.setItem(STORAGE_KEY, wallet.privateKey);
+      localStorage.setItem(MNEMONIC_KEY, mnemonic.trim());
       
       console.log('✅ Identity imported successfully:', wallet.address);
+      console.log('✅ Mnemonic saved to localStorage');
       
       return wallet.address;
     } catch (error) {

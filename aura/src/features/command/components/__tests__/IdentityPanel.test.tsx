@@ -41,7 +41,9 @@ vi.mock('@/services/identity/identity', () => ({
       signature: '0xabcd...'
     }),
     exportMnemonic: vi.fn().mockReturnValue('test test test test test test test test test test test junk'),
-    importFromMnemonic: vi.fn().mockResolvedValue('0xNewPublicKey')
+    importFromMnemonic: vi.fn().mockResolvedValue('0xNewPublicKey'),
+    hasIdentity: vi.fn().mockReturnValue(false),
+    clearIdentity: vi.fn()
   }
 }));
 
@@ -151,9 +153,11 @@ describe('IdentityPanel', () => {
     });
 
     it('should handle export error for legacy identity without mnemonic', async () => {
-      // Arrange: Mock exportMnemonic to return null
+      // Arrange: Mock exportMnemonic to throw error for legacy identity
       const { IdentityService } = await import('@/services/identity/identity');
-      vi.mocked(IdentityService.exportMnemonic).mockReturnValueOnce(null);
+      vi.mocked(IdentityService.exportMnemonic).mockImplementationOnce(() => {
+        throw new Error('No mnemonic found. This identity was created with an older version. Please clear and recreate your identity.');
+      });
 
       render(<IdentityPanel />);
 
@@ -163,7 +167,7 @@ describe('IdentityPanel', () => {
 
       // Assert: Should show error message
       await waitFor(() => {
-        expect(screen.getByText(/无助记词/i)).toBeInTheDocument();
+        expect(screen.getByText(/No mnemonic found/i)).toBeInTheDocument();
       });
     });
 

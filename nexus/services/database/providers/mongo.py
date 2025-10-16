@@ -354,6 +354,34 @@ class MongoProvider(DatabaseProvider):
         except Exception as e:
             return self._handle_unexpected_error("identity update", e)
 
+    def delete_identity(self, public_key: str) -> bool:
+        """Delete an identity from the database.
+
+        Args:
+            public_key: The public key identifying the identity to delete
+
+        Returns:
+            bool: True if deletion was successful, False otherwise
+        """
+        if self.identities_collection is None:
+            logger.error("MongoDB not connected. Cannot delete identity.")
+            return False
+
+        try:
+            result = self.identities_collection.delete_one({"public_key": public_key})
+
+            if result.deleted_count > 0:
+                logger.info(f"Identity deleted successfully: public_key={public_key}")
+                return True
+            else:
+                logger.warning(f"No identity found to delete for public_key: {public_key}")
+                return False
+
+        except OperationFailure as e:
+            return self._handle_operation_failure("identity deletion", e)
+        except Exception as e:
+            return self._handle_unexpected_error("identity deletion", e)
+
     # Centralized error handling helpers
     def _log_and_raise_connection_error(self, prefix: str, error: Exception) -> None:
         logger.error(f"{prefix}: {error}")
