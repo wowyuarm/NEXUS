@@ -17,7 +17,7 @@
 
 import { useState, useEffect } from 'react';
 import { Check, Copy, Download, Upload, UserPlus, Eye, EyeOff } from 'lucide-react';
-import { Button } from '@/components/ui';
+import { Button, Textarea } from '@/components/ui';
 import { useChatStore } from '@/features/chat/store/chatStore';
 import { useUIStore } from '@/stores/uiStore';
 import { IdentityService } from '@/services/identity/identity';
@@ -282,11 +282,12 @@ export const IdentityPanel: React.FC = () => {
             </Button>
           ) : (
             <div className="space-y-3">
-              <textarea
+              <Textarea
                 value={mnemonicInput}
                 onChange={(e) => setMnemonicInput(e.target.value)}
                 placeholder="请输入 12 或 24 个助记词，用空格分隔..."
-                className="w-full h-24 px-3 py-2 bg-background border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                minRows={3}
+                className="h-24 text-sm"
               />
               <div className="flex gap-2">
                 <Button
@@ -396,11 +397,12 @@ export const IdentityPanel: React.FC = () => {
           </Button>
         ) : (
           <div className="space-y-3">
-            <textarea
+            <Textarea
               value={mnemonicInput}
               onChange={(e) => setMnemonicInput(e.target.value)}
               placeholder="请输入 12 或 24 个助记词，用空格分隔..."
-              className="w-full h-24 px-3 py-2 bg-background border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              minRows={3}
+              className="h-24 text-sm"
             />
             <div className="flex gap-2">
               <Button

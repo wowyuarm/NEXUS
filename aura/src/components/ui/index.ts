@@ -6,6 +6,7 @@ export { RoleSymbol } from './RoleSymbol';
 export { Button } from './Button';
 export { Timestamp } from './Timestamp';
 export { AutoResizeTextarea } from './AutoResizeTextarea';
+export { Textarea } from './Textarea';
 
 // 导出类型定义
 export type { AutoResizeTextareaRef } from './AutoResizeTextarea';
