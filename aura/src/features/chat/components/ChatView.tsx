@@ -14,7 +14,7 @@
 // - 集成LogStream的消息渲染逻辑
 
 import React, { useMemo, useEffect, useState } from 'react';
-import { motion, cubicBezier } from 'framer-motion';
+import { motion } from 'framer-motion';
 import type { Message } from '../types';
 import type { RunStatus } from '../store/chatStore';
 import { ChatMessage } from './ChatMessage';
@@ -23,6 +23,7 @@ import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
 import { CommandPalette } from '@/features/command/components/CommandPalette';
 import type { Command } from '@/features/command/command.types';
+import { FRAMER } from '@/lib/motion';
 
 interface ChatViewProps {
   messages: Message[];
@@ -107,26 +108,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
   }, [shouldDisplayThinking]);
 
   // 输入区域动画：单一父容器中，通过 transform 控制从居中 -> 底部
+  // 复杂编排：从页面中心到底部的完整场景切换
   const inputMotion = useMemo(() => {
     return {
       initial: false as const, // 避免首次挂载时闪烁
       animate: hasStarted
         ? { y: 0, opacity: 1 }
         : { y: 'calc(-50vh + 4rem)', opacity: 1 },
-      transition: {
-        duration: 0.8,
-        ease: cubicBezier(0.22, 1, 0.36, 1),
-        type: 'tween' as const,
-      },
+      transition: FRAMER.complex,
     };
   }, [hasStarted]);
 
-  // 标题淡入淡出
+  // 标题淡入淡出 - 场景切换级别的过渡
   const titleMotion = useMemo(() => {
     return {
       initial: { opacity: 0 },
       animate: { opacity: hasStarted ? 0 : 1 },
-      transition: { duration: 0.5, ease: cubicBezier(0.22, 1, 0.36, 1) },
+      transition: FRAMER.scene,
     };
   }, [hasStarted]);
 
@@ -134,13 +132,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
     <div className="h-screen bg-background text-foreground font-sans relative overflow-hidden">
       {/* 统一布局：顶部内容区 + 中央/底部动画输入区 */}
       <div className="h-full relative">
-        {/* 滚动消息区：根据 hasStarted 控制可见性与入场 */}
+        {/* 滚动消息区：根据 hasStarted 控制可见性与入场 - 场景切换 */}
         <motion.div
           className="h-full overflow-y-auto pb-32"
           style={{ scrollBehavior: 'auto', scrollbarGutter: 'stable both-edges', overflowAnchor: 'auto' }}
           initial={{ opacity: 0 }}
           animate={{ opacity: hasStarted ? 1 : 0 }}
-          transition={{ duration: 0.5, ease: cubicBezier(0.22, 1, 0.36, 1) }}
+          transition={FRAMER.scene}
           ref={scrollContainerRef}
         >
           <div className="flex justify-center">
@@ -161,11 +159,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, ease: 'easeOut' }}
-                  className="py-6 flex items-center gap-3"
+                  transition={FRAMER.reveal}
+                  className="py-6 flex items-start gap-2"
                 >
                   <RoleSymbol role="AI" isThinking={true} />
-                  <div className="flex-1 min-w-0" />
+                  <div className="flex-1 min-w-0 ml-6" />
                 </motion.div>
               )}
 

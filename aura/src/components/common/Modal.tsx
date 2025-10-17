@@ -20,7 +20,7 @@
 
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FRAMER_TRANSITION } from '@/lib/motion';
+import { FRAMER, MOTION_EXIT } from '@/lib/motion';
 
 interface ModalProps {
   /** Whether the modal is currently open */
@@ -79,9 +79,14 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
           {/* Backdrop with liquid glass effect */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={FRAMER_TRANSITION}
+            animate={{ 
+              opacity: 1,
+              transition: { duration: FRAMER.scene.duration, ease: FRAMER.scene.ease }
+            }}
+            exit={{ 
+              opacity: 0,
+              transition: { duration: MOTION_EXIT.scene, ease: MOTION_EXIT.ease }
+            }}
             onClick={onClose}
             className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xl"
             aria-hidden="true"
@@ -92,9 +97,16 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
             {/* Content wrapper with scale + fade animation */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={FRAMER_TRANSITION}
+              animate={{ 
+                opacity: 1, 
+                scale: 1,
+                transition: FRAMER.scene
+              }}
+              exit={{ 
+                opacity: 0, 
+                scale: 0.95,
+                transition: { duration: MOTION_EXIT.scene, ease: MOTION_EXIT.ease }
+              }}
               className="pointer-events-auto"
               onClick={(e) => e.stopPropagation()} // Prevent backdrop click from bubbling
             >

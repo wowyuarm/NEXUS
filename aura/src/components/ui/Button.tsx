@@ -1,8 +1,9 @@
 // src/components/ui/Button.tsx
-// Universal button component with unified 0.4s transitions
+// Universal button component with cognitive rhythm timing
 // 
-// All state changes (hover, tap, disabled) use consistent 0.4s timing
-// for a smooth, silent, and comfortable interaction experience
+// State changes use layered timing based on cognitive processing:
+// - Micro-feedback (hover/tap): 100-150ms - instant acknowledgment
+// - State transitions (loading/disabled): 200-250ms - rapid perception
 import React from 'react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -51,8 +52,8 @@ export const Button: React.FC<ButtonProps> = ({
     'ring-0 focus:ring-0 focus-visible:ring-0 active:ring-0',
     'appearance-none',
     'disabled:cursor-not-allowed',
-    // Add CSS transition for background/border/shadow changes (0.4s unified)
-    'transition-all duration-400 ease-out',
+    // Add CSS transition for background/border/shadow changes (150ms micro-feedback)
+    'transition-all duration-150 ease-out',
     fullWidth && 'w-full'
   ];
 
@@ -114,23 +115,23 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   // ============================================================================
-  // Animation System - Unified 0.4s transitions
+  // Animation System - Cognitive Rhythm Layers
   // ============================================================================
 
-  // Hover animation - opacity only (avoid text shift), 0.4s unified
+  // Hover animation - 150ms micro-feedback (instant acknowledgment)
   const hoverAnimation = !isDisabled ? {
     opacity: 0.96,
     transition: {
-      duration: 0.4,
+      duration: 0.15,
       ease: 'easeOut' as const
     }
   } : {};
 
-  // Tap animation - opacity only (avoid text shift), 0.4s unified
+  // Tap animation - 100ms micro-feedback (instantaneous response)
   const tapAnimation = !isDisabled ? {
     opacity: 0.9,
     transition: {
-      duration: 0.4,
+      duration: 0.1,
       ease: 'easeOut' as const
     }
   } : {};
@@ -145,7 +146,7 @@ export const Button: React.FC<ButtonProps> = ({
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.2 }}
       className={cn(
         'h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent',
         !iconOnly && 'mr-2'
@@ -171,7 +172,7 @@ export const Button: React.FC<ButtonProps> = ({
         <motion.span
           initial={{ opacity: 1 }}
           animate={{ opacity: loading ? 0 : 1 }}
-          transition={{ duration: 0.4 }}
+          transition={{ duration: 0.2 }}
           className={cn(iconOnly ? '' : 'mr-2')}
         >
           {icon}
@@ -190,7 +191,7 @@ export const Button: React.FC<ButtonProps> = ({
     return (
       <motion.span
         animate={{ opacity: loading ? 0.5 : 1 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.2 }}
       >
         {children}
       </motion.span>
@@ -206,9 +207,9 @@ export const Button: React.FC<ButtonProps> = ({
         className
       )}
       disabled={isDisabled}
-      // State transition (enabled <-> disabled) with unified 0.4s timing
+      // State transition (enabled <-> disabled) with 250ms transition layer timing
       animate={{ opacity: isDisabled ? 0.6 : 1 }}
-      transition={{ duration: 0.4, ease: 'easeOut' }}
+      transition={{ duration: 0.25, ease: 'easeInOut' }}
       whileHover={hoverAnimation}
       whileTap={tapAnimation}
       {...props}

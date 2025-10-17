@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { FRAMER_TRANSITION, MOTION_EXCEPTIONS } from '@/lib/motion';
+import { FRAMER } from '@/lib/motion';
 
 interface StatusIndicatorProps {
   variant: 'loading' | 'empty' | 'error';
@@ -22,11 +22,11 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
   className,
   size = 'md'
 }) => {
-  // 统一的动画配置，遵循AURA的时间物理
+  // Content reveal animation (350ms)
   const fadeInAnimation = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
-    transition: FRAMER_TRANSITION
+    transition: FRAMER.reveal
   };
 
   // Loading状态的渲染
@@ -51,11 +51,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
             sizeClasses[size]
           )}
           animate={{ rotate: 360 }}
-          transition={{
-            duration: MOTION_EXCEPTIONS.spin.duration,
-            repeat: MOTION_EXCEPTIONS.spin.repeat,
-            ease: MOTION_EXCEPTIONS.spin.ease
-          }}
+          transition={FRAMER.spin}
         >
           <div className="absolute inset-0 border-2 border-transparent border-t-foreground rounded-full" />
         </motion.div>

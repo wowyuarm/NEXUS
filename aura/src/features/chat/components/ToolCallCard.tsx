@@ -16,12 +16,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ToolCall } from '../types';
-import { MOTION_CONFIG, MOTION_EXCEPTIONS } from '@/lib/motion';
+import { FRAMER, MOTION_EXIT } from '@/lib/motion';
 
-// Animation constants - unified with global motion config
-const ANIMATION_DURATIONS = {
-  SPIN: MOTION_EXCEPTIONS.spin.duration, // 1s - continuous rotation (exception)
-  STANDARD: MOTION_CONFIG.duration, // 0.4s - all state transitions
+// Animation constants - cognitive rhythm layers
+const ANIMATION = {
+  SPIN: FRAMER.spin.duration, // 1s - continuous rotation (special case)
+  REVEAL: FRAMER.reveal.duration, // 350ms - card appearance (content reveal)
+  EXPAND_OPEN: FRAMER.reveal.duration, // 350ms - expansion (content reveal)
+  EXPAND_CLOSE: MOTION_EXIT.reveal, // 250ms - collapse (asymmetric exit)
+  CHEVRON: FRAMER.transition.duration, // 250ms - icon rotation (state transition)
+  STATUS_ICON: FRAMER.transition.duration, // 250ms - completion icon (state transition)
 } as const;
 
 // UX constants
@@ -42,7 +46,7 @@ interface ToolCallCardProps {
 export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAutoScroll }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Status icon rendering with unified structure
+  // Status icon rendering with cognitive rhythm timing
   const renderStatusIcon = () => {
     if (toolCall.status === 'running') {
       return (
@@ -50,7 +54,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
           className="w-4 h-4 border-2 border-border rounded-full relative"
           animate={{ rotate: 360 }}
           transition={{
-            duration: ANIMATION_DURATIONS.SPIN,
+            duration: ANIMATION.SPIN,
             repeat: Infinity,
             ease: 'linear'
           }}
@@ -67,7 +71,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
       <motion.div
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
-        transition={{ duration: ANIMATION_DURATIONS.STANDARD, ease: 'easeOut' }}
+        transition={{ duration: ANIMATION.STATUS_ICON, ease: 'easeOut' }}
         className="w-4 h-4 rounded-full border border-border flex items-center justify-center"
       >
         <IconComponent className="w-2.5 h-2.5 text-foreground" />
@@ -89,8 +93,8 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
         x: 0
       }}
       transition={{
-        opacity: { duration: ANIMATION_DURATIONS.STANDARD, ease: 'easeOut' },
-        y: { duration: ANIMATION_DURATIONS.STANDARD, ease: 'easeOut' }
+        opacity: { duration: ANIMATION.REVEAL, ease: 'easeOut' },
+        y: { duration: ANIMATION.REVEAL, ease: 'easeOut' }
       }}
       className={cn(
         // Liquid Glass Material
@@ -103,8 +107,8 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
         'mb-3 last:mb-0',
         'w-full min-w-0',
 
-        // Interactive (match ChatInput): subtle contrast ring via border color
-        'cursor-pointer transition-colors duration-400 ease-out',
+        // Interactive: 150ms micro-feedback for hover
+        'cursor-pointer transition-colors duration-150 ease-out',
         'hover:border-foreground/20'
       )}
       onClick={() => {
@@ -130,7 +134,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
         {/* Expand/Collapse indicator */}
         <motion.div
           animate={{ rotate: isExpanded ? 180 : 0 }}
-          transition={{ duration: ANIMATION_DURATIONS.STANDARD, ease: 'easeOut' }}
+          transition={{ duration: ANIMATION.CHEVRON, ease: 'easeInOut' }}
           className="text-secondary-foreground"
         >
           <ChevronDown className="w-4 h-4" />
@@ -142,9 +146,22 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
         {isExpanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: ANIMATION_DURATIONS.STANDARD, ease: 'easeOut' }}
+            animate={{ 
+              height: 'auto', 
+              opacity: 1,
+              transition: {
+                height: { duration: ANIMATION.EXPAND_OPEN, ease: 'easeOut' },
+                opacity: { duration: ANIMATION.EXPAND_OPEN, ease: 'easeOut' }
+              }
+            }}
+            exit={{ 
+              height: 0, 
+              opacity: 0,
+              transition: {
+                height: { duration: ANIMATION.EXPAND_CLOSE, ease: 'easeIn' },
+                opacity: { duration: ANIMATION.EXPAND_CLOSE, ease: 'easeIn' }
+              }
+            }}
             className="overflow-hidden"
           >
             <div className="pt-4 space-y-3">

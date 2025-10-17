@@ -1,42 +1,210 @@
-# Motion and Animation System
+# Motion and Animation System 2.0
 
 ## Design Philosophy
 
-### The Unified Rhythm Principle
+### The Cognitive Rhythm Principle
 
-> "All state transitions should use a unified timing of 400ms to create a cohesive rhythm across the entire interface."
+> "Interface motion should mirror human thought—varied, organic, and alive."
 
-The motion system in AURA is not merely about adding visual polish—it's about creating a **perceptual language** that users unconsciously learn and trust. Just as music needs consistent tempo to feel coherent, our interface needs unified timing to feel comfortable.
+The motion system in AURA is not merely about adding visual polish—it's about creating a **perceptual language** that users unconsciously learn and trust. Unlike mechanical systems that use uniform timing, this system matches animation tempo to human cognitive processing speed through five distinct layers.
 
-**Core Beliefs**:
+**Core Philosophy: Silent, Comfortable, Intuitive, Rhythmic**
 
-1. **Rhythm Over Flash**: Consistent 0.4-second transitions create a predictable "breathing pattern" for the interface
-2. **Subtlety Over Spectacle**: Motion should acknowledge, not announce; guide, not demand attention
-3. **Physics Over Mechanics**: Animations should feel like natural movement, not robotic state changes
+1. **Silent**: Transitions should be felt, not noticed consciously
+2. **Comfortable**: Timing should match users' natural expectations  
+3. **Intuitive**: Motion should reinforce mental models, not confuse them
+4. **Rhythmic**: Varied timing creates organic, lifelike interaction patterns
 
-### Why 0.4 Seconds?
+### From Mechanical to Organic
 
-This specific duration was chosen through careful consideration:
-
-- **Not Too Fast** (< 200ms): Users can't perceive the transition, defeating its purpose
-- **Not Too Slow** (> 600ms): Creates perceived lag, frustrating users
-- **Just Right** (400ms): Long enough to register, short enough to feel responsive
-
-**Perceptual Impact**:
+**Previous System (0.4s Unified)**:
 ```
-100ms - Instant (feels like no animation)
-200ms - Quick (might feel jarring)
-400ms - Comfortable (predictable, trustworthy) ← Our choice
-600ms - Slow (starts feeling like lag)
+All animations → 400ms → Predictable but lifeless
 ```
 
-### The Silence, Comfort, Intuition Triad
+**Current System (Cognitive Layers)**:
+```
+Micro-Feedback    → 150ms  → Instant acknowledgment
+State Transition  → 250ms  → Rapid perception
+Content Reveal    → 350ms  → Comfortable expansion
+Scene Change      → 450ms  → Context preparation
+Complex           → 600ms  → Visual storytelling
+```
 
-Every animation decision traces back to our three core principles:
+This creates a "breathing pattern" where interactions feel more like a conversation than a machine operation.
 
-- **Silence**: Transitions should be felt, not noticed consciously
-- **Comfort**: Timing should match users' natural expectations
-- **Intuition**: Motion should reinforce mental models, not confuse them
+---
+
+## The Five Cognitive Layers
+
+Each layer corresponds to a different level of user attention and information processing:
+
+### 1. Micro-Feedback (100-200ms)
+**Question**: "Did my action register?"  
+**Purpose**: Instant acknowledgment for exploratory actions
+
+**Use Cases**:
+- Button hover states
+- Icon tap feedback
+- Cursor state changes
+
+**Example**:
+```typescript
+import { FRAMER } from '@/lib/motion';
+
+<motion.button
+  whileHover={{ opacity: 0.96 }}
+  transition={FRAMER.micro}  // 150ms
+>
+```
+
+### 2. State Transition (200-300ms)
+**Question**: "What changed?"  
+**Purpose**: Rapid changes that need to be perceived
+
+**Use Cases**:
+- Loading indicators appearing
+- Button enable/disable
+- Form validation states
+- Status icon changes
+
+**Example**:
+```typescript
+<motion.div
+  animate={{ opacity: isLoading ? 0.6 : 1 }}
+  transition={FRAMER.transition}  // 250ms
+>
+```
+
+### 3. Content Reveal (300-450ms)
+**Question**: "What's new?"  
+**Purpose**: Comfortable expansion for understanding new content
+
+**Use Cases**:
+- Tool call cards appearing
+- Chat messages streaming in
+- Accordion/collapse expansion
+- New content sections
+
+**Example**:
+```typescript
+<motion.div
+  initial={{ opacity: 0, y: 12 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={FRAMER.reveal}  // 350ms
+>
+```
+
+### 4. Scene Change (400-600ms)
+**Question**: "Where am I now?"  
+**Purpose**: Full context shifts requiring psychological preparation
+
+**Use Cases**:
+- Modal dialogs opening
+- Page transitions
+- Major view switches
+- Chat start animation
+
+**Example**:
+```typescript
+<motion.div
+  initial={{ opacity: 0, scale: 0.95 }}
+  animate={{ opacity: 1, scale: 1 }}
+  transition={FRAMER.scene}  // 450ms, Material Design curve
+>
+```
+
+### 5. Complex Choreography (500-800ms)
+**Question**: "What's happening?"  
+**Purpose**: Multi-step sequences that tell a visual story
+
+**Use Cases**:
+- Multi-element entrance sequences
+- Input field repositioning (center → bottom)
+- Coordinated component transformations
+
+**Example**:
+```typescript
+<motion.div
+  animate={{ y: hasStarted ? 0 : 'calc(-50vh + 4rem)' }}
+  transition={FRAMER.complex}  // 600ms
+>
+```
+
+---
+
+## The Asymmetric Exit Principle
+
+> "Entrances invite attention; exits acknowledge completion."
+
+**Philosophy**: Objects appearing (entering) and disappearing (exiting) follow different patterns:
+- **Entrances**: Smooth, gradual, inviting (grace and elegance)
+- **Exits**: Decisive, quick, responsive (efficiency and purpose)
+
+**Rule**: Exit animations are **28-38% faster** than entrances
+
+### Asymmetric Timing Table
+
+| Layer | Entrance | Exit | Speed Reduction |
+|-------|----------|------|-----------------|
+| Micro | 150ms | 100ms | -33% |
+| Transition | 250ms | 180ms | -28% |
+| Reveal | 350ms | 250ms | -28% |
+| Scene | 450ms | 280ms | -38% |
+
+**Example**:
+```typescript
+import { FRAMER, MOTION_EXIT } from '@/lib/motion';
+
+<AnimatePresence>
+  {isOpen && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={FRAMER.scene}  // 450ms enter
+      exit={{ 
+        opacity: 0,
+        transition: { 
+          duration: MOTION_EXIT.scene,  // 280ms exit
+          ease: MOTION_EXIT.ease 
+        }
+      }}
+    />
+  )}
+</AnimatePresence>
+```
+
+---
+
+## AI-Specific Rhythms: The "Stream of Thought"
+
+AI interactions require special timing to feel organic, not mechanical.
+
+### Typewriter Effect with Micro-Variation
+
+**Problem**: Uniform typing speed (15ms/char) feels robotic  
+**Solution**: Variable speed (10-25ms/char) + startup delay (50-100ms)
+
+**Implementation**:
+```typescript
+import { getTypewriterSpeed, getTypewriterStartupDelay } from '@/lib/motion';
+
+// In useTypewriter hook
+const startupDelay = getTypewriterStartupDelay();  // 50-100ms
+const charDelay = getTypewriterSpeed();            // 10-25ms random
+```
+
+**Effect**: Creates "thinking, then speaking" feeling with natural pauses
+
+### Tool Call Cards
+
+Tool calls appear with "Content Reveal" timing (350ms) to signal a new event occurring.
+
+```typescript
+<ToolCallCard
+  transition={FRAMER.reveal}  // 350ms, matches content rhythm
+/>
+```
 
 ---
 
@@ -45,210 +213,112 @@ Every animation decision traces back to our three core principles:
 ### The Motion Hierarchy
 
 ```
-Design Philosophy (frontend-design-principles.mdc)
+Design Philosophy (.cursor/rules/frontend-design-principles.mdc)
          ↓
 Motion Configuration (lib/motion.ts) ← Single Source of Truth
          ↓
 Component Implementation (Button.tsx, Modal.tsx, etc.)
          ↓
-User Experience (Cohesive rhythm)
+User Experience (Organic, rhythmic interaction)
 ```
 
-### Integration in AURA's Architecture
+### File Structure
 
-The motion system sits at the **intersection of design and state**:
-
-- **State Layer**: Motion reacts to state changes (loading, hovering, etc.)
-- **Component Layer**: Components consume motion configs consistently
-- **Visual Layer**: Users perceive unified rhythm across all interactions
-
----
-
-## Technical Deep Dive
-
-### The Single Source of Truth: `lib/motion.ts`
-
-**File Location**: `aura/src/lib/motion.ts`
-
-This file is the **only** place where animation timing is defined:
+**`aura/src/lib/motion.ts`** - The complete system:
 
 ```typescript
-/**
- * Motion Configuration - The Single Source of Truth for Animations
- * 
- * This file defines the unified animation timing and easing for the entire AURA interface.
- * Following the design principle: "All state transitions should use a unified timing of 400ms
- * to create a cohesive rhythm across the entire interface."
- */
+// Core layer definitions
+export const MOTION_MICRO = { duration: 0.15, ease: 'easeOut' };
+export const MOTION_TRANSITION = { duration: 0.25, ease: 'easeInOut' };
+export const MOTION_REVEAL = { duration: 0.35, ease: 'easeOut' };
+export const MOTION_SCENE = { duration: 0.45, ease: [0.4, 0, 0.2, 1] };
+export const MOTION_COMPLEX = { duration: 0.6, ease: 'easeInOut' };
 
-export const MOTION_CONFIG = {
-  /** Unified duration for all state transitions (0.4 seconds) */
-  duration: 0.4,
-  /** Unified easing function for smooth, natural motion */
-  ease: 'easeOut' as const,
-} as const;
-
-export const TAILWIND_TRANSITION = 'transition-all duration-400 ease-out';
-
-export const FRAMER_TRANSITION = {
-  duration: MOTION_CONFIG.duration,
-  ease: MOTION_CONFIG.ease,
+// Asymmetric exit timings
+export const MOTION_EXIT = {
+  micro: 0.1,
+  transition: 0.18,
+  reveal: 0.25,
+  scene: 0.28,
+  ease: 'easeIn',
 };
 
-export const MOTION_EXCEPTIONS = {
-  /** Loading spinners - continuous rotation needs linear easing */
-  spin: {
-    duration: 1,
-    ease: 'linear' as const,
-    repeat: Infinity,
+// Pre-built Framer Motion configs
+export const FRAMER = {
+  micro: { duration: 0.15, ease: 'easeOut' },
+  transition: { duration: 0.25, ease: 'easeInOut' },
+  reveal: { duration: 0.35, ease: 'easeOut' },
+  scene: { duration: 0.45, ease: [0.4, 0, 0.2, 1] },
+  complex: { duration: 0.6, ease: 'easeInOut' },
+  exit: {
+    micro: { duration: 0.1, ease: 'easeIn' },
+    transition: { duration: 0.18, ease: 'easeIn' },
+    reveal: { duration: 0.25, ease: 'easeIn' },
+    scene: { duration: 0.28, ease: 'easeIn' },
   },
-  /** Breathing animations - slower for subtle, ambient effects */
-  breathe: {
-    duration: 2,
-    ease: 'easeInOut' as const,
-    repeat: Infinity,
-  },
-} as const;
+  spin: { duration: 1, ease: 'linear', repeat: Infinity },
+  breathe: { duration: 2, ease: 'easeInOut', repeat: Infinity },
+};
+
+// Tailwind class generators
+export const getTailwindTransition = (layer: 'micro' | 'transition' | 'reveal' | 'scene') => {
+  // Returns appropriate duration-* class
+};
+
+// AI-specific helpers
+export const getTypewriterSpeed = () => Math.floor(Math.random() * 16) + 10;  // 10-25ms
+export const getTypewriterStartupDelay = () => Math.floor(Math.random() * 51) + 50;  // 50-100ms
 ```
 
-**Design Rationale**:
-- **Type Safety**: TypeScript ensures correct usage across the codebase
-- **Single Edit Point**: Change once, update everywhere
-- **Explicit Exceptions**: Documented reasons for deviations (spin, breathe)
-- **Import Chain**: Refactoring updates all consumers automatically
-
-### Tailwind Configuration
-
-**File Location**: `aura/tailwind.config.js`
-
-To use `duration-400` token (required for `@apply` directives):
+**`aura/tailwind.config.js`** - Custom duration tokens:
 
 ```javascript
 export default {
   theme: {
     extend: {
       transitionDuration: {
-        '400': '400ms',  // ← Enables duration-400 utility
+        '100': '100ms',
+        '150': '150ms',
+        '180': '180ms',
+        '200': '200ms',
+        '250': '250ms',
+        '280': '280ms',
+        '350': '350ms',
+        '450': '450ms',
       },
     },
   },
 }
 ```
 
-**Critical Note**: Arbitrary values like `duration-[400ms]` **cannot** be used in `@apply` directives. Always use configured tokens.
-
-### Animation Categories
-
-#### 1. CSS Transitions (Tailwind)
-
-**Use Case**: Simple state changes (hover, focus, disabled)
-
-```typescript
-import { TAILWIND_TRANSITION } from '@/lib/motion';
-
-<div className={cn(
-  'bg-card border border-border',
-  TAILWIND_TRANSITION,  // ← Unified timing
-  'hover:border-foreground/20'
-)} />
-```
-
-**Benefits**:
-- Performant (GPU-accelerated)
-- Declarative
-- Works without JavaScript
-
-#### 2. Framer Motion Transitions
-
-**Use Case**: Complex state machines (mount/unmount, gestures)
-
-```typescript
-import { FRAMER_TRANSITION } from '@/lib/motion';
-
-<motion.div
-  initial={{ opacity: 0, scale: 0.95 }}
-  animate={{ opacity: 1, scale: 1 }}
-  exit={{ opacity: 0, scale: 0.95 }}
-  transition={FRAMER_TRANSITION}  // ← Unified timing
-/>
-```
-
-**Benefits**:
-- Gesture support (whileHover, whileTap)
-- AnimatePresence for mount/unmount
-- Spring physics (when needed)
-
-#### 3. Exception Cases (Documented)
-
-**Use Case**: Continuous animations that break the 0.4s rule
-
-```typescript
-import { MOTION_EXCEPTIONS } from '@/lib/motion';
-
-// Loading spinner - must rotate continuously
-<motion.div
-  animate={{ rotate: 360 }}
-  transition={MOTION_EXCEPTIONS.spin}  // ← 1s linear, infinite
-/>
-```
-
-**Rule**: Every exception must have a comment explaining why:
-```typescript
-// Loading spinner - continuous rotation needs linear easing
-transition={MOTION_EXCEPTIONS.spin}
-```
-
 ---
 
 ## Component Patterns
 
-### Pattern 1: Button State Transitions
-
-**Design Goal**: Acknowledge interaction without being loud
-
-**Implementation** (`components/ui/Button.tsx`):
+### Pattern 1: Button Interactions (Micro-Feedback)
 
 ```typescript
-const baseStyles = [
-  'transition-all duration-400 ease-out',  // CSS transition
-  // ... other styles
-];
-
-const hoverAnimation = !isDisabled ? {
-  opacity: 0.96,  // Subtle 4% reduction
-  transition: { duration: 0.4, ease: 'easeOut' }
-} : {};
-
-const tapAnimation = !isDisabled ? {
-  opacity: 0.9,   // 10% reduction for "press" feel
-  transition: { duration: 0.4, ease: 'easeOut' }
-} : {};
+import { FRAMER } from '@/lib/motion';
 
 <motion.button
-  className={cn(baseStyles, variantStyles[variant])}
-  whileHover={hoverAnimation}
-  whileTap={tapAnimation}
-  animate={{ opacity: isDisabled ? 0.6 : 1 }}  // Disabled state
-  transition={{ duration: 0.4, ease: 'easeOut' }}
+  className="transition-all duration-150 ease-out"  // CSS for base
+  whileHover={{ opacity: 0.96 }}
+  whileTap={{ opacity: 0.9 }}
+  animate={{ opacity: isDisabled ? 0.6 : 1 }}
+  transition={FRAMER.micro}  // 150ms for all states
 >
-  {children}
-</motion.button>
 ```
 
 **Key Principles**:
-- Opacity changes only (no scale on text containers)
-- Hover: 4% opacity reduction (subtle acknowledgment)
-- Tap: 10% opacity reduction (physical feedback)
-- Disabled: 60% opacity (clear but not harsh)
+- Opacity changes only (no scale on text)
+- Hover: 4% reduction (subtle)
+- Tap: 10% reduction (clear feedback)
+- Disabled: 40% reduction (clear state)
 
-### Pattern 2: Modal Enter/Exit
-
-**Design Goal**: "Entering a focused space" feeling
-
-**Implementation** (`components/common/Modal.tsx`):
+### Pattern 2: Modal Enter/Exit (Scene + Asymmetric)
 
 ```typescript
-import { FRAMER_TRANSITION } from '@/lib/motion';
+import { FRAMER, MOTION_EXIT } from '@/lib/motion';
 
 <AnimatePresence>
   {isOpen && (
@@ -258,294 +328,173 @@ import { FRAMER_TRANSITION } from '@/lib/motion';
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={FRAMER_TRANSITION}
-        className="fixed inset-0 bg-background/80 backdrop-blur-xl"
+        transition={{
+          ...FRAMER.scene,  // 450ms enter
+          exit: { duration: MOTION_EXIT.scene, ease: MOTION_EXIT.ease }  // 280ms exit
+        }}
       />
       
       {/* Content */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={FRAMER_TRANSITION}
-      >
-        {children}
-      </motion.div>
+        exit={{ 
+          opacity: 0, 
+          scale: 0.95,
+          transition: { duration: MOTION_EXIT.scene, ease: MOTION_EXIT.ease }
+        }}
+        transition={FRAMER.scene}
+      />
     </>
   )}
 </AnimatePresence>
 ```
 
-**Design Decisions**:
-- `scale: 0.95` suggests forward movement (not jarring pop)
-- Backdrop blur creates depth separation
-- Both fade and scale use unified 0.4s timing
-
-### Pattern 3: List Item Stagger
-
-**Design Goal**: Sequential reveal without overwhelming
-
-**Implementation** (`features/command/CommandPalette.tsx`):
+### Pattern 3: Tool Call Card (Content Reveal)
 
 ```typescript
-{filteredCommands.map((command, index) => (
-  <motion.div
-    key={command.name}
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    transition={{ delay: index * 0.02, ...FRAMER_TRANSITION }}
-  >
-    <Button variant="command">{command.name}</Button>
-  </motion.div>
-))}
-```
+import { FRAMER, MOTION_EXIT } from '@/lib/motion';
 
-**Stagger Calculation**:
-- Base delay: `index * 0.02` (20ms per item)
-- Transition: Uses unified 0.4s
-- Result: Smooth cascade without feeling slow
-
-### Pattern 4: Loading State Transition
-
-**Design Goal**: Inform without blocking, maintain layout
-
-**Implementation** (`components/ui/Button.tsx`):
-
-```typescript
-// Icon-only mode: Spinner replaces icon (no layout shift)
-{loading && iconOnly ? (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.8 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ duration: 0.4 }}
-    className="w-4 h-4 animate-spin ..."
-  />
-) : icon}
-
-// Normal mode: Spinner on left, text fades
-{loading && !iconOnly && <LoadingSpinner />}
-<motion.span
-  animate={{ opacity: loading ? 0.5 : 1 }}
-  transition={{ duration: 0.4 }}
->
-  {children}
-</motion.span>
-```
-
-**Layout Stability**:
-- Spinner dimensions match icon (no shift)
-- Text remains in DOM (maintains width)
-- Opacity change only (no re-layout)
-
----
-
-## Integration Points
-
-### With State Management
-
-Motion responds to Zustand state changes:
-
-```typescript
-// chatStore.ts
-const runStatus = useStore(s => s.currentRun.status);
-
-// Component
 <motion.div
-  animate={{ 
-    opacity: runStatus === 'thinking' ? 0.6 : 1 
-  }}
-  transition={FRAMER_TRANSITION}
-/>
+  initial={{ opacity: 0, y: 8 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={FRAMER.reveal}  // 350ms entrance
+>
+  {/* Expandable content */}
+  <AnimatePresence>
+    {isExpanded && (
+      <motion.div
+        initial={{ height: 0, opacity: 0 }}
+        animate={{ 
+          height: 'auto', 
+          opacity: 1,
+          transition: { ...FRAMER.reveal, ease: 'easeOut' }  // 350ms expand
+        }}
+        exit={{ 
+          height: 0, 
+          opacity: 0,
+          transition: { duration: MOTION_EXIT.reveal, ease: MOTION_EXIT.ease }  // 250ms collapse
+        }}
+      />
+    )}
+  </AnimatePresence>
+</motion.div>
 ```
 
-### With Design System
+### Pattern 4: Chat View Initial Animation (Complex)
 
-Motion timing complements visual design:
+```typescript
+import { FRAMER } from '@/lib/motion';
 
-- **Grayscale Palette**: No color-based animations, only opacity/transform
-- **Liquid Glass**: Backdrop blur transitions at 0.4s
-- **Shadows**: Shadow changes transition smoothly via CSS
-
-### With Accessibility
-
-Motion respects user preferences:
-
-```css
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+// Input field: center → bottom (complex choreography)
+<motion.div
+  initial={false}
+  animate={hasStarted 
+    ? { y: 0, opacity: 1 } 
+    : { y: 'calc(-50vh + 4rem)', opacity: 1 }
   }
-}
-```
+  transition={FRAMER.complex}  // 600ms for major layout shift
+>
 
-**Note**: This is global reset, not in current implementation. Future enhancement.
+// Title fade (scene change)
+<motion.h1
+  initial={{ opacity: 0 }}
+  animate={{ opacity: hasStarted ? 0 : 1 }}
+  transition={FRAMER.scene}  // 450ms
+>
+
+// Thinking indicator (content reveal)
+<motion.div
+  initial={{ opacity: 0, y: 10 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={FRAMER.reveal}  // 350ms
+>
+```
 
 ---
 
 ## Best Practices
 
-### DO: Import from lib/motion.ts
+### DO: Use Layer-Appropriate Timing
 
 ```typescript
-// ✅ Correct
-import { FRAMER_TRANSITION, TAILWIND_TRANSITION } from '@/lib/motion';
+// ✅ Correct - matches cognitive layer
+import { FRAMER } from '@/lib/motion';
 
-<motion.div transition={FRAMER_TRANSITION} />
-<div className={TAILWIND_TRANSITION} />
+<motion.button whileHover={{ opacity: 0.96 }} transition={FRAMER.micro} />  // Micro
+<motion.div animate={{ opacity: isLoading ? 0.6 : 1 }} transition={FRAMER.transition} />  // State
+<ToolCallCard transition={FRAMER.reveal} />  // Content
+<Modal transition={FRAMER.scene} />  // Scene
 ```
 
 ```typescript
-// ❌ Wrong - hardcoded timing
-<motion.div transition={{ duration: 0.4 }} />
-<div className="transition-all duration-[400ms]" />
+// ❌ Wrong - arbitrary timing
+<motion.button whileHover={{ opacity: 0.96 }} transition={{ duration: 0.2 }} />
+<ToolCallCard transition={{ duration: 0.5 }} />
 ```
 
-### DO: Document Exceptions
+### DO: Apply Asymmetric Exit
 
 ```typescript
-// ✅ Correct - explained exception
-import { MOTION_EXCEPTIONS } from '@/lib/motion';
+// ✅ Correct - faster exit
+<AnimatePresence>
+  {show && (
+    <motion.div
+      animate={{ opacity: 1 }}
+      transition={FRAMER.scene}  // 450ms enter
+      exit={{ 
+        opacity: 0,
+        transition: { duration: MOTION_EXIT.scene, ease: MOTION_EXIT.ease }  // 280ms exit
+      }}
+    />
+  )}
+</AnimatePresence>
+```
 
-// Breathing animation - slower 2s cycle for ambient effect
+```typescript
+// ❌ Wrong - symmetric timing
 <motion.div
-  animate={{ opacity: [0.4, 1, 0.4] }}
-  transition={MOTION_EXCEPTIONS.breathe}
+  animate={{ opacity: 1 }}
+  exit={{ opacity: 0 }}
+  transition={FRAMER.scene}  // Same timing for enter/exit
 />
 ```
-
-```typescript
-// ❌ Wrong - unexplained deviation
-<motion.div
-  animate={{ opacity: [0.4, 1, 0.4] }}
-  transition={{ duration: 2, repeat: Infinity }}
-/>
-```
-
-### DO: Use Appropriate Tool
-
-| Scenario | Tool | Reason |
-|----------|------|--------|
-| Hover state | Tailwind CSS | Simple, performant |
-| Mount/unmount | Framer Motion | AnimatePresence support |
-| Continuous rotation | Framer Motion | Infinite loop control |
-| Focus ring (suppressed) | CSS | No animation needed |
 
 ### DON'T: Scale Text Containers
 
 ```typescript
-// ❌ Wrong - causes text rendering shifts
-<motion.button
-  whileHover={{ scale: 1.05 }}  // Text becomes blurry!
->
-  {children}
+// ❌ Wrong - causes text rendering artifacts
+<motion.button whileHover={{ scale: 1.05 }}>
+  {text}  // Text becomes blurry!
 </motion.button>
 ```
 
 ```typescript
 // ✅ Correct - opacity only
-<motion.button
-  whileHover={{ opacity: 0.96 }}
->
-  {children}
+<motion.button whileHover={{ opacity: 0.96 }}>
+  {text}  // Crisp text rendering
 </motion.button>
 ```
 
-### DON'T: Mix Timing Values
+### DON'T: Animate Layout-Triggering Properties
 
 ```typescript
-// ❌ Wrong - inconsistent rhythm
-<div className="transition-all duration-200" />  // 200ms
-<motion.div transition={{ duration: 0.3 }} />    // 300ms
+// ❌ Avoid - causes reflow
+animate={{ width: '300px', padding: '20px' }}
 ```
 
 ```typescript
-// ✅ Correct - unified rhythm
-import { TAILWIND_TRANSITION, FRAMER_TRANSITION } from '@/lib/motion';
-
-<div className={TAILWIND_TRANSITION} />          // 400ms
-<motion.div transition={FRAMER_TRANSITION} />    // 400ms
-```
-
----
-
-## Troubleshooting
-
-### Issue: Build Error with `duration-[400ms]`
-
-**Error**:
-```
-The `duration-[400ms]` class does not exist. 
-If `duration-[400ms]` is a custom class, make sure it is defined within a `@layer` directive.
-```
-
-**Cause**: Arbitrary values cannot be used in `@apply` directives (e.g., in `globals.css`)
-
-**Solution**:
-1. Add to `tailwind.config.js`:
-   ```javascript
-   transitionDuration: { '400': '400ms' }
-   ```
-2. Use `duration-400` instead of `duration-[400ms]`
-3. Update `TAILWIND_TRANSITION` constant:
-   ```typescript
-   export const TAILWIND_TRANSITION = 'transition-all duration-400 ease-out';
-   ```
-
-### Issue: Animations Feel Jerky or Inconsistent
-
-**Symptoms**: Some transitions feel faster/slower than others
-
-**Diagnosis**:
-```bash
-# Search for hardcoded durations
-grep -r "duration.*ms\|transition.*duration" aura/src --include="*.tsx" --include="*.ts"
-```
-
-**Solution**: Replace all hardcoded values with imports from `lib/motion.ts`
-
-### Issue: Text Becomes Blurry on Hover
-
-**Cause**: Scale transform on text container forces subpixel rendering
-
-**Solution**: Use opacity instead of scale for text-containing elements
-
-```typescript
-// Before (blurry text)
-whileHover={{ scale: 1.05 }}
-
-// After (crisp text)
-whileHover={{ opacity: 0.96 }}
-```
-
-### Issue: Button Test Fails with `toBeDisabled()`
-
-**Error**:
-```
-Received element is not disabled: <span />
-```
-
-**Cause**: `getByText` finds inner `<span>`, not `<button>` element
-
-**Solution**: Use `getByRole` for interactive elements
-
-```typescript
-// Before
-const button = screen.getByText(/确认/i);
-expect(button).toBeDisabled();  // Fails!
-
-// After
-const button = screen.getByRole('button', { name: /确认/i });
-expect(button).toBeDisabled();  // Works!
+// ✅ Better - GPU-accelerated
+animate={{ opacity: 1, transform: 'translateX(0)' }}
 ```
 
 ---
 
 ## Performance Considerations
 
-### GPU Acceleration
+### GPU-Accelerated Properties
 
-These properties trigger GPU acceleration (performant):
+These properties are performant (use freely):
 - `opacity`
 - `transform` (translate, scale, rotate)
 
@@ -556,12 +505,12 @@ Avoid animating these (triggers reflow):
 
 ### Animation Budget
 
-**Rule of Thumb**: No more than 3-4 simultaneous animations on screen
+**Rule of Thumb**: No more than 3-4 simultaneous animations
 
 **Current Implementation**:
-- Modal enter: Backdrop (1) + Content (1) = 2 animations ✅
-- Button hover: Single element opacity ✅
-- List stagger: Sequential, not simultaneous ✅
+- Modal: Backdrop (1) + Content (1) = 2 ✅
+- Button hover: Single element ✅
+- Tool card expand: Single element ✅
 
 ### Will-Change Optimization
 
@@ -573,7 +522,7 @@ For frequently animated elements:
 }
 ```
 
-**Warning**: Don't overuse—creates new layer, uses memory
+**Warning**: Creates new layer, uses memory. Don't overuse.
 
 ---
 
@@ -582,22 +531,20 @@ For frequently animated elements:
 ### Unit Testing Motion Config
 
 ```typescript
-import { MOTION_CONFIG, FRAMER_TRANSITION } from '@/lib/motion';
+import { MOTION_MICRO, FRAMER } from '@/lib/motion';
 
 describe('Motion System', () => {
-  it('enforces 0.4s standard duration', () => {
-    expect(MOTION_CONFIG.duration).toBe(0.4);
+  it('defines all cognitive layers', () => {
+    expect(MOTION_MICRO.duration).toBe(0.15);
+    expect(FRAMER.transition.duration).toBe(0.25);
+    expect(FRAMER.reveal.duration).toBe(0.35);
+    expect(FRAMER.scene.duration).toBe(0.45);
+    expect(FRAMER.complex.duration).toBe(0.6);
   });
 
-  it('uses easeOut easing', () => {
-    expect(MOTION_CONFIG.ease).toBe('easeOut');
-  });
-
-  it('provides Framer transition object', () => {
-    expect(FRAMER_TRANSITION).toEqual({
-      duration: 0.4,
-      ease: 'easeOut',
-    });
+  it('enforces asymmetric exit principle', () => {
+    expect(FRAMER.exit.scene.duration).toBeLessThan(FRAMER.scene.duration);
+    // 280ms < 450ms (38% faster)
   });
 });
 ```
@@ -609,26 +556,11 @@ import { render } from '@testing-library/react';
 import { Button } from '@/components/ui/Button';
 
 it('applies correct transition timing', () => {
-  const { container } = render(<Button>Click me</Button>);
+  const { container } = render(<Button>Click</Button>);
   const button = container.querySelector('button');
   
   const styles = window.getComputedStyle(button);
-  expect(styles.transitionDuration).toContain('400ms');
-});
-```
-
-### Visual Regression Testing
-
-For critical animations, use visual snapshots:
-
-```typescript
-it('matches modal enter animation snapshot', async () => {
-  const { container } = render(<Modal isOpen={true}>Content</Modal>);
-  
-  // Wait for animation to complete
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  expect(container).toMatchSnapshot();
+  expect(styles.transitionDuration).toContain('150ms');  // Micro-feedback
 });
 ```
 
@@ -636,63 +568,80 @@ it('matches modal enter animation snapshot', async () => {
 
 ## Migration Guide
 
-### From Hardcoded to Unified Timing
+### From Old System (0.4s Unified)
 
-**Step 1**: Install motion constants
-```typescript
-// Add to component
-import { FRAMER_TRANSITION, TAILWIND_TRANSITION } from '@/lib/motion';
-```
-
-**Step 2**: Replace Tailwind transitions
+**Step 1**: Update imports
 ```typescript
 // Before
-className="transition-all duration-200"
+import { MOTION_CONFIG, FRAMER_TRANSITION } from '@/lib/motion';
 
 // After
-className={TAILWIND_TRANSITION}
+import { FRAMER, MOTION_EXIT } from '@/lib/motion';
 ```
 
-**Step 3**: Replace Framer Motion transitions
+**Step 2**: Map old usage to appropriate layers
+```typescript
+// Before (all 0.4s)
+transition={FRAMER_TRANSITION}  // 400ms
+
+// After (layer-specific)
+transition={FRAMER.micro}      // 150ms for hover
+transition={FRAMER.reveal}     // 350ms for content
+transition={FRAMER.scene}      // 450ms for modals
+```
+
+**Step 3**: Add asymmetric exits
 ```typescript
 // Before
-transition={{ duration: 0.3, ease: 'easeOut' }}
-
-// After
+exit={{ opacity: 0 }}
 transition={FRAMER_TRANSITION}
-```
 
-**Step 4**: Document exceptions
-```typescript
-// If timing MUST differ
-// Continuous rotation - requires 1s linear loop
-transition={{ duration: 1, ease: 'linear', repeat: Infinity }}
+// After
+exit={{ 
+  opacity: 0,
+  transition: { duration: MOTION_EXIT.reveal, ease: MOTION_EXIT.ease }
+}}
 ```
 
 ### Audit Checklist
 
-- [ ] All `duration-*` classes use `duration-400`
-- [ ] All Framer `transition` props import from `lib/motion.ts`
-- [ ] No hardcoded `0.2`, `0.3`, `200ms`, `300ms` values
-- [ ] Exceptions are documented with comments
-- [ ] Tests verify timing consistency
+- [ ] All hover/tap effects use `FRAMER.micro` (150ms)
+- [ ] Loading states use `FRAMER.transition` (250ms)
+- [ ] Content reveals use `FRAMER.reveal` (350ms)
+- [ ] Modals use `FRAMER.scene` (450ms)
+- [ ] Major layouts use `FRAMER.complex` (600ms)
+- [ ] All exits use `MOTION_EXIT` timings
+- [ ] No hardcoded duration values
+- [ ] No text scaling animations
 
 ---
 
 ## Update History
 
-### 2025-10-15: Initial Documentation
+### 2025-10-17: Cognitive Rhythm Revolution
 
-**Context**: Comprehensive UI/UX audit revealed timing inconsistencies. Created unified motion system.
+**Context**: Complete overhaul from mechanical 0.4s unified timing to cognitive-based rhythm system.
+
+**Changes**:
+- Introduced Five Cognitive Layers (Micro → Complex)
+- Implemented Asymmetric Exit Principle (30-38% faster exits)
+- Added AI-specific "Stream of Thought" timing
+- Migrated 10+ components to new system
+- Updated Tailwind config with all duration tokens
+- Added `FRAMER.complex` for major layout shifts
+
+**Philosophy**: "Silent, Comfortable, Intuitive, **Rhythmic**"
+
+**Validation**: All components migrated, tests passing, build successful.
+
+### 2025-10-15: Initial Unified System
+
+**Context**: Established 0.4s unified timing to replace inconsistent durations.
 
 **Changes**:
 - Created `lib/motion.ts` as single source of truth
-- Migrated 10+ components to unified 0.4s timing
+- Unified 10+ components to 0.4s
 - Added Tailwind `duration-400` token
-- Documented exceptions (spin, breathe)
-- Established testing patterns
-
-**Validation**: All components now use consistent rhythm, tests passing, build successful.
 
 ---
 
@@ -701,20 +650,21 @@ transition={{ duration: 1, ease: 'linear', repeat: Infinity }}
 ### Internal Documentation
 - Design Philosophy: `.cursor/rules/frontend-design-principles.mdc`
 - AURA Architecture: `../03_AURA_ARCHITECTURE.md`
-- Component Patterns: `./component_architecture.md` (coming soon)
 
 ### Code Locations
 - Motion Config: `aura/src/lib/motion.ts`
 - Button Component: `aura/src/components/ui/Button.tsx`
 - Modal Component: `aura/src/components/common/Modal.tsx`
+- Tool Card: `aura/src/features/chat/components/ToolCallCard.tsx`
+- Chat View: `aura/src/features/chat/components/ChatView.tsx`
+- Typewriter Hook: `aura/src/features/chat/hooks/useTypewriter.ts`
 - Tailwind Config: `aura/tailwind.config.js`
 
 ### External Resources
 - [Framer Motion Docs](https://www.framer.com/motion/)
 - [Material Design Motion](https://m3.material.io/styles/motion/overview)
-- [Designing Interface Animation](https://www.designbetter.co/animation-handbook)
+- [Laws of UX - Doherty Threshold](https://lawsofux.com/doherty-threshold/)
 
 ---
 
-*This document is a living reference. As our motion system evolves, this guide should be updated to reflect new patterns, edge cases, and best practices.*
-
+*This document reflects Motion System 2.0 - the cognitive rhythm architecture. As our understanding evolves, this guide will be updated with new patterns, refinements, and discoveries.*

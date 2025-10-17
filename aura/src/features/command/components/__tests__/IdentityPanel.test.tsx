@@ -389,7 +389,7 @@ describe('IdentityPanel', () => {
 
       // Assert: Should show success indicator
       await waitFor(() => {
-        expect(screen.getByText(/助记词已显示/i)).toBeInTheDocument();
+        expect(screen.getByText(/助记词已导出/i)).toBeInTheDocument();
       });
     });
   });

@@ -26,7 +26,7 @@ export const RoleSymbol: React.FC<RoleSymbolProps> = ({ role, isThinking = false
     <motion.div
       initial={false}
       className={cn(
-        'flex items-center justify-center w-8 h-8 self-baseline translate-y-[2px]',
+        'flex items-center justify-center w-8 h-8 self-start mt-[2px]',
         'text-secondary-foreground text-[18px] leading-none font-mono select-none',
         'flex-shrink-0' // 防止收缩
       )}

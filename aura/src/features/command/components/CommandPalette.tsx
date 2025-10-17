@@ -18,7 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui';
 import type { Command } from '../command.types';
-import { FRAMER_TRANSITION } from '@/lib/motion';
+import { FRAMER, MOTION_EXIT } from '@/lib/motion';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -65,9 +65,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 8 }}
-        transition={FRAMER_TRANSITION}
+        animate={{ 
+          opacity: 1, 
+          y: 0,
+          transition: FRAMER.reveal
+        }}
+        exit={{ 
+          opacity: 0, 
+          y: 8,
+          transition: { duration: MOTION_EXIT.reveal, ease: MOTION_EXIT.ease }
+        }}
         className="absolute bottom-full left-0 right-0 mb-2 z-40"
       >
         {/* Command Palette Container */}

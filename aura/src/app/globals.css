@@ -97,7 +97,7 @@
   /* 链接样式 */
   .prose a {
     @apply text-foreground underline decoration-secondary-foreground/30 decoration-1 underline-offset-2;
-    @apply transition-all duration-400 ease-out;
+    @apply transition-all duration-150 ease-out;
   }
   .prose a:hover {
     @apply text-primary decoration-secondary-foreground/50;

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui';
-import { FRAMER_TRANSITION } from '@/lib/motion';
+import { FRAMER, MOTION_EXIT } from '@/lib/motion';
 
 interface ScrollToBottomButtonProps {
   /** 是否显示按钮 */
@@ -26,9 +26,16 @@ export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
       {show && (
         <motion.div
           initial={{ opacity: 0, y: 0 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 0 }}
-          transition={FRAMER_TRANSITION}
+          animate={{ 
+            opacity: 1, 
+            y: 0,
+            transition: FRAMER.transition
+          }}
+          exit={{ 
+            opacity: 0, 
+            y: 0,
+            transition: { duration: MOTION_EXIT.transition, ease: MOTION_EXIT.ease }
+          }}
           className={cn(
             // 定位样式
             // bottom-[6.5rem] 约等于输入框容器的高度 (p-6 + 输入框高度)

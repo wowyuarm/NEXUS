@@ -76,7 +76,15 @@ export default {
         'text-condense': 'text-condense 0.5s ease-out forwards',
       },
       transitionDuration: {
-        '400': '400ms',
+        // Cognitive Rhythm System durations
+        '100': '100ms', // Micro-feedback exit
+        '150': '150ms', // Micro-feedback (hover)
+        '180': '180ms', // State transition exit
+        '200': '200ms', // State transition (loading)
+        '250': '250ms', // State transition (full)
+        '280': '280ms', // Scene change exit
+        '350': '350ms', // Content reveal
+        '450': '450ms', // Scene change
       },
     },
   },
