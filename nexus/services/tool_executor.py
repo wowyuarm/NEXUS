@@ -164,13 +164,21 @@ class ToolExecutorService:
             if tool_function is None:
                 raise ValueError(f"Tool '{tool_name}' not found in registry")
 
-            # Execute tool function asynchronously using asyncio.to_thread with timeout
-            # This allows synchronous tool functions to run without blocking the event loop
+            # Execute tool function with timeout
+            # Handle both sync and async tool functions
             try:
-                result = await asyncio.wait_for(
-                    asyncio.to_thread(tool_function, **tool_args),
-                    timeout=self.tool_timeout
-                )
+                if asyncio.iscoroutinefunction(tool_function):
+                    # For async functions, call directly
+                    result = await asyncio.wait_for(
+                        tool_function(**tool_args),
+                        timeout=self.tool_timeout
+                    )
+                else:
+                    # For sync functions, use asyncio.to_thread to avoid blocking
+                    result = await asyncio.wait_for(
+                        asyncio.to_thread(tool_function, **tool_args),
+                        timeout=self.tool_timeout
+                    )
             except asyncio.TimeoutError:
                 # Handle timeout specifically
                 timeout_msg = (

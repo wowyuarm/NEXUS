@@ -47,7 +47,8 @@ interface UseTypewriterReturn {
 export const useTypewriter = ({
   targetContent,
   isStreamingMessage,
-  speed: _speed, // deprecated, ignored (prefixed with _ to suppress warning)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  speed: _speed, // deprecated, ignored
 }: UseTypewriterOptions): UseTypewriterReturn => {
   const [displayedContent, setDisplayedContent] = useState('');
   const [isTyping, setIsTyping] = useState(false);

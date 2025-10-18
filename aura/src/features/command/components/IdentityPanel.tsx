@@ -55,6 +55,7 @@ export const IdentityPanel: React.FC = () => {
 
     // Error states - display briefly then clear
     const [importError, setImportError] = useState<string>("");
+    const [exportError, setExportError] = useState<string>("");
 
     // Load current identity on mount
     useEffect(() => {
@@ -69,13 +70,20 @@ export const IdentityPanel: React.FC = () => {
         loadIdentity();
     }, []);
 
-    // Clear error after 3 seconds
+    // Clear errors after 3 seconds
     useEffect(() => {
         if (importError) {
             const timer = setTimeout(() => setImportError(""), 3000);
             return () => clearTimeout(timer);
         }
     }, [importError]);
+
+    useEffect(() => {
+        if (exportError) {
+            const timer = setTimeout(() => setExportError(""), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [exportError]);
 
     /**
      * Create new identity via WebSocket /identity command
@@ -190,6 +198,7 @@ export const IdentityPanel: React.FC = () => {
      */
     const handleExportMnemonic = () => {
         setIsExporting(true);
+        setExportError(""); // Clear previous errors
 
         try {
             const mnemonic = IdentityService.exportMnemonic();
@@ -197,6 +206,7 @@ export const IdentityPanel: React.FC = () => {
             setShowMnemonic(true);
         } catch (error) {
             console.error("Failed to export mnemonic:", error);
+            setExportError(error instanceof Error ? error.message : "导出失败");
         } finally {
             setIsExporting(false);
         }
@@ -403,6 +413,14 @@ export const IdentityPanel: React.FC = () => {
                     >
                         {exportedMnemonic ? "助记词已导出" : "导出身份（备份）"}
                     </Button>
+
+                    {exportError && (
+                        <div className="p-3 bg-red-950/10 dark:bg-red-900/10 rounded-lg border border-red-950/20 dark:border-red-900/20">
+                            <p className="text-sm text-red-950 dark:text-red-900">
+                                {exportError}
+                            </p>
+                        </div>
+                    )}
 
                     {exportedMnemonic && (
                         <div className="space-y-3 p-4 bg-card/50 backdrop-blur-sm rounded-lg border border-border/50">

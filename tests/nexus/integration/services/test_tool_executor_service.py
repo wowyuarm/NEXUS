@@ -376,10 +376,10 @@ class TestToolExecutorServiceIntegration:
             }
         )
 
-        # Configure mock tool registry to return a slow function
-        def slow_tool_function(duration):
-            import time
-            time.sleep(duration)
+        # Configure mock tool registry to return a slow async function
+        async def slow_tool_function(duration):
+            import asyncio
+            await asyncio.sleep(duration)
             return "completed"
         
         mock_tool_registry.get_tool_function.return_value = slow_tool_function
