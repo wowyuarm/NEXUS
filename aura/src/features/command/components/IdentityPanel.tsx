@@ -1,15 +1,33 @@
 /**
- * IdentityPanel Component
+ * IdentityPanel Component - Command Panel Design Standard v1.0
  *
- * The sovereign identity management interface for YX Nexus.
- * This panel is the physical manifestation of user's "self-sovereignty" -
- * a secure, intuitive tool for managing cryptographic identity.
+ * Design Principles (applicable to all command panels: /identity, /config, /prompt):
+ * 
+ * 1. **Layout Standard**
+ *    - Fixed height: 360px (unified for all modes)
+ *    - Consistent padding: px-7 py-4
+ *    - Section spacing: space-y-3.5
+ *    - Centered titles for better visual hierarchy
  *
- * Design Philosophy:
- * - **Unified Size**: Consistent panel dimensions prevent layout shifts
- * - **Minimal Animation**: Direct response, no unnecessary transitions
- * - **State-Driven Feedback**: Icons and subtle visual changes over text messages
- * - **Selective Warning Colors**: Deep red only for critical permanent actions
+ * 2. **State Machine**
+ *    - Clear mode separation: main | import | export | reset | help
+ *    - Single actionState: idle | loading | success | error
+ *    - Smooth transitions with FRAMER.reveal (350ms)
+ *
+ * 3. **Visual Hierarchy**
+ *    - Title: text-sm font-medium, centered
+ *    - Body: text-sm, comfortable line-height
+ *    - Labels: text-xs uppercase tracking-wide
+ *
+ * 4. **Navigation**
+ *    - Back button: Icon-only (ArrowLeft), top-left
+ *    - Help button: Icon-only (HelpCircle), top-right
+ *    - Minimal text, maximum clarity
+ *
+ * 5. **Grayscale Moderation**
+ *    - No color emphasis (no red warnings)
+ *    - Use opacity, weight, and spacing for hierarchy
+ *    - Danger actions: subtle opacity reduction
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -23,41 +41,55 @@ import {
     EyeOff,
     Trash2,
     Loader2,
+    ArrowLeft,
+    HelpCircle,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button, Textarea } from "@/components/ui";
 import { useChatStore } from "@/features/chat/store/chatStore";
 import { useUIStore } from "@/stores/uiStore";
 import { IdentityService } from "@/services/identity/identity";
 import { websocketManager } from "@/services/websocket/manager";
 import { v4 as uuidv4 } from "uuid";
-import { cn } from "@/lib/utils";
+import { FRAMER } from "@/lib/motion";
 import type { Message } from "@/features/chat/types";
+
+// ============================================================================
+// State Machine: One Mode at a Time
+// ============================================================================
+
+type PanelMode =
+    | "main" // 主界面
+    | "import" // 导入身份
+    | "export" // 导出助记词
+    | "reset" // 重置确认
+    | "help"; // 帮助说明
+
+type ActionState = "idle" | "loading" | "success" | "error";
 
 export const IdentityPanel: React.FC = () => {
     const visitorMode = useChatStore((state) => state.visitorMode);
     const closeModal = useUIStore((state) => state.closeModal);
 
+    // ============================================================================
+    // Core State
+    // ============================================================================
+    
     const [publicKey, setPublicKey] = useState<string>("");
+    const [mode, setMode] = useState<PanelMode>("main");
+    const [actionState, setActionState] = useState<ActionState>("idle");
+    
+    // Form data
     const [mnemonicInput, setMnemonicInput] = useState<string>("");
-    const [exportedMnemonic, setExportedMnemonic] = useState<string | null>(
-        null,
-    );
+    const [exportedMnemonic, setExportedMnemonic] = useState<string | null>(null);
     const [showMnemonic, setShowMnemonic] = useState<boolean>(false);
-    const [showImportInput, setShowImportInput] = useState<boolean>(false);
-    const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+    const [errorMessage, setErrorMessage] = useState<string>("");
+    const [isCopied, setIsCopied] = useState<boolean>(false);
 
-    // Loading states for buttons
-    const [isCreating, setIsCreating] = useState(false);
-    const [isImporting, setIsImporting] = useState(false);
-    const [isExporting, setIsExporting] = useState(false);
-    const [isResetting, setIsResetting] = useState(false);
-    const [isCopied, setIsCopied] = useState(false);
+    // ============================================================================
+    // Lifecycle
+    // ============================================================================
 
-    // Error states - display briefly then clear
-    const [importError, setImportError] = useState<string>("");
-    const [exportError, setExportError] = useState<string>("");
-
-    // Load current identity on mount
     useEffect(() => {
         const loadIdentity = async () => {
             try {
@@ -70,42 +102,28 @@ export const IdentityPanel: React.FC = () => {
         loadIdentity();
     }, []);
 
-    // Clear errors after 3 seconds
+    // Auto-clear errors after 3 seconds
     useEffect(() => {
-        if (importError) {
-            const timer = setTimeout(() => setImportError(""), 3000);
+        if (errorMessage) {
+            const timer = setTimeout(() => setErrorMessage(""), 3000);
             return () => clearTimeout(timer);
         }
-    }, [importError]);
+    }, [errorMessage]);
 
-    useEffect(() => {
-        if (exportError) {
-            const timer = setTimeout(() => setExportError(""), 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [exportError]);
+    // ============================================================================
+    // Actions
+    // ============================================================================
 
-    /**
-     * Create new identity via WebSocket /identity command
-     */
     const handleCreateIdentity = async () => {
-        setIsCreating(true);
+        setActionState("loading");
 
         try {
-            // Clear old identity if in visitor mode
             if (visitorMode && IdentityService.hasIdentity()) {
-                console.log(
-                    "🧹 Clearing old identity before creating new one...",
-                );
                 IdentityService.clearIdentity();
             }
 
-            // Generate new identity with mnemonic support
-            console.log("🔑 Generating new identity with mnemonic support...");
-            const newIdentity = await IdentityService.getIdentity();
-            console.log("✅ New identity created:", newIdentity.publicKey);
-
-            // Create PENDING system message
+            await IdentityService.getIdentity();
+            
             const pendingMsg: Message = {
                 id: uuidv4(),
                 role: "SYSTEM",
@@ -120,45 +138,32 @@ export const IdentityPanel: React.FC = () => {
                 messages: [...state.messages, pendingMsg],
             }));
 
-            // Sign and send /identity command to backend
             const auth = await IdentityService.signCommand("/identity");
             websocketManager.sendCommand("/identity", auth);
 
-            // Reconnect WebSocket to establish member session
             await websocketManager.reconnect();
-
-            // Close modal after short delay
-            setTimeout(() => {
-                closeModal();
-            }, 1500);
+            
+            setActionState("success");
+            setTimeout(() => closeModal(), 1000);
         } catch (error) {
             console.error("Failed to create identity:", error);
-        } finally {
-            setIsCreating(false);
+            setErrorMessage("创建失败，请重试");
+            setActionState("error");
         }
     };
 
-    /**
-     * Import identity from mnemonic phrase
-     */
     const handleImportIdentity = async () => {
         if (!mnemonicInput.trim()) {
-            setImportError("请输入助记词");
+            setErrorMessage("请输入助记词");
             return;
         }
 
-        setIsImporting(true);
-        setImportError("");
+        setActionState("loading");
 
         try {
-            // Import identity from mnemonic
-            const newPublicKey =
-                await IdentityService.importFromMnemonic(mnemonicInput);
-
-            // Reconnect WebSocket with new identity
+            const newPublicKey = await IdentityService.importFromMnemonic(mnemonicInput);
             await websocketManager.reconnect(newPublicKey);
 
-            // Create system message for chat history
             const completedMsg: Message = {
                 id: uuidv4(),
                 role: "SYSTEM",
@@ -179,64 +184,65 @@ export const IdentityPanel: React.FC = () => {
                 messages: [...state.messages, completedMsg],
             }));
 
-            // Close modal after short delay
+            setActionState("success");
             setTimeout(() => {
                 closeModal();
                 setMnemonicInput("");
-                setShowImportInput(false);
-            }, 1500);
+                setMode("main");
+            }, 1000);
         } catch (error) {
             console.error("Failed to import identity:", error);
-            setImportError(error instanceof Error ? error.message : "导入失败");
-        } finally {
-            setIsImporting(false);
+            setErrorMessage(error instanceof Error ? error.message : "导入失败");
+            setActionState("error");
         }
     };
 
-    /**
-     * Export mnemonic phrase for backup
-     */
     const handleExportMnemonic = () => {
-        setIsExporting(true);
-        setExportError(""); // Clear previous errors
+        setActionState("loading");
 
         try {
             const mnemonic = IdentityService.exportMnemonic();
             setExportedMnemonic(mnemonic);
             setShowMnemonic(true);
+            setIsCopied(false); // 重置复制状态
+            setActionState("success");
         } catch (error) {
             console.error("Failed to export mnemonic:", error);
-            setExportError(error instanceof Error ? error.message : "导出失败");
-        } finally {
-            setIsExporting(false);
+            setErrorMessage(error instanceof Error ? error.message : "导出失败");
+            setActionState("error");
+            setMode("main");
         }
     };
 
-    /**
-     * Copy mnemonic to clipboard with icon feedback
-     */
     const handleCopyMnemonic = useCallback(async () => {
-        if (!exportedMnemonic || isCopied) return;
+        if (!exportedMnemonic) return;
 
         try {
             await navigator.clipboard.writeText(exportedMnemonic);
             setIsCopied(true);
-
-            // Reset after 2 seconds
             setTimeout(() => setIsCopied(false), 2000);
         } catch (error) {
             console.error("Failed to copy mnemonic:", error);
+            setErrorMessage("复制失败");
         }
-    }, [exportedMnemonic, isCopied]);
+    }, [exportedMnemonic]);
 
-    /**
-     * Clear/Reset current identity
-     */
     const handleResetIdentity = async () => {
-        setIsResetting(true);
+        // 二次确认
+        const confirmed = window.confirm(
+            "⚠️ 最后确认\n\n" +
+            "此操作将永久删除本地密钥。\n" +
+            "如果您没有备份助记词，将无法恢复此身份。\n\n" +
+            "确定要继续吗？"
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        setActionState("loading");
 
         try {
-            // Create PENDING system message
             const pendingMsg: Message = {
                 id: uuidv4(),
                 role: "SYSTEM",
@@ -251,364 +257,405 @@ export const IdentityPanel: React.FC = () => {
                 messages: [...state.messages, pendingMsg],
             }));
 
-            // Sign and send delete request to backend
-            console.log("Deleting identity from backend database...");
             const auth = await IdentityService.signCommand("/identity/delete");
             websocketManager.sendCommand("/identity/delete", auth);
 
-            // Wait briefly for backend to process
             await new Promise((resolve) => setTimeout(resolve, 300));
 
-            // Clear identity from localStorage
-            console.log("🧹 Clearing local identity data...");
             IdentityService.clearIdentity();
-
-            // Close modal and cleanup
             closeModal();
             websocketManager.disconnect();
 
-            // Reload page to reset to visitor mode
             setTimeout(() => {
                 window.location.reload();
             }, 500);
         } catch (error) {
             console.error("Failed to reset identity:", error);
-        } finally {
-            setIsResetting(false);
+            setErrorMessage("重置失败");
+            setActionState("error");
         }
     };
 
-    // Visitor View - Simplified and centered
-    if (visitorMode) {
-        return (
-            <div className="min-h-[380px] flex flex-col">
-                {/* Guidance Text */}
-                <div className="p-4 bg-muted/20 rounded-lg border border-border/40 mb-6">
-                    <p className="text-sm text-muted-foreground">
-                        您当前为
-                        <span className="font-medium text-foreground">
-                            访客身份
-                        </span>
-                        ，无法使用全部服务。
-                        创建或导入身份后，您将获得完整的服务能力。
+    // ============================================================================
+    // Navigation Helpers
+    // ============================================================================
+
+    const navigateBack = () => {
+        setMode("main");
+        setActionState("idle");
+        setMnemonicInput("");
+        setExportedMnemonic(null);
+        setShowMnemonic(false);
+        setErrorMessage("");
+        setIsCopied(false);
+    };
+
+    // ============================================================================
+    // Render Functions
+    // ============================================================================
+
+    const renderVisitorMain = () => (
+        <div className="space-y-3.5">
+            {/* Help Button - Top Right */}
+            <div className="flex justify-end -mb-0.5">
+                <button
+                    onClick={() => setMode("help")}
+                    className="text-muted-foreground hover:text-foreground transition-colors duration-150"
+                    aria-label="身份系统说明"
+                >
+                    <HelpCircle size={18} />
+                </button>
+            </div>
+
+            {/* Guidance */}
+            <div className="px-4 py-2.5 bg-muted/20 rounded-xl border border-border/30">
+                <p className="text-sm text-muted-foreground leading-relaxed text-center">
+                    您当前为<span className="font-medium text-foreground">访客身份</span>，
+                    无法使用全部服务。创建或导入身份后，您将获得完整的服务能力。
+                </p>
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-2.5 pt-0.5">
+                <Button
+                    variant="primary"
+                    icon={actionState === "loading" ? (
+                        <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                        <UserPlus size={18} />
+                    )}
+                    onClick={handleCreateIdentity}
+                    disabled={actionState === "loading"}
+                    fullWidth
+                >
+                    {actionState === "loading" ? "创建中..." : "创建新身份"}
+                </Button>
+
+                <Button
+                    variant="outline"
+                    icon={<Upload size={18} />}
+                    onClick={() => setMode("import")}
+                    fullWidth
+                >
+                    导入已有身份
+                </Button>
+            </div>
+        </div>
+    );
+
+    const renderImportMode = () => (
+        <div className="space-y-4">
+            {/* Navigation */}
+            <div className="flex items-center justify-between">
+                <button
+                    onClick={navigateBack}
+                    className="text-muted-foreground hover:text-foreground transition-colors duration-150"
+                    aria-label="返回"
+                >
+                    <ArrowLeft size={18} />
+                </button>
+                <h3 className="text-sm font-medium text-foreground">导入身份</h3>
+                <div className="w-[18px]" /> {/* Spacer for centering */}
+            </div>
+
+            <div className="space-y-4">
+                <Textarea
+                    value={mnemonicInput}
+                    onChange={(e) => setMnemonicInput(e.target.value)}
+                    placeholder="请输入助记词（12或24个单词，空格分隔）"
+                    minRows={4}
+                    className="text-sm font-mono"
+                    autoFocus
+                />
+
+                <Button
+                    variant="primary"
+                    icon={actionState === "loading" && (
+                        <Loader2 size={18} className="animate-spin" />
+                    )}
+                    onClick={handleImportIdentity}
+                    disabled={actionState === "loading" || !mnemonicInput.trim()}
+                    fullWidth
+                >
+                    {actionState === "loading" ? "导入中..." : "确认导入"}
+                </Button>
+            </div>
+        </div>
+    );
+
+    const renderMemberMain = () => (
+        <div className="space-y-3.5">
+            {/* Help Button - Top Right */}
+            <div className="flex justify-end -mb-0.5">
+                <button
+                    onClick={() => setMode("help")}
+                    className="text-muted-foreground hover:text-foreground transition-colors duration-150"
+                    aria-label="身份系统说明"
+                >
+                    <HelpCircle size={18} />
+                </button>
+            </div>
+
+            {/* Public Key Display */}
+            <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide text-center block">
+                    存在地址
+                </label>
+                <div className="px-4 py-2.5 bg-muted/10 rounded-lg border border-border/20">
+                    <code className="text-xs text-foreground/90 font-mono block text-center break-all leading-relaxed">
+                        {publicKey || "加载中..."}
+                    </code>
+                </div>
+            </div>
+
+            {/* Primary Actions */}
+            <div className="flex gap-2.5">
+                <Button
+                    variant="outline"
+                    icon={<Download size={18} />}
+                    onClick={() => {
+                        setMode("export");
+                        handleExportMnemonic();
+                    }}
+                    className="flex-1"
+                >
+                    备份身份
+                </Button>
+
+                <Button
+                    variant="outline"
+                    icon={<Upload size={18} />}
+                    onClick={() => setMode("import")}
+                    className="flex-1"
+                >
+                    切换身份
+                </Button>
+            </div>
+
+            {/* Danger Zone - Subtle, no red */}
+            <div className="pt-4 mt-4 border-t border-border/30">
+                <Button
+                    variant="ghost"
+                    icon={<Trash2 size={16} />}
+                    onClick={() => setMode("reset")}
+                    fullWidth
+                    className="text-muted-foreground/60 hover:text-foreground/80"
+                >
+                    清除当前身份
+                </Button>
+            </div>
+        </div>
+    );
+
+    const renderExportMode = () => (
+        <div className="space-y-4">
+            {/* Navigation */}
+            <div className="flex items-center justify-between">
+                <button
+                    onClick={navigateBack}
+                    className="text-muted-foreground hover:text-foreground transition-colors duration-150"
+                    aria-label="返回"
+                >
+                    <ArrowLeft size={18} />
+                </button>
+                <h3 className="text-sm font-medium text-foreground">助记词</h3>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={showMnemonic ? <EyeOff size={16} /> : <Eye size={16} />}
+                    iconOnly
+                    onClick={() => setShowMnemonic(!showMnemonic)}
+                    aria-label={showMnemonic ? "隐藏助记词" : "显示助记词"}
+                />
+            </div>
+
+            {showMnemonic && exportedMnemonic && (
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={FRAMER.reveal}
+                    className="space-y-4"
+                >
+                    <div className="px-4 py-3.5 bg-background/60 rounded-lg border border-border/30">
+                        <p className="text-sm text-foreground/90 font-mono break-all leading-relaxed text-center">
+                            {exportedMnemonic}
+                        </p>
+                    </div>
+
+                    <Button
+                        variant="primary"
+                        icon={isCopied ? (
+                            <Check size={18} />
+                        ) : (
+                            <Copy size={18} />
+                        )}
+                        onClick={handleCopyMnemonic}
+                        disabled={isCopied}
+                        fullWidth
+                    >
+                        {isCopied ? "已复制" : "复制"}
+                    </Button>
+
+                    <p className="text-xs text-muted-foreground/80 leading-relaxed text-center">
+                        请妥善保管助记词，切勿泄露。助记词是恢复身份的唯一凭证。
+                    </p>
+                </motion.div>
+            )}
+        </div>
+    );
+
+    const renderResetMode = () => (
+        <div className="space-y-4">
+            {/* Navigation */}
+            <div className="flex items-center justify-between">
+                <button
+                    onClick={navigateBack}
+                    className="text-muted-foreground hover:text-foreground transition-colors duration-150"
+                    aria-label="返回"
+                >
+                    <ArrowLeft size={18} />
+                </button>
+                <h3 className="text-sm font-medium text-foreground">清除当前身份</h3>
+                <div className="w-[18px]" /> {/* Spacer for centering */}
+            </div>
+
+            <div className="space-y-4">
+                {/* Warning - Grayscale only, use opacity and background */}
+                <div className="px-4 py-3 bg-foreground/[0.02] rounded-lg border border-border/40">
+                    <p className="text-sm text-foreground/70 leading-relaxed text-center">
+                        此操作将删除本地存储的密钥。如果您没有备份助记词，将
+                        <span className="font-semibold text-foreground">永久丢失</span>
+                        此身份。
                     </p>
                 </div>
 
-                {/* Main content area - centered */}
-                <div className="flex-1 flex flex-col justify-center space-y-4">
-                    {/* Create Identity Button */}
-                    <Button
-                        variant="primary"
-                        icon={
-                            isCreating ? (
-                                <Loader2 size={18} className="animate-spin" />
-                            ) : (
-                                <UserPlus size={18} />
-                            )
-                        }
-                        onClick={handleCreateIdentity}
-                        disabled={isCreating}
-                        fullWidth
-                    >
-                        {isCreating ? "创建中..." : "创建新身份"}
-                    </Button>
-
-                    {/* Import Identity Section - instant toggle */}
-                    {!showImportInput ? (
-                        <Button
-                            variant="outline"
-                            icon={<Upload size={18} />}
-                            onClick={() => setShowImportInput(true)}
-                            fullWidth
-                        >
-                            导入已有身份
-                        </Button>
-                    ) : (
-                        <div className="space-y-3">
-                            <Textarea
-                                value={mnemonicInput}
-                                onChange={(e) =>
-                                    setMnemonicInput(e.target.value)
-                                }
-                                placeholder="请输入助记词"
-                                minRows={3}
-                                className={cn(
-                                    "h-24 text-sm",
-                                    importError &&
-                                        "border-red-950/30 dark:border-red-900/30",
-                                )}
-                            />
-                            {importError && (
-                                <p className="text-xs text-muted-foreground">
-                                    {importError}
-                                </p>
-                            )}
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="primary"
-                                    icon={
-                                        isImporting && (
-                                            <Loader2
-                                                size={16}
-                                                className="animate-spin"
-                                            />
-                                        )
-                                    }
-                                    onClick={handleImportIdentity}
-                                    disabled={
-                                        isImporting || !mnemonicInput.trim()
-                                    }
-                                    className="flex-1"
-                                >
-                                    {isImporting ? "导入中..." : "确认导入"}
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => {
-                                        setShowImportInput(false);
-                                        setMnemonicInput("");
-                                        setImportError("");
-                                    }}
-                                >
-                                    取消
-                                </Button>
-                            </div>
-                        </div>
+                <Button
+                    variant="outline"
+                    icon={actionState === "loading" && (
+                        <Loader2 size={18} className="animate-spin" />
                     )}
-                </div>
+                    onClick={handleResetIdentity}
+                    disabled={actionState === "loading"}
+                    fullWidth
+                    className="border-foreground/20 hover:bg-foreground/[0.03] hover:border-foreground/30"
+                >
+                    {actionState === "loading" ? "清除中..." : "确认清除"}
+                </Button>
             </div>
-        );
-    }
+        </div>
+    );
 
-    // Member View - Structured with consistent spacing
-    return (
-        <div className="min-h-[420px] max-h-[500px] flex flex-col">
-            <div className="flex-1 space-y-5 overflow-y-auto">
-                {/* Public Key Display */}
+    const renderHelpMode = () => (
+        <div className="space-y-4">
+            {/* Navigation */}
+            <div className="flex items-center justify-between">
+                <button
+                    onClick={navigateBack}
+                    className="text-muted-foreground hover:text-foreground transition-colors duration-150"
+                    aria-label="返回"
+                >
+                    <ArrowLeft size={18} />
+                </button>
+                <h3 className="text-sm font-medium text-foreground">关于身份系统</h3>
+                <div className="w-[18px]" /> {/* Spacer for centering */}
+            </div>
+
+            <div className="space-y-5">
+                {/* 核心概念 */}
                 <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                        存在地址 (Public Key)
-                    </label>
-                    <div className="p-3 bg-muted/20 rounded-lg border border-border/40">
-                        <code className="text-xs text-foreground/80 break-all font-mono">
-                            {publicKey || "加载中..."}
-                        </code>
-                    </div>
+                    <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                        不同于传统账号
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                        NEXUS 使用<span className="font-medium text-foreground">加密身份</span>，
+                        无需注册、无密码。私钥仅存本地，服务器只验证签名。
+                    </p>
                 </div>
 
-                {/* Export Mnemonic Section */}
-                <div className="space-y-3">
-                    <Button
-                        variant="primary"
-                        icon={
-                            isExporting ? (
-                                <Loader2 size={18} className="animate-spin" />
-                            ) : (
-                                <Download size={18} />
-                            )
-                        }
-                        onClick={handleExportMnemonic}
-                        disabled={isExporting || exportedMnemonic !== null}
-                        fullWidth
-                    >
-                        {exportedMnemonic ? "助记词已导出" : "导出身份（备份）"}
-                    </Button>
-
-                    {exportError && (
-                        <div className="p-3 bg-red-950/10 dark:bg-red-900/10 rounded-lg border border-red-950/20 dark:border-red-900/20">
-                            <p className="text-sm text-red-950 dark:text-red-900">
-                                {exportError}
-                            </p>
-                        </div>
-                    )}
-
-                    {exportedMnemonic && (
-                        <div className="space-y-3 p-4 bg-card/50 backdrop-blur-sm rounded-lg border border-border/50">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-foreground">
-                                    助记词
-                                </span>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    icon={
-                                        showMnemonic ? (
-                                            <EyeOff size={16} />
-                                        ) : (
-                                            <Eye size={16} />
-                                        )
-                                    }
-                                    iconOnly
-                                    onClick={() =>
-                                        setShowMnemonic(!showMnemonic)
-                                    }
-                                    aria-label={
-                                        showMnemonic
-                                            ? "隐藏助记词"
-                                            : "显示助记词"
-                                    }
-                                />
-                            </div>
-
-                            {showMnemonic && (
-                                <div className="space-y-3">
-                                    <div className="p-3 bg-background/60 rounded border border-border">
-                                        <p className="text-sm text-foreground/90 font-mono break-all leading-relaxed">
-                                            {exportedMnemonic}
-                                        </p>
-                                    </div>
-
-                                    <Button
-                                        variant="outline"
-                                        icon={
-                                            isCopied ? (
-                                                <Check size={18} />
-                                            ) : (
-                                                <Copy size={18} />
-                                            )
-                                        }
-                                        onClick={handleCopyMnemonic}
-                                        disabled={isCopied}
-                                        fullWidth
-                                        className={cn(isCopied && "opacity-60")}
-                                    >
-                                        {isCopied ? "已复制" : "复制到剪贴板"}
-                                    </Button>
-
-                                    <p className="text-xs text-muted-foreground">
-                                        ⚠️
-                                        请妥善保管助记词，切勿泄露。助记词是恢复身份的唯一凭证。
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                {/* 公钥与私钥 */}
+                <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                        公钥 & 私钥
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                        <span className="font-medium text-foreground">公钥</span>是您的身份地址，服务器存储用于验证。
+                        <span className="font-medium text-foreground">私钥</span>仅存本地浏览器，绝不上传。
+                    </p>
                 </div>
 
-                {/* Import/Switch Identity Section */}
-                <div className="space-y-3 pt-4 border-t border-border">
-                    {!showImportInput ? (
-                        <Button
-                            variant="outline"
-                            icon={<Upload size={18} />}
-                            onClick={() => setShowImportInput(true)}
-                            fullWidth
-                        >
-                            切换/导入身份
-                        </Button>
-                    ) : (
-                        <div className="space-y-3">
-                            <Textarea
-                                value={mnemonicInput}
-                                onChange={(e) =>
-                                    setMnemonicInput(e.target.value)
-                                }
-                                placeholder="请输入助记词"
-                                minRows={3}
-                                className={cn(
-                                    "h-24 text-sm",
-                                    importError &&
-                                        "border-red-950/30 dark:border-red-900/30",
-                                )}
-                            />
-                            {importError && (
-                                <p className="text-xs text-muted-foreground">
-                                    {importError}
-                                </p>
-                            )}
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="primary"
-                                    icon={
-                                        isImporting && (
-                                            <Loader2
-                                                size={16}
-                                                className="animate-spin"
-                                            />
-                                        )
-                                    }
-                                    onClick={handleImportIdentity}
-                                    disabled={
-                                        isImporting || !mnemonicInput.trim()
-                                    }
-                                    className="flex-1"
-                                >
-                                    {isImporting ? "导入中..." : "确认导入"}
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => {
-                                        setShowImportInput(false);
-                                        setMnemonicInput("");
-                                        setImportError("");
-                                    }}
-                                >
-                                    取消
-                                </Button>
-                            </div>
-                        </div>
-                    )}
+                {/* 助记词 */}
+                <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                        助记词
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                        12或24个单词组成的<span className="font-medium text-foreground">恢复短语</span>。
+                        丢失助记词 = 永久失去身份。请务必备份并妥善保管。
+                    </p>
                 </div>
 
-                {/* Reset Identity Section - Danger Zone */}
-                <div className="space-y-3 pt-4 border-t border-border border-dashed">
-                    <div className="p-3 bg-muted/10 rounded-lg border border-border/20">
-                        <p className="text-xs text-muted-foreground mb-3">
-                            ⚠️ 危险操作：清除当前身份将删除本地存储的密钥。
-                            如果您没有备份助记词，将
-                            <span className="text-red-950 dark:text-red-900 font-medium">
-                                永久丢失
-                            </span>
-                            此身份！
-                        </p>
-
-                        {!showResetConfirm ? (
-                            <Button
-                                variant="ghost"
-                                icon={<Trash2 size={16} />}
-                                onClick={() => setShowResetConfirm(true)}
-                                fullWidth
-                                className="text-muted-foreground hover:text-red-950 dark:hover:text-red-900"
-                            >
-                                清除当前身份
-                            </Button>
-                        ) : (
-                            <div className="space-y-2">
-                                <p className="text-xs text-red-950 dark:text-red-900 font-medium">
-                                    确认要清除当前身份吗？此操作不可撤销！
-                                </p>
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant="ghost"
-                                        icon={
-                                            isResetting && (
-                                                <Loader2
-                                                    size={16}
-                                                    className="animate-spin"
-                                                />
-                                            )
-                                        }
-                                        onClick={handleResetIdentity}
-                                        disabled={isResetting}
-                                        className="flex-1 bg-red-950/10 hover:bg-red-950/20 dark:bg-red-900/10 dark:hover:bg-red-900/20 text-red-950 dark:text-red-900"
-                                    >
-                                        {isResetting ? "清除中..." : "确认清除"}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() =>
-                                            setShowResetConfirm(false)
-                                        }
-                                        className="flex-1"
-                                    >
-                                        取消
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                {/* 优势 */}
+                <div className="px-4 py-3 bg-muted/20 rounded-lg border border-border/30">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                        ✓ 无需注册，即刻创建<br/>
+                        ✓ 私钥本地，服务器不存<br/>
+                        ✓ 跨设备导入，随时切换<br/>
+                        ✓ 加密签名，安全验证
+                    </p>
                 </div>
             </div>
         </div>
     );
+
+    // ============================================================================
+    // Main Render
+    // ============================================================================
+
+    return (
+        <div className="w-full">
+            {/* Fixed height container - prevents layout shifts */}
+            <div className="relative overflow-hidden h-[360px]">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={visitorMode ? `visitor-${mode}` : `member-${mode}`}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={FRAMER.reveal}
+                        className="absolute inset-0 flex flex-col"
+                    >
+                        <div className="flex-1 overflow-y-auto px-7 py-4">
+                            {visitorMode ? (
+                                mode === "main" ? renderVisitorMain() :
+                                mode === "import" ? renderImportMode() :
+                                mode === "help" ? renderHelpMode() : null
+                            ) : (
+                                mode === "main" ? renderMemberMain() :
+                                mode === "import" ? renderImportMode() :
+                                mode === "export" ? renderExportMode() :
+                                mode === "reset" ? renderResetMode() :
+                                mode === "help" ? renderHelpMode() : null
+                            )}
+                        </div>
+
+                        {/* Error Toast - Floating at bottom */}
+                        <AnimatePresence>
+                            {errorMessage && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 10 }}
+                                    transition={FRAMER.transition}
+                                    className="mx-7 mb-4 px-4 py-2.5 bg-foreground/5 rounded-lg border border-border/40"
+                                >
+                                    <p className="text-sm text-foreground/70 text-center">{errorMessage}</p>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </motion.div>
+                </AnimatePresence>
+            </div>
+        </div>
+    );
 };
+
