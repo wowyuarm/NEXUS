@@ -28,10 +28,7 @@ import importlib
 import pkgutil
 from typing import Dict, Any, Callable, Awaitable, Optional
 
-from eth_keys import keys
-from eth_keys.exceptions import ValidationError, BadSignature
-from eth_hash.auto import keccak
-
+from nexus.core.auth import verify_signature
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
@@ -306,7 +303,7 @@ class CommandService:
         """
         Verify cryptographic signature for a command.
 
-        This method implements the signature verification logic using eth_keys.
+        This method delegates to the shared verify_signature function in nexus.core.auth.
         It verifies that the command was signed by the holder of the private key
         corresponding to the provided public key.
 
@@ -319,80 +316,8 @@ class CommandService:
                 - {'status': 'success', 'public_key': verified_public_key}
                 - {'status': 'error', 'message': error_description}
         """
-        try:
-            # Check if auth data is provided
-            if not auth_data:
-                logger.warning("Signature required but auth data not provided")
-                return {
-                    "status": "error",
-                    "message": "Authentication required: This command requires a cryptographic signature"
-                }
-
-            # Extract public key and signature
-            public_key_hex = auth_data.get('publicKey')
-            signature_hex = auth_data.get('signature')
-
-            if not public_key_hex or not signature_hex:
-                logger.warning("Missing publicKey or signature in auth data")
-                return {
-                    "status": "error",
-                    "message": "Authentication failed: Missing public key or signature"
-                }
-
-            # Hash the command message (same as frontend does)
-            message_hash = keccak(command_str.encode('utf-8'))
-            
-            # Parse the signature
-            try:
-                # Convert hex signature to bytes
-                sig_bytes = bytes.fromhex(signature_hex.removeprefix('0x'))
-                
-                # Ethereum signatures have v=27 or 28, but eth_keys expects v=0 or 1
-                # Adjust the v value (last byte) if it's in Ethereum format
-                if len(sig_bytes) == 65:  # Standard signature format: r(32) + s(32) + v(1)
-                    v = sig_bytes[64]
-                    if v >= 27:  # Ethereum format
-                        sig_bytes = sig_bytes[:64] + bytes([v - 27])
-                
-                signature = keys.Signature(signature_bytes=sig_bytes)
-            except (ValueError, ValidationError) as e:
-                logger.warning(f"Invalid signature format: {e}")
-                return {
-                    "status": "error",
-                    "message": "Authentication failed: Invalid signature format"
-                }
-
-            # Recover public key from signature
-            try:
-                recovered_public_key = signature.recover_public_key_from_msg_hash(message_hash)
-                recovered_address = recovered_public_key.to_address()
-            except (BadSignature, ValidationError) as e:
-                logger.warning(f"Signature recovery failed: {e}")
-                return {
-                    "status": "error",
-                    "message": "Authentication failed: Invalid signature"
-                }
-
-            # Verify the recovered address matches the provided public key
-            if recovered_address.lower() != public_key_hex.lower():
-                logger.warning(f"Public key mismatch: expected {public_key_hex}, got {recovered_address}")
-                return {
-                    "status": "error",
-                    "message": "Authentication failed: Signature verification failed"
-                }
-
-            logger.info(f"Signature verified successfully for public key: {public_key_hex}")
-            return {
-                "status": "success",
-                "public_key": public_key_hex
-            }
-
-        except Exception as e:
-            logger.error(f"Signature verification error: {e}")
-            return {
-                "status": "error",
-                "message": f"Authentication failed: {str(e)}"
-            }
+        # Delegate to shared authentication module
+        return verify_signature(command_str, auth_data)
 
     def _build_execution_context(self, command_name: str, command_str: str, public_key: Optional[str] = None) -> Dict[str, Any]:
         """

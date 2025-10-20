@@ -83,9 +83,9 @@ llm:
 #    - 也是所有成员在未进行个性化配置时的默认行为。
 # -------------------------------------------------------------------
 user_defaults:
-  # 默认的、可被user_config 覆写的运行时配置
+  # 默认的、可被 user_config 覆写的运行时配置
   config:
-    model: "gemini-2.5-flash" # [关键] 用户的默认模型选择
+    model: "gemini-2.5-flash" # 用户的默认模型选择
     temperature: 0.8          # 用户可以覆写 catalog 中的默认值
     max_tokens: 4096
     history_context_size: 20

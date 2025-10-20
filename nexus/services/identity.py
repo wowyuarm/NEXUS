@@ -35,6 +35,9 @@ from nexus.services.database.service import DatabaseService
 
 logger = logging.getLogger(__name__)
 
+# Constants for prompt module keys
+PROMPT_MODULES = ['persona', 'system', 'tools']
+
 
 class IdentityService:
     """Service for managing user identities in the sovereign personalization system.
@@ -232,6 +235,107 @@ class IdentityService:
             logger.error(f"Failed to update prompt_overrides for public_key={public_key}")
         
         return success
+
+    async def get_effective_profile(self, public_key: str, config_service) -> Dict[str, Any]:
+        """Get user's effective configuration profile (merged genesis template + user overrides).
+        
+        This method implements the configuration composition logic as part of the
+        "Information Expert" principle - IdentityService knows about user-specific
+        overrides and is responsible for merging them with system defaults.
+        
+        Args:
+            public_key: The user's public key
+            config_service: ConfigService instance for accessing genesis template
+            
+        Returns:
+            Dict containing:
+                - effective_config: Merged configuration (defaults + user overrides)
+                - effective_prompts: Merged prompts (defaults + user overrides)
+                - user_overrides: Original user overrides (config + prompts)
+                - editable_fields: List of fields that can be edited via UI
+                - field_options: UI metadata for field rendering
+        """
+        logger.debug(f"Composing effective profile for public_key={public_key}")
+        
+        # Step 1: Get genesis template (system defaults)
+        user_defaults = config_service.get_user_defaults()
+        default_config = user_defaults.get('config', {})
+        default_prompts = user_defaults.get('prompts', {})
+        
+        # Step 2: Get user-specific overrides
+        user_profile = await self.get_user_profile(public_key)
+        config_overrides = user_profile.get('config_overrides', {})
+        prompt_overrides = user_profile.get('prompt_overrides', {})
+        
+        # Step 3: Compose effective config (user overrides take precedence)
+        effective_config = {**default_config, **config_overrides}
+        
+        # Step 4: Compose effective prompts with metadata (content, editable, order)
+        effective_prompts = {}
+        for key in PROMPT_MODULES:
+            default_prompt = default_prompts.get(key, {})
+            
+            # User override: replace content, but inherit editable/order from defaults
+            if key in prompt_overrides:
+                # User provided new content, but keep editable/order from defaults
+                effective_prompts[key] = {
+                    'content': prompt_overrides[key],  # User's custom content
+                    'editable': default_prompt.get('editable', False) if isinstance(default_prompt, dict) else False,
+                    'order': default_prompt.get('order', 0) if isinstance(default_prompt, dict) else 0
+                }
+            else:
+                # Use default prompt with full structure
+                if isinstance(default_prompt, dict):
+                    effective_prompts[key] = {
+                        'content': default_prompt.get('content', ''),
+                        'editable': default_prompt.get('editable', False),
+                        'order': default_prompt.get('order', 0)
+                    }
+                else:
+                    # Backward compatibility: if default is string
+                    effective_prompts[key] = {
+                        'content': default_prompt if isinstance(default_prompt, str) else '',
+                        'editable': False,
+                        'order': 0
+                    }
+        
+        # Step 5: Extract UI metadata and dynamically generate model options
+        genesis_template = config_service.get_genesis_template()
+        ui_config = genesis_template.get('ui', {})
+        editable_fields = ui_config.get('editable_fields', [])
+        field_options = ui_config.get('field_options', {}).copy()  # Make a copy to avoid modifying original
+        
+        # Dynamically generate model options from llm.catalog
+        llm_catalog = genesis_template.get('llm', {}).get('catalog', {})
+        model_aliases = []
+        for model_key, model_meta in llm_catalog.items():
+            # Prefer aliases if available, otherwise use the catalog key itself
+            aliases = model_meta.get('aliases', []) if isinstance(model_meta, dict) else []
+            if aliases:
+                model_aliases.extend(aliases)
+            else:
+                # Fallback: use catalog key if no aliases defined
+                model_aliases.append(model_key)
+        
+        # Update field_options for model field with dynamic options
+        if 'config.model' in field_options and model_aliases:
+            field_options['config.model']['options'] = sorted(set(model_aliases))  # Remove duplicates and sort
+            logger.debug(f"Dynamically generated {len(model_aliases)} model options for UI")
+        
+        # Compose final profile
+        effective_profile = {
+            'effective_config': effective_config,
+            'effective_prompts': effective_prompts,
+            'user_overrides': {
+                'config_overrides': config_overrides,
+                'prompt_overrides': prompt_overrides
+            },
+            'editable_fields': editable_fields,
+            'field_options': field_options
+        }
+        
+        logger.info(f"Effective profile composed for public_key={public_key}")
+        return effective_profile
 
     async def delete_identity(self, public_key: str) -> bool:
         """Delete an identity from the database.

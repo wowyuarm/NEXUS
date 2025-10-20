@@ -185,7 +185,10 @@ async def main() -> None:
     
     # 11) Configure dependency injection for REST interface
     app.dependency_overrides[rest.get_command_service] = lambda: command_service
-    logger.info("Configured dependency injection for REST interface")
+    app.dependency_overrides[rest.get_identity_service] = lambda: identity_service
+    app.dependency_overrides[rest.get_persistence_service] = lambda: persistence_service
+    app.dependency_overrides[rest.get_config_service] = lambda: config_service
+    logger.info("Configured dependency injection for REST interface (command, identity, persistence, config services)")
     
     # 12) Add REST API routes
     app.include_router(rest.router, prefix="/api/v1", tags=["commands"])

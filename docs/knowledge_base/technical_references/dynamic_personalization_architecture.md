@@ -1284,6 +1284,288 @@ interface UserProfile {
 
 ---
 
+## 12. REST API Integration
+
+The Dynamic Personalization System exposes its configuration management capabilities through RESTful HTTP APIs, enabling frontend panels and external tools to read and modify user preferences.
+
+### 12.1 API Endpoints Overview
+
+| Endpoint | Method | Purpose | Authentication |
+|----------|--------|---------|----------------|
+| `/api/v1/config` | GET | Retrieve effective configuration | Bearer token |
+| `/api/v1/config` | POST | Update configuration overrides | Bearer + Signature |
+| `/api/v1/prompts` | GET | Retrieve effective prompts | Bearer token |
+| `/api/v1/prompts` | POST | Update prompt overrides | Bearer + Signature |
+| `/api/v1/messages` | GET | Retrieve message history | Bearer token |
+
+**For complete API specifications, see:** [`docs/api_reference/03_REST_API.md`](../../api_reference/03_REST_API.md)
+
+### 12.2 GET /api/v1/config
+
+**Flow Integration**:
+```
+Client Request (Authorization: Bearer <owner_key>)
+  ↓
+rest.py: verify_bearer_token()
+  ↓
+IdentityService.get_effective_profile(owner_key, config_service)
+  ↓
+  │→ ConfigService.get_genesis_template()  # System defaults
+  │→ IdentityService.get_user_profile()     # User overrides
+  │→ Merge: effective = defaults + overrides
+  │→ Dynamic: Generate model options from llm.catalog.*.aliases
+  ↓
+Response: {
+  effective_config,
+  effective_prompts: {
+    persona: {content, editable, order},
+    system: {content, editable, order},
+    tools: {content, editable, order}
+  },
+  user_overrides,
+  editable_fields,
+  field_options
+}
+```
+
+**Key Features**:
+-   **Dynamic Model Options**: `field_options.config.model.options` is auto-generated from `llm.catalog.*.aliases`
+-   **Prompt Structure Preservation**: Returns `{content, editable, order}` for each prompt module
+-   **UI Metadata**: Provides `editable_fields` and `field_options` for frontend rendering
+
+**Code Implementation** (`nexus/services/identity.py`):
+```python
+async def get_effective_profile(self, public_key: str, config_service) -> Dict[str, Any]:
+    # Step 1: Get defaults from genesis template
+    user_defaults = config_service.get_user_defaults()
+    default_config = user_defaults.get('config', {})
+    default_prompts = user_defaults.get('prompts', {})
+    
+    # Step 2: Get user overrides
+    user_profile = await self.get_user_profile(public_key)
+    config_overrides = user_profile.get('config_overrides', {})
+    prompt_overrides = user_profile.get('prompt_overrides', {})
+    
+    # Step 3: Merge config
+    effective_config = {**default_config, **config_overrides}
+    
+    # Step 4: Compose prompts (preserve structure)
+    effective_prompts = {}
+    for key in ['persona', 'system', 'tools']:
+        default_prompt = default_prompts.get(key, {})
+        if key in prompt_overrides:
+            effective_prompts[key] = {
+                'content': prompt_overrides[key],
+                'editable': default_prompt.get('editable', False),
+                'order': default_prompt.get('order', 0)
+            }
+        else:
+            effective_prompts[key] = {
+                'content': default_prompt.get('content', ''),
+                'editable': default_prompt.get('editable', False),
+                'order': default_prompt.get('order', 0)
+            }
+    
+    # Step 5: Dynamic model options
+    genesis_template = config_service.get_genesis_template()
+    llm_catalog = genesis_template.get('llm', {}).get('catalog', {})
+    model_aliases = []
+    for model_key, model_meta in llm_catalog.items():
+        aliases = model_meta.get('aliases', [])
+        model_aliases.extend(aliases or [model_key])
+    
+    field_options = genesis_template.get('ui', {}).get('field_options', {}).copy()
+    if 'config.model' in field_options:
+        field_options['config.model']['options'] = sorted(set(model_aliases))
+    
+    return {
+        'effective_config': effective_config,
+        'effective_prompts': effective_prompts,
+        'user_overrides': {
+            'config_overrides': config_overrides,
+            'prompt_overrides': prompt_overrides
+        },
+        'editable_fields': genesis_template.get('ui', {}).get('editable_fields', []),
+        'field_options': field_options
+    }
+```
+
+### 12.3 POST /api/v1/config
+
+**Authentication Flow**:
+```
+Client Request:
+{
+  "overrides": {"model": "deepseek-chat", "temperature": 0.9},
+  "auth": {"publicKey": "0x...", "signature": "0x..."}
+}
+Headers: Authorization: Bearer <owner_key>
+
+  ↓
+rest.py: verify_bearer_token() ✓
+  ↓
+rest.py: verify_request_signature() ✓
+  │→ nexus.core.auth.verify_signature()
+  │→ Signature = eth_sign(keccak256(JSON.stringify(requestBody)))
+  │→ Verify publicKey matches recovered address
+  ↓
+IdentityService.update_user_config(owner_key, overrides)
+  ↓
+DatabaseService.update_identity_field('config_overrides', overrides)
+  ↓
+MongoDB: Update identities.config_overrides
+  ↓
+Response: {"status": "success"}
+```
+
+**Security Properties**:
+1. **Bearer Token**: Identifies user (prevents cross-user writes)
+2. **Cryptographic Signature**: Proves ownership of private key
+3. **Payload Binding**: Signature covers entire request body (prevents tampering)
+
+**Signature Generation** (Client-side):
+```javascript
+import { ethers } from 'ethers';
+
+const requestBody = {
+  overrides: { model: 'deepseek-chat' },
+  auth: { publicKey: wallet.address, signature: '' }
+};
+
+const payload = JSON.stringify(requestBody, Object.keys(requestBody).sort());
+const messageHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(payload));
+const signature = await wallet.signMessage(ethers.utils.arrayify(messageHash));
+
+requestBody.auth.signature = signature;
+```
+
+### 12.4 Prompt Structure in REST API
+
+The REST API returns prompts as structured objects (not flat strings):
+
+```json
+{
+  "effective_prompts": {
+    "persona": {
+      "content": "I am NEXUS, a thoughtful AI assistant...",
+      "editable": true,    // User can modify via POST /prompts
+      "order": 1           // Concatenation order in system prompt
+    },
+    "system": {
+      "content": "System instructions...",
+      "editable": false,   // System-managed, not user-editable
+      "order": 2
+    },
+    "tools": {
+      "content": "Available tools...",
+      "editable": false,
+      "order": 3
+    }
+  }
+}
+```
+
+**Design Rationale**:
+-   **`editable` metadata**: Frontend knows which prompts to show edit controls for
+-   **`order` metadata**: Ensures consistent prompt composition in `ContextService`
+-   **Separation of concerns**: UI doesn't hardcode knowledge of editable prompts
+
+**Prompt Composition** (`ContextService`):
+```python
+def _build_system_prompt_from_prompts(self, prompts: Dict[str, Dict]) -> str:
+    # Sort by order field
+    sorted_prompts = sorted(
+        prompts.items(),
+        key=lambda x: x[1].get('order', 0)
+    )
+    
+    # Concatenate content
+    contents = [p[1].get('content', '') for p in sorted_prompts]
+    return CONTENT_SEPARATOR.join(filter(None, contents))
+```
+
+### 12.5 Integration with Command System
+
+REST API commands are registered in the command registry:
+
+**`nexus/commands/definition/config.py`**:
+```python
+COMMAND_DEFINITION = {
+    "name": "config",
+    "description": "View or modify some configuration (model, temperature, etc.)",
+    "usage": "/config",
+    "handler": "rest",                    # Indicates REST handler
+    "requiresGUI": True,                  # Requires dedicated UI panel
+    "restOptions": {
+        "getEndpoint": "/api/v1/config",
+        "postEndpoint": "/api/v1/config",
+        "method": "GET"
+    }
+}
+```
+
+**Frontend Routing**:
+```typescript
+// In AURA frontend
+const command = await fetch('/api/v1/commands').then(r => r.json())
+  .find(c => c.name === 'config');
+
+if (command.handler === 'rest') {
+  // Open REST-based UI panel
+  openConfigPanel(command.restOptions.getEndpoint);
+} else {
+  // Send WebSocket command
+  ws.send({ type: 'user_message', content: '/config' });
+}
+```
+
+### 12.6 REST API vs WebSocket
+
+| Aspect | REST API | WebSocket |
+|--------|----------|-----------|
+| **Purpose** | Configuration management, historical data | Real-time chat interactions |
+| **State** | Stateless (per-request auth) | Stateful (persistent connection) |
+| **Data Flow** | Request-response | Bidirectional streaming |
+| **Auth** | Bearer + Signature (for writes) | Session-based (owner_key in context) |
+| **Use Cases** | `/config` panels, `/prompt` editor, history viewer | Chat messages, tool execution, AI responses |
+
+**Shared Components**:
+-   Both use `IdentityService` for user profile resolution
+-   Both use `ConfigService` for defaults
+-   Both store to same MongoDB collections
+-   Both use public key as identity
+
+### 12.7 Testing REST API Integration
+
+**Manual Testing**:
+```bash
+# Start backend
+python -m nexus.main
+
+# Test with provided script
+./scripts/test_data_commands.sh 0xYourPublicKey
+```
+
+**Unit Tests**:
+```bash
+# Test signature verification
+pytest tests/nexus/unit/core/test_auth.py
+
+# Test configuration composition
+pytest tests/nexus/unit/services/test_identity_service.py -k effective_profile
+```
+
+**Integration Points to Verify**:
+1. ✅ Bearer token extraction and validation
+2. ✅ Signature verification with eth_keys
+3. ✅ Configuration merging (defaults + overrides)
+4. ✅ Prompt structure preservation
+5. ✅ Dynamic model options generation
+6. ✅ Database write atomicity
+
+---
+
 **Document Status:** ✅ Complete  
-**Maintenance:** Update this document when adding new personalization features or modifying the configuration composition logic.
+**Last Updated:** 2025-10-20 (Added Section 12: REST API Integration)  
+**Maintenance:** Update this document when adding new personalization features, modifying the configuration composition logic, or extending the REST API.
 

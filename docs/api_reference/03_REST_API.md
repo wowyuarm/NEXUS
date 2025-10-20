@@ -1,0 +1,574 @@
+y6# 03: REST API Protocol
+
+This document specifies the RESTful HTTP API for data management operations in NEXUS. Unlike the WebSocket protocol (which handles real-time chat), the REST API provides structured access to user configurations, prompts, and message history.
+
+**Base URL**: `http://<host>:<port>/api/v1`
+
+---
+
+## I. Authentication Mechanisms
+
+NEXUS employs two distinct authentication strategies based on the operation type:
+
+### 1. Bearer Token Authentication (Read Operations)
+
+All `GET` requests require an `Authorization` header with a Bearer token:
+
+```http
+Authorization: Bearer <owner_key>
+```
+
+-   **`owner_key`**: The user's public key (Ethereum-style address, e.g., `0x...`)
+-   **Purpose**: Identifies the user and authorizes access to their data
+-   **Scope**: Read-only operations
+
+### 2. Cryptographic Signature (Write Operations)
+
+All `POST`/`PUT` requests require both:
+1. **Bearer token** in the Authorization header
+2. **Cryptographic signature** in the request body
+
+**Request Body Structure**:
+```json
+{
+  "overrides": { /* data to update */ },
+  "auth": {
+    "publicKey": "0x...",
+    "signature": "0x..."
+  }
+}
+```
+
+**Signature Generation Process**:
+```javascript
+// 1. Serialize request body with sorted keys
+const payload = JSON.stringify(requestBody, Object.keys(requestBody).sort());
+
+// 2. Hash with Keccak-256
+const messageHash = keccak256(payload);
+
+// 3. Sign with private key (eth_keys/ethers.js compatible)
+const signature = eth_sign(privateKey, messageHash);
+```
+
+**Security Properties**:
+-   Prevents unauthorized modifications (only key holder can sign)
+-   Ensures data integrity (any tampering invalidates signature)
+-   Replay attack protection (signatures are payload-specific)
+
+---
+
+## II. Endpoints
+
+### 1. GET /commands
+
+**Description**: Retrieve all available commands with metadata for UI rendering.
+
+**Authentication**: Not required
+
+**Request**:
+```http
+GET /api/v1/commands
+```
+
+**Response** `200 OK`:
+```json
+[
+  {
+    "name": "config",
+    "description": "View or modify some configuration (model, temperature, etc.)",
+    "usage": "/config",
+    "handler": "rest",
+    "requiresGUI": true,
+    "restOptions": {
+      "getEndpoint": "/api/v1/config",
+      "postEndpoint": "/api/v1/config",
+      "method": "GET"
+    }
+  }
+]
+```
+
+**Fields**:
+-   `handler`: `"rest"` indicates this command requires REST API interaction
+-   `restOptions`: Provides frontend routing information
+-   `requiresGUI`: Indicates if a dedicated UI panel is needed
+
+---
+
+### 2. GET /config
+
+**Description**: Get user's effective configuration profile (merged defaults + overrides).
+
+**Authentication**: Bearer token required
+
+**Request**:
+```http
+GET /api/v1/config
+Authorization: Bearer 0xYourPublicKey
+```
+
+**Response** `200 OK`:
+```json
+{
+  "effective_config": {
+    "model": "gemini-2.5-flash",
+    "temperature": 0.8,
+    "max_tokens": 4096,
+    "history_context_size": 20
+  },
+  "effective_prompts": {
+    "persona": {
+      "content": "I am NEXUS...",
+      "editable": true,
+      "order": 1
+    },
+    "system": {
+      "content": "System instructions...",
+      "editable": false,
+      "order": 2
+    },
+    "tools": {
+      "content": "Available tools...",
+      "editable": false,
+      "order": 3
+    }
+  },
+  "user_overrides": {
+    "config_overrides": { "temperature": 0.9 },
+    "prompt_overrides": {}
+  },
+  "editable_fields": [
+    "config.model",
+    "config.temperature",
+    "config.max_tokens",
+    "config.history_context_size",
+    "prompts.persona"
+  ],
+  "field_options": {
+    "config.model": {
+      "type": "select",
+      "options": ["Gemini-2.5-Flash", "DeepSeek-Chat", "Kimi-K2"]
+    },
+    "config.temperature": {
+      "type": "slider",
+      "min": 0.0,
+      "max": 2.0,
+      "step": 0.1
+    }
+  }
+}
+```
+
+**Response Fields**:
+-   `effective_config`: Final configuration after merging defaults with user overrides
+-   `effective_prompts`: Structured prompt objects with metadata
+    -   `content`: The actual prompt text
+    -   `editable`: Whether user can modify this prompt
+    -   `order`: Concatenation order for system prompt composition
+-   `user_overrides`: Original user-specific override values
+-   `editable_fields`: List of fields exposed for modification
+-   `field_options`: UI metadata (dynamically generated from `llm.catalog` for models)
+
+**Error Responses**:
+-   `401 Unauthorized`: Missing or invalid Bearer token
+-   `500 Internal Server Error`: Database or service error
+
+---
+
+### 3. POST /config
+
+**Description**: Update user's configuration overrides.
+
+**Authentication**: Bearer token + cryptographic signature required
+
+**Request**:
+```http
+POST /api/v1/config
+Authorization: Bearer 0xYourPublicKey
+Content-Type: application/json
+```
+
+```json
+{
+  "overrides": {
+    "model": "deepseek-chat",
+    "temperature": 0.9
+  },
+  "auth": {
+    "publicKey": "0xYourPublicKey",
+    "signature": "0x..."
+  }
+}
+```
+
+**Request Fields**:
+-   `overrides`: Key-value pairs to update (must be in `editable_fields`)
+-   `auth.publicKey`: Must match Bearer token
+-   `auth.signature`: Signature of entire request body
+
+**Response** `200 OK`:
+```json
+{
+  "status": "success",
+  "message": "Configuration updated successfully"
+}
+```
+
+**Error Responses**:
+-   `401 Unauthorized`: Authentication failed
+-   `422 Unprocessable Entity`: Invalid request schema
+-   `500 Internal Server Error`: Update failed
+
+---
+
+### 4. GET /prompts
+
+**Description**: Get user's effective prompts (alias for `/config` with focus on prompts).
+
+**Authentication**: Bearer token required
+
+**Request**:
+```http
+GET /api/v1/prompts
+Authorization: Bearer 0xYourPublicKey
+```
+
+**Response**: Same structure as `GET /config`
+
+---
+
+### 5. POST /prompts
+
+**Description**: Update user's prompt overrides (currently only `persona` is editable).
+
+**Authentication**: Bearer token + cryptographic signature required
+
+**Request**:
+```http
+POST /api/v1/prompts
+Authorization: Bearer 0xYourPublicKey
+Content-Type: application/json
+```
+
+```json
+{
+  "overrides": {
+    "persona": "I am a creative writing assistant..."
+  },
+  "auth": {
+    "publicKey": "0xYourPublicKey",
+    "signature": "0x..."
+  }
+}
+```
+
+**Response** `200 OK`:
+```json
+{
+  "status": "success",
+  "message": "Prompts updated successfully"
+}
+```
+
+**Notes**:
+-   Only `persona` prompt is editable by design
+-   `system` and `tools` prompts are system-managed for consistency
+
+---
+
+### 6. GET /messages
+
+**Description**: Retrieve user's message history.
+
+**Authentication**: Bearer token required
+
+**Request**:
+```http
+GET /api/v1/messages?limit=20
+Authorization: Bearer 0xYourPublicKey
+```
+
+**Query Parameters**:
+-   `limit` (optional, integer): Number of recent messages (default: 20, max: 100)
+-   `cursor` (reserved): For future cursor-based pagination
+
+**Response** `200 OK`:
+```json
+[
+  {
+    "run_id": "run_abc123",
+    "owner_key": "0xYourPublicKey",
+    "role": "human",
+    "content": "Hello, can you help me?",
+    "created_at": "2025-10-20T10:30:00Z"
+  },
+  {
+    "run_id": "run_abc123",
+    "owner_key": "0xYourPublicKey",
+    "role": "ai",
+    "content": "Of course! How can I assist you?",
+    "created_at": "2025-10-20T10:30:05Z"
+  }
+]
+```
+
+**Response Fields**:
+-   `run_id`: Conversation session identifier
+-   `owner_key`: User's public key
+-   `role`: One of `"human"`, `"ai"`, `"tool"`
+-   `content`: Message content (string or object for tool results)
+-   `created_at`: ISO 8601 timestamp
+
+**Notes**:
+-   Messages returned in reverse chronological order (newest first)
+-   Future pagination will use cursor-based approach for scalability
+
+---
+
+## III. Error Response Format
+
+All errors follow FastAPI's standard format:
+
+```json
+{
+  "detail": "Human-readable error description"
+}
+```
+
+**Common HTTP Status Codes**:
+
+| Code | Meaning | Typical Causes |
+|------|---------|----------------|
+| 400 | Bad Request | Invalid query parameters |
+| 401 | Unauthorized | Missing/invalid authentication |
+| 422 | Unprocessable Entity | Invalid request body schema |
+| 500 | Internal Server Error | Database/service failures |
+
+---
+
+## IV. Data Flow Architecture
+
+```
+┌──────────────┐
+│ AURA Client  │
+└──────┬───────┘
+       │ GET /config (Bearer token)
+       ↓
+┌──────────────────────────┐
+│ rest.py                  │
+│ verify_bearer_token()    │──→ Extract owner_key
+└──────┬───────────────────┘
+       │
+       ↓
+┌──────────────────────────┐
+│ IdentityService          │
+│ get_effective_profile()  │──→ Merge defaults + overrides
+└──────┬───────────────────┘
+       │
+       ↓
+┌──────────────────────────┐
+│ ConfigService            │
+│ get_genesis_template()   │──→ System defaults
+└──────────────────────────┘
+       │
+       ↓
+┌──────────────────────────┐
+│ MongoDB                  │
+│ configurations           │──→ Genesis template
+│ identities               │──→ User overrides
+└──────────────────────────┘
+```
+
+**POST Request Flow (with signature)**:
+```
+Client → POST /config + auth
+  ↓
+rest.py: verify_bearer_token() ✓
+  ↓
+rest.py: verify_request_signature() ✓
+  ↓
+IdentityService: update_user_config()
+  ↓
+DatabaseService: update_identity_field()
+  ↓
+MongoDB: Write to identities.config_overrides
+```
+
+---
+
+## V. Integration with Frontend
+
+### JavaScript Example (using ethers.js)
+
+```javascript
+import { ethers } from 'ethers';
+
+async function updateConfig(privateKey, overrides) {
+  const wallet = new ethers.Wallet(privateKey);
+  const ownerKey = wallet.address;
+  
+  const requestBody = {
+    overrides,
+    auth: { publicKey: ownerKey, signature: '' }
+  };
+  
+  // Generate signature
+  const payload = JSON.stringify(requestBody, Object.keys(requestBody).sort());
+  const messageHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(payload));
+  const signature = await wallet.signMessage(ethers.utils.arrayify(messageHash));
+  
+  requestBody.auth.signature = signature;
+  
+  const response = await fetch('http://localhost:8000/api/v1/config', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${ownerKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestBody)
+  });
+  
+  return response.json();
+}
+```
+
+### Python Example (using eth_keys)
+
+```python
+from eth_keys import keys
+from eth_hash.auto import keccak
+import requests
+import json
+
+def update_config(private_key_hex, overrides):
+    private_key = keys.PrivateKey(bytes.fromhex(private_key_hex.removeprefix('0x')))
+    owner_key = private_key.public_key.to_address()
+    
+    request_body = {
+        'overrides': overrides,
+        'auth': {'publicKey': owner_key, 'signature': ''}
+    }
+    
+    payload = json.dumps(request_body, sort_keys=True)
+    message_hash = keccak(payload.encode('utf-8'))
+    signature = private_key.sign_msg_hash(message_hash)
+    
+    request_body['auth']['signature'] = '0x' + signature.to_bytes().hex()
+    
+    response = requests.post(
+        'http://localhost:8000/api/v1/config',
+        headers={
+            'Authorization': f'Bearer {owner_key}',
+            'Content-Type': 'application/json'
+        },
+        json=request_body
+    )
+    
+    return response.json()
+```
+
+---
+
+## VI. Design Rationale
+
+### Why Two Authentication Methods?
+
+1. **Bearer Token (GET)**: Lightweight, stateless identification
+   - No signature overhead for read operations
+   - Standard HTTP authentication pattern
+
+2. **Signature (POST)**: Cryptographic proof of ownership
+   - Prevents unauthorized writes even if token is leaked
+   - Enables trustless data modification
+
+### Why Structured Prompts?
+
+The prompt structure `{content, editable, order}` serves multiple purposes:
+
+-   **`content`**: The actual prompt text
+-   **`editable`**: UI can dynamically show/hide edit controls
+-   **`order`**: Ensures consistent prompt composition in `ContextService`
+
+This metadata-driven approach allows the frontend to render UIs without hardcoding knowledge of which prompts are editable.
+
+### Why Dynamic Model Options?
+
+Model options are generated from `llm.catalog.*.aliases` at runtime:
+
+```python
+# In IdentityService.get_effective_profile()
+llm_catalog = genesis_template.get('llm', {}).get('catalog', {})
+model_aliases = []
+for model_key, model_meta in llm_catalog.items():
+    aliases = model_meta.get('aliases', [])
+    model_aliases.extend(aliases or [model_key])
+
+field_options['config.model']['options'] = sorted(set(model_aliases))
+```
+
+**Benefits**:
+-   Adding new models to database automatically updates UI options
+-   No code changes needed for model catalog expansion
+-   Frontend always shows current available models
+
+---
+
+## VII. Security Considerations
+
+1. **Public Key as Identity**:
+   - No password storage required
+   - User controls their private key
+   - Compatible with Web3 wallets
+
+2. **Signature Verification**:
+   - Implemented in `nexus/core/auth.py`
+   - Uses eth_keys for Ethereum-compatible signatures
+   - Prevents man-in-the-middle attacks
+
+3. **Data Isolation**:
+   - All queries filtered by `owner_key`
+   - No cross-user data leakage
+   - MongoDB indexes on `owner_key` for performance
+
+4. **Rate Limiting** (Future):
+   - Currently not implemented
+   - Recommended for production deployments
+   - Should be per-`owner_key` to prevent abuse
+
+---
+
+## VIII. Future Enhancements
+
+### Planned Features
+
+1. **Cursor-based Pagination** (GET /messages):
+   ```http
+   GET /messages?limit=20&cursor=eyJjcmVhdGVkX2F0IjoxNjk...
+   ```
+
+2. **Security Configuration Endpoint**:
+   ```http
+   GET /security
+   {
+     "signature_required_commands": ["identity", "config", "prompt"]
+   }
+   ```
+
+3. **Batch Operations**:
+   ```http
+   POST /batch
+   {
+     "operations": [
+       { "endpoint": "/config", "method": "POST", "body": {...} },
+       { "endpoint": "/prompts", "method": "POST", "body": {...} }
+     ],
+     "auth": {...}
+   }
+   ```
+
+4. **Webhook Notifications**:
+   - Notify external services of configuration changes
+   - Enable integration with other systems
+
+---
