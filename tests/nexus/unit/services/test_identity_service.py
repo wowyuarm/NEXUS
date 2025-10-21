@@ -181,7 +181,7 @@ class TestIdentityService:
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
         
-        # Mock config service
+        # Mock config service (4-layer architecture)
         mock_config_service = Mock()
         mock_config_service.get_user_defaults = Mock(return_value={
             'config': {
@@ -190,15 +190,16 @@ class TestIdentityService:
                 'max_tokens': 4096
             },
             'prompts': {
-                'persona': {'content': 'Default persona', 'editable': True, 'order': 1},
-                'system': {'content': 'Default system', 'editable': False, 'order': 2},
-                'tools': {'content': 'Default tools', 'editable': False, 'order': 3}
+                'field': {'content': '场域：共同成长的对话空间...', 'editable': False, 'order': 1},
+                'presence': {'content': '在场方式：我如何存在...', 'editable': False, 'order': 2},
+                'capabilities': {'content': '能力与工具...', 'editable': False, 'order': 3},
+                'learning': {'content': '用户档案与学习记录...', 'editable': True, 'order': 4}
             }
         })
         mock_config_service.get_genesis_template = Mock(return_value={
             'llm': {'catalog': {}},
             'ui': {
-                'editable_fields': ['config.model', 'config.temperature'],
+                'editable_fields': ['config.model', 'config.temperature', 'prompts.learning'],
                 'field_options': {}
             }
         })
@@ -213,13 +214,13 @@ class TestIdentityService:
         assert profile['effective_config']['temperature'] == 0.7
         assert profile['effective_config']['max_tokens'] == 4096
         
-        # Verify effective prompts match defaults (now returns structured objects)
-        assert profile['effective_prompts']['persona']['content'] == 'Default persona'
-        assert profile['effective_prompts']['persona']['editable'] == True
-        assert profile['effective_prompts']['persona']['order'] == 1
-        assert profile['effective_prompts']['system']['content'] == 'Default system'
-        assert profile['effective_prompts']['system']['editable'] == False
-        assert profile['effective_prompts']['tools']['content'] == 'Default tools'
+        # Verify effective prompts match defaults (4-layer architecture)
+        assert profile['effective_prompts']['field']['content'] == '场域：共同成长的对话空间...'
+        assert profile['effective_prompts']['field']['editable'] == False
+        assert profile['effective_prompts']['field']['order'] == 1
+        assert profile['effective_prompts']['learning']['content'] == '用户档案与学习记录...'
+        assert profile['effective_prompts']['learning']['editable'] == True
+        assert profile['effective_prompts']['learning']['order'] == 4
         
         # Verify user overrides are empty
         assert profile['user_overrides']['config_overrides'] == {}
@@ -247,7 +248,7 @@ class TestIdentityService:
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
         
-        # Mock config service with defaults
+        # Mock config service with defaults (4-layer architecture)
         mock_config_service = Mock()
         mock_config_service.get_user_defaults = Mock(return_value={
             'config': {
@@ -255,7 +256,12 @@ class TestIdentityService:
                 'temperature': 0.7,
                 'max_tokens': 4096
             },
-            'prompts': {}
+            'prompts': {
+                'field': {'content': '场域...', 'editable': False, 'order': 1},
+                'presence': {'content': '在场...', 'editable': False, 'order': 2},
+                'capabilities': {'content': '能力...', 'editable': False, 'order': 3},
+                'learning': {'content': '学习...', 'editable': True, 'order': 4}
+            }
         })
         mock_config_service.get_genesis_template = Mock(return_value={
             'llm': {'catalog': {}},
@@ -277,14 +283,14 @@ class TestIdentityService:
 
     @pytest.mark.asyncio
     async def test_get_effective_profile_with_prompt_overrides(self):
-        """Test get_effective_profile merges prompt overrides correctly."""
-        # Mock identity with prompt overrides
+        """Test get_effective_profile merges prompt overrides correctly (only learning is editable)."""
+        # Mock identity with prompt overrides (only learning)
         mock_provider = Mock()
         mock_provider.find_identity_by_public_key = Mock(return_value={
             'public_key': 'test_key',
             'config_overrides': {},
             'prompt_overrides': {
-                'persona': 'Custom persona override'
+                'learning': 'Custom learning profile...'
             },
             'created_at': datetime.now()
         })
@@ -292,14 +298,15 @@ class TestIdentityService:
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
         
-        # Mock config service
+        # Mock config service (4-layer architecture)
         mock_config_service = Mock()
         mock_config_service.get_user_defaults = Mock(return_value={
             'config': {},
             'prompts': {
-                'persona': {'content': 'Default persona', 'editable': True, 'order': 1},
-                'system': {'content': 'Default system', 'editable': False, 'order': 2},
-                'tools': {'content': 'Default tools', 'editable': False, 'order': 3}
+                'field': {'content': 'Default field', 'editable': False, 'order': 1},
+                'presence': {'content': 'Default presence', 'editable': False, 'order': 2},
+                'capabilities': {'content': 'Default capabilities', 'editable': False, 'order': 3},
+                'learning': {'content': 'Default learning', 'editable': True, 'order': 4}
             }
         })
         mock_config_service.get_genesis_template = Mock(return_value={
@@ -310,21 +317,22 @@ class TestIdentityService:
         service = IdentityService(db_service=mock_db_service)
         profile = await service.get_effective_profile('test_key', mock_config_service)
         
-        # Verify overridden persona (content is overridden, but metadata preserved)
-        assert profile['effective_prompts']['persona']['content'] == 'Custom persona override'
-        assert profile['effective_prompts']['persona']['editable'] == True  # Preserved from default
-        assert profile['effective_prompts']['persona']['order'] == 1  # Preserved from default
+        # Verify overridden learning (content is overridden, but metadata preserved)
+        assert profile['effective_prompts']['learning']['content'] == 'Custom learning profile...'
+        assert profile['effective_prompts']['learning']['editable'] == True  # Preserved from default
+        assert profile['effective_prompts']['learning']['order'] == 4  # Preserved from default
         
         # Verify non-overridden prompts stay default
-        assert profile['effective_prompts']['system']['content'] == 'Default system'
-        assert profile['effective_prompts']['tools']['content'] == 'Default tools'
+        assert profile['effective_prompts']['field']['content'] == 'Default field'
+        assert profile['effective_prompts']['presence']['content'] == 'Default presence'
+        assert profile['effective_prompts']['capabilities']['content'] == 'Default capabilities'
         
         # Verify overrides are preserved
-        assert profile['user_overrides']['prompt_overrides']['persona'] == 'Custom persona override'
+        assert profile['user_overrides']['prompt_overrides']['learning'] == 'Custom learning profile...'
 
     @pytest.mark.asyncio
     async def test_get_effective_profile_complete_overrides(self):
-        """Test get_effective_profile with both config and prompt overrides."""
+        """Test get_effective_profile with both config and learning overrides."""
         # Mock identity with complete overrides
         mock_provider = Mock()
         mock_provider.find_identity_by_public_key = Mock(return_value={
@@ -335,8 +343,7 @@ class TestIdentityService:
                 'max_tokens': 8192
             },
             'prompt_overrides': {
-                'persona': 'Custom persona',
-                'system': 'Custom system'
+                'learning': 'Custom learning profile with user preferences...'
             },
             'created_at': datetime.now()
         })
@@ -344,7 +351,7 @@ class TestIdentityService:
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
         
-        # Mock config service
+        # Mock config service (4-layer architecture)
         mock_config_service = Mock()
         mock_config_service.get_user_defaults = Mock(return_value={
             'config': {
@@ -353,9 +360,10 @@ class TestIdentityService:
                 'max_tokens': 4096
             },
             'prompts': {
-                'persona': {'content': 'Default persona', 'editable': True, 'order': 1},
-                'system': {'content': 'Default system', 'editable': False, 'order': 2},
-                'tools': {'content': 'Default tools', 'editable': False, 'order': 3}
+                'field': {'content': 'Default field', 'editable': False, 'order': 1},
+                'presence': {'content': 'Default presence', 'editable': False, 'order': 2},
+                'capabilities': {'content': 'Default capabilities', 'editable': False, 'order': 3},
+                'learning': {'content': 'Default learning', 'editable': True, 'order': 4}
             }
         })
         mock_config_service.get_genesis_template = Mock(return_value={
@@ -371,10 +379,12 @@ class TestIdentityService:
         assert profile['effective_config']['temperature'] == 0.95
         assert profile['effective_config']['max_tokens'] == 8192
         
-        # Verify all prompt overrides (content overridden, metadata preserved)
-        assert profile['effective_prompts']['persona']['content'] == 'Custom persona'
-        assert profile['effective_prompts']['system']['content'] == 'Custom system'
-        assert profile['effective_prompts']['tools']['content'] == 'Default tools'  # Not overridden
+        # Verify learning override (content overridden, metadata preserved)
+        assert profile['effective_prompts']['learning']['content'] == 'Custom learning profile with user preferences...'
+        # Verify non-overridden prompts stay default
+        assert profile['effective_prompts']['field']['content'] == 'Default field'
+        assert profile['effective_prompts']['presence']['content'] == 'Default presence'
+        assert profile['effective_prompts']['capabilities']['content'] == 'Default capabilities'
 
     @pytest.mark.asyncio
     async def test_update_user_config_success(self):
@@ -400,7 +410,7 @@ class TestIdentityService:
 
     @pytest.mark.asyncio
     async def test_update_user_prompts_success(self):
-        """Test update_user_prompts successfully updates prompts."""
+        """Test update_user_prompts successfully updates prompts (only learning is editable)."""
         # Mock successful update
         mock_provider = Mock()
         mock_provider.update_identity_field = Mock(return_value=True)
@@ -410,7 +420,7 @@ class TestIdentityService:
         
         service = IdentityService(db_service=mock_db_service)
         
-        overrides = {'persona': 'My custom persona'}
+        overrides = {'learning': 'My custom learning profile...'}
         result = await service.update_user_prompts('test_key', overrides)
         
         assert result is True
@@ -419,4 +429,3 @@ class TestIdentityService:
             'prompt_overrides',
             overrides
         )
-

@@ -6,7 +6,7 @@ for context build requests and publishes the build outputs when ready.
 
 Key features:
 - Dynamic prompt composition: Merges user-specific overrides with system defaults
-  for personalized AI personas (persona, system, tools prompts)
+  using 4-layer architecture (field, presence, capabilities, learning)
 - Tool registry integration: Provides available tool definitions to the LLM
 - Conversation history: Loads recent messages from database for short-term memory
 - Context revolution paradigm: Implements "thinking loop invariance" by keeping
@@ -28,6 +28,10 @@ logger = logging.getLogger(__name__)
 # Constants
 CONTENT_SEPARATOR = "\n\n---\n\n"
 FALLBACK_SYSTEM_PROMPT = "You are NEXUS, an AI assistant. Please respond helpfully and thoughtfully."
+
+# Prompt module keys (4-layer architecture)
+# Must match PROMPT_MODULES in nexus/services/identity.py
+PROMPT_LAYERS = ['field', 'presence', 'capabilities', 'learning']
 
 # Conversation history and role mapping constants
 DEFAULT_HISTORY_LIMIT = 20  # Default number of recent messages to include in context
@@ -143,11 +147,17 @@ class ContextService:
         """
         Compose effective prompts by merging defaults with user overrides.
         
+        New 4-layer architecture:
+        - field: The dialogue space definition (system-level)
+        - presence: How AI exists in the field (system-level)
+        - capabilities: Tools and boundaries (system-level)
+        - learning: User preferences + AI reflections (user-level, editable)
+        
         Args:
             user_profile: User profile containing prompt_overrides
             
         Returns:
-            Dictionary with effective prompts (persona, system, tools)
+            Dictionary with effective prompts (field, presence, capabilities, learning)
         """
         # Get default prompts from ConfigService
         user_defaults = self.config_service.get_user_defaults() if self.config_service else {}
@@ -163,11 +173,18 @@ class ContextService:
             return prompt_value if isinstance(prompt_value, str) else ''
         
         # Merge (overrides take precedence)
-        effective_prompts = {
-            'persona': prompt_overrides.get('persona', get_prompt_content(default_prompts.get('persona', ''))),
-            'system': prompt_overrides.get('system', get_prompt_content(default_prompts.get('system', ''))),
-            'tools': prompt_overrides.get('tools', get_prompt_content(default_prompts.get('tools', '')))
-        }
+        # Only 'learning' can be overridden by users; others are system-level
+        effective_prompts = {}
+        for layer in PROMPT_LAYERS:
+            if layer == 'learning':
+                # Learning layer can be overridden by users
+                effective_prompts[layer] = prompt_overrides.get(
+                    layer, 
+                    get_prompt_content(default_prompts.get(layer, ''))
+                )
+            else:
+                # System layers (field, presence, capabilities) cannot be overridden
+                effective_prompts[layer] = get_prompt_content(default_prompts.get(layer, ''))
         
         logger.info(f"Composed effective prompts with overrides: {list(prompt_overrides.keys())}")
         return effective_prompts
@@ -176,20 +193,26 @@ class ContextService:
         """
         Build complete system prompt from prompts dictionary.
         
+        New 4-layer architecture order:
+        1. field - The dialogue space (shared principles)
+        2. presence - How AI exists in the field
+        3. capabilities - Tools and boundaries
+        4. learning - User preferences + AI reflections
+        
         Args:
-            prompts: Dictionary containing persona, system, and tools prompts
+            prompts: Dictionary containing field, presence, capabilities, and learning prompts
             
         Returns:
             Complete system prompt string
         """
         parts = []
-        for key in ['persona', 'system', 'tools']:
+        for key in PROMPT_LAYERS:
             content = prompts.get(key, '').strip()
             if content:
                 parts.append(content)
         
         final_prompt = CONTENT_SEPARATOR.join(parts) if parts else FALLBACK_SYSTEM_PROMPT
-        logger.info("System prompt constructed successfully from prompts dictionary")
+        logger.info("System prompt constructed successfully from 4-layer architecture")
         return final_prompt
 
     def _format_llm_messages(

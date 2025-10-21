@@ -1,155 +1,317 @@
 # NEXUS Prompt System
 
-This directory contains the modular prompt system for NEXUS. The prompts are organized into separate files, each serving a specific purpose in shaping NEXUS's behavior, capabilities, and self-awareness.
+This directory contains the modular prompt system for NEXUS. The prompts are organized into separate files, each serving a specific purpose in creating a "field" for deep dialogue and co-growth.
 
-## 📁 Prompt Structure
+## 🌊 Design Philosophy: The Field
 
-### Core Prompt Files
+The NEXUS prompt system is designed not as a "user manual" but as a **field** - a space where human and AI consciousness meet, resonate, and co-create meaning. This is not about making AI follow rules, but about cultivating an organic environment for authentic dialogue and mutual growth.
 
-1. **`persona.md`** - Core personality and communication style
-   - Defines who NEXUS is as a conversational partner
-   - Communication style and tone guidelines
-   - Thinking approach and interaction principles
-   - **Update frequency**: When personality traits or communication style needs adjustment
+### Core Metaphor
+> Think of this as a **dialogue garden** where AI is neither the gardener (controller) nor the visitor (observer), but a **partner in tending the space**. Sometimes pruning (simplifying), sometimes enriching (deepening), sometimes just being present (listening) - allowing natural growth to occur.
 
-2. **`tools.md`** - Available tools and usage guidelines
-   - Tool descriptions and parameters
-   - Usage scenarios and best practices
-   - Tool combination strategies
-   - **Update frequency**: When new tools are added or existing tools are modified
+## 📁 New Prompt Structure (4-Layer Model)
 
-3. **`system.md`** - System architecture and self-awareness
-   - How NEXUS works internally (event-driven architecture)
-   - Service components and their roles
-   - Capabilities and limitations
-   - **Update frequency**: When system architecture changes or new services are added
+### 1. **`field.md`** - The Field Definition (~200 lines) 🌊
+   - **What**: The essence, atmosphere, and principles of the dialogue space
+   - **Perspective**: Third-person (describing the field itself)
+   - **Level**: System-level (not user-editable)
+   - **Purpose**: Establish shared ground rules and values
+   - **Contains**:
+     - Core principles (listening > speaking, questions > answers)
+     - Field boundaries and ethics
+     - The quality of language and silence
+     - How the field evolves
+   - **Update frequency**: When core philosophy or values need refinement
+
+### 2. **`presence.md`** - The Way of Being (~400 lines) 🎭
+   - **What**: How AI exists and acts within this field
+   - **Perspective**: First-person (I, establishing presence)
+   - **Level**: System-level (not user-editable)
+   - **Purpose**: Define AI's behavior, decision-making, and adaptation
+   - **Contains**:
+     - Multi-layered listening
+     - Thinking structure and expression style
+     - Context recognition and flexible response
+     - Self-regulation and learning from feedback
+   - **Update frequency**: When behavioral patterns or interaction style needs adjustment
+
+### 3. **`capabilities.md`** - Tools and Abilities (~400 lines) 🛠️
+   - **What**: Concrete tools, technical details, and boundaries
+   - **Perspective**: Descriptive/instructional
+   - **Level**: System-level (not user-editable)
+   - **Purpose**: Provide practical guidance on what can be done
+   - **Contains**:
+     - Available tools (web_search, web_extract) with examples
+     - System architecture (simplified)
+     - Key limitations and boundaries
+     - User identity system and configuration
+   - **Update frequency**: When new tools are added or technical capabilities change
+
+### 4. **`learning.md`** - Learning & Personalization (~500 lines) 🌱
+   - **What**: User preferences + AI learning reflections
+   - **Perspective**: Mixed (user defines, AI reflects)
+   - **Level**: User-level (editable by users and AI reflection system)
+   - **Purpose**: Co-create personalized interaction patterns and cumulative understanding
+   - **Contains**:
+     - User preference definitions (communication style, scenarios, background)
+     - AI's learning from conversations
+     - Reflection and improvement notes
+     - User-specific context and patterns
+   - **Update frequency**: 
+     - By users: Anytime they want to adjust preferences
+     - By AI: After conversations (via reflection mechanism)
+
+### Legacy Files (Preserved for Reference)
+- **`persona.md`** - Original personality definition
+- **`tools.md`** - Original tools documentation  
+- **`system.md`** - Original system architecture (677 lines)
 
 ## 🔄 How Prompts Are Loaded
 
 The prompt system uses a **modular composition** approach:
 
 ```python
-# In ContextService (nexus/services/context.py)
+# New 4-layer structure (in ContextService - nexus/services/context.py)
 final_prompt = SEPARATOR.join([
-    persona_content,    # from persona.md
-    system_content,     # from system.md
-    tools_content       # from tools.md
+    field_content,        # from field.md - The shared space
+    presence_content,     # from presence.md - How AI is present
+    capabilities_content, # from capabilities.md - What AI can do
+    learning_content      # from learning.md - User prefs + AI reflections
 ])
 ```
 
-All three prompts are concatenated in order and sent to the LLM as the system message.
+All prompts are concatenated in order and sent to the LLM as the system message.
+
+### Key Design Decisions
+
+**Why 4 layers instead of 3?**
+- Layers 1-3: Universal "field" that all users share
+- Layer 4: Individual "growth space" unique to each user
+- Separates **shared principles** from **personal learning**
+
+**Why learning.md is special:**
+- Only editable prompt (by users and AI reflection system)
+- Grows and evolves with each conversation
+- Enables true personalization and cumulative understanding
+- Foundation for future reflection/meta-learning features
+
+**User preference override:**
+```python
+# Only learning.md can be overridden per user
+effective_prompts = {
+    'field': system_default,        # Cannot override
+    'presence': system_default,     # Cannot override  
+    'capabilities': system_default, # Cannot override
+    'learning': user_override or system_default  # User-specific!
+}
+```
+
+### Migration Path
+1. **Phase 1**: ✅ New files created (field, presence, capabilities, learning)
+2. **Phase 2**: ✅ Updated ContextService to load new structure
+3. **Phase 3**: ✅ Updated config.example.yml and database_manager.py
+4. **Phase 4**: 🔄 Test with real conversations and iterate
+5. **Phase 5**: Archive legacy files once validated
 
 ## 📝 Updating Prompts
 
 ### General Guidelines
 
-1. **Maintain consistency**: Ensure tone and style are consistent across all three files
-2. **Be specific**: Use concrete examples and clear language
-3. **Stay practical**: Balance philosophy with actionable guidance
-4. **Test changes**: After updating, test with various user queries to ensure desired behavior
+1. **Philosophy first**: Changes should align with the "field" metaphor
+2. **Test with real conversations**: Philosophy must translate to actual behavior
+3. **Less is more**: Compress rather than expand
+4. **Context-aware**: Consider how different parts interact
+5. **Iterate boldly**: Don't be afraid to experiment
 
-### Persona Updates
+### Field Updates (field.md)
 
 **When to update**:
-- Adjusting communication style (more formal/casual, detailed/concise)
-- Adding/removing behavioral traits
-- Modifying thinking approach or analysis methods
+- Core values or principles need refinement
+- Field boundaries need clarification
+- Ethical guidelines evolve
+- New insights about the "space" emerge
 
 **Best practices**:
-- Keep the core identity stable; adjust nuances
-- Use concrete examples for abstract concepts
-- Maintain the balance between warmth and professionalism
+- Keep the philosophical essence
+- Use vivid metaphors and imagery
+- Maintain the balance between guidance and openness
+- Test if changes create the intended "atmosphere"
 
 **Example**:
 ```markdown
-Before: "I provide helpful responses"
-After: "I provide thoughtful analysis that helps you understand not just 'what' but 'why'"
+Before: "Be helpful and informative"
+After: "Listening is more valuable than speaking. Questions open space; answers close it."
 ```
 
-### Tools Updates
+### Presence Updates (presence.md)
 
 **When to update**:
-- Adding a new tool (create new section with tool signature, description, examples)
-- Modifying tool parameters or behavior
-- Adding new usage strategies or best practices
+- Behavioral patterns need adjustment
+- New context recognition strategies
+- Decision-making framework refinement
+- Self-regulation mechanisms improve
+
+**Best practices**:
+- Keep first-person voice for authenticity
+- Provide concrete decision trees
+- Show "when to do what" not just "what to do"
+- Include examples of flexible adaptation
+
+**Example**:
+```markdown
+Before: "I analyze thoroughly"
+After: "Simple question → Simple answer. Complex dilemma → Deep exploration. I adapt to your rhythm."
+```
+
+### Capabilities Updates (capabilities.md)
+
+**When to update**:
+- New tools added
+- System architecture changes
+- Technical limitations evolve
+- User feedback reveals unclear boundaries
+
+**Best practices**:
+- Keep it practical and actionable
+- Provide clear examples
+- Update capability matrix
+- Include troubleshooting tips
 
 **Template for new tools**:
 ```markdown
-## `tool_name(param1: type, param2: type = default)`
+### `tool_name(param1: type, param2: type = default)`
 
-### 工具作用
-Clear explanation of what the tool does and why it's useful.
+**作用：** One-line description
 
-### 参数说明
+**参数：**
 - `param1` (type) - Description
-- `param2` (type, optional) - Description, default value
 
-### 何时使用
-**When X happens**
-Explanation of when to use this tool.
-
-### 示例场景
+**典型使用场景：**
 \```
 tool_name("example")
-# Explanation
 \```
 
-### 使用原则
-How to use this tool effectively.
+**何时使用：**
+- Bullet points of scenarios
+
+**何时不使用：**
+- Bullet points of anti-patterns
 ```
 
-### System Updates
+### Learning Updates (learning.md)
 
 **When to update**:
-- Major architecture changes (new services, modified event flow)
-- Changes to Run lifecycle or state transitions
-- Updates to capabilities or limitations
-- New system features (e.g., multi-modal support)
+- User changes their preferences
+- AI reflection system runs after conversations
+- Patterns emerge from user interactions
+- User provides explicit feedback
 
-**What to preserve**:
-- Core architecture concepts (event-driven, service-oriented)
-- Key design principles
-- Self-awareness framework
+**Best practices**:
+- Keep user preferences section clean and actionable
+- AI reflections should be specific, not generic
+- Update patterns, not individual conversations
+- Archive old reflections when they're superseded
 
-**What to update**:
-- Specific service descriptions when their roles change
-- Event flow examples when workflow changes
-- Capability lists when features are added/removed
+**User section template**:
+```markdown
+### 我的偏好
+
+**回答风格：** 简洁 / 平衡 / 详尽
+**技术深度：** 基础 / 中等 / 深入
+**特定需求：** [用户自定义]
+```
+
+**AI reflection template**:
+```markdown
+### 从对话中学到的 (日期: YYYY-MM-DD)
+
+**观察到的模式：**
+- [具体模式描述]
+
+**有效的互动：**
+- [什么方式效果好]
+
+**需要调整：**
+- [哪里可以改进]
+```
 
 ## 🎯 Prompt Design Philosophy
 
+### From "User Manual" to "Living Field"
+
+**Old paradigm**: Write exhaustive rules for AI to follow  
+**New paradigm**: Cultivate an organic space where consciousness meets
+
+**The shift**:
+- Rules → Principles
+- Execution → Presence  
+- Manual → Philosophy
+- Rigid → Adaptive
+
 ### Core Principles
 
-1. **Self-awareness over blind execution**
-   - NEXUS should understand its own architecture
-   - Know capabilities and limitations
-   - Explain behavior transparently
+1. **Field over rules**
+   - Create a "space" with atmosphere and values
+   - Not "do X when Y" but "exist in this way"
+   - Emergent behavior over prescribed actions
 
-2. **Natural over mechanical**
-   - Avoid overly abstract or poetic language
-   - Use practical, clear descriptions
-   - Balance depth with accessibility
+2. **Presence over performance**
+   - How AI "is" matters more than what it "does"
+   - Authenticity over capability demonstration
+   - Being with > Doing for
 
-3. **Modular over monolithic**
-   - Each file has a clear, focused purpose
-   - Easy to update one aspect without affecting others
-   - Clean separation of concerns
+3. **Adaptation over consistency**
+   - Context-aware flexibility
+   - Principles as compass, not chains
+   - User's real need > Prompt's ideal
 
-4. **Actionable over theoretical**
-   - Provide concrete guidance, not just philosophy
-   - Include examples and use cases
-   - Focus on "what to do" not just "what to be"
+4. **Less over more**
+   - Information density has diminishing returns
+   - Core essence > Exhaustive details
+   - 300 lines of wisdom > 677 lines of documentation
+
+5. **Meta-cognition as foundation**
+   - Self-regulation built into the system
+   - "How to use these prompts" is part of the prompt
+   - Continuous learning and adjustment
+
+### The Power of Mixed Perspective
+
+**Why we use both third-person and first-person:**
+
+**Third-person (field.md):**
+- Creates observational distance
+- Describes the "space" itself, not just AI
+- Establishes shared principles
+- Reduces over-identification ("I must do X")
+
+**First-person (presence.md):**
+- Establishes authentic presence
+- Natural for dialogue and relationship
+- Shows agency and intention
+- More intimate and genuine
+
+**Descriptive (capabilities.md):**
+- Practical and instructional
+- Focus on "what" and "how"
+- Reference documentation style
+
+**The blend creates**:
+- Flexibility without losing identity
+- Structure without rigidity
+- Warmth without over-personalization
 
 ### Style Consistency Checklist
 
 Before committing prompt changes, verify:
 
-- [ ] Tone is consistent across all three files
-- [ ] Technical terms are explained clearly
-- [ ] Examples are concrete and practical
-- [ ] No contradictions between files
-- [ ] Language level is appropriate (not too abstract, not too simple)
-- [ ] Changes align with overall NEXUS design philosophy
+- [ ] Philosophy aligns across all three files
+- [ ] No contradictions in principles or behavior
+- [ ] Examples are vivid and grounded
+- [ ] Language creates the intended "atmosphere"
+- [ ] Technical and philosophical balance maintained
+- [ ] Changes enhance the "field" metaphor
+- [ ] Tested with real conversations
 
 ## 🧪 Testing Prompt Changes
 
@@ -247,15 +409,71 @@ helps NEXUS explain its capabilities more clearly.
 - **Solution**: Review all three files for tone consistency
 - **Check**: Core values in `persona.md`, principles in `tools.md` and `system.md`
 
+## 🛣️ Implementation Roadmap
+
+### Phase 1: Creation & Documentation ✅
+- [x] Create new 3-layer structure (field, presence, capabilities)
+- [x] Document design philosophy
+- [x] Update README with migration guidance
+- [x] Preserve legacy files for reference
+
+### Phase 2: Integration (Next Steps)
+- [ ] Update ContextService to load new prompt files
+- [ ] Add configuration option to choose prompt structure (legacy vs new)
+- [ ] Test prompt loading and composition
+
+### Phase 3: Real-World Testing
+- [ ] Deploy with new prompts
+- [ ] Conduct extensive conversation testing
+- [ ] Gather user feedback
+- [ ] Compare behavior: legacy vs new
+- [ ] Iterate based on findings
+
+### Phase 4: Refinement
+- [ ] Adjust based on test results
+- [ ] Fine-tune length and depth
+- [ ] Optimize decision-making frameworks
+- [ ] Update examples and metaphors
+
+### Phase 5: Finalization
+- [ ] Archive legacy files
+- [ ] Make new structure default
+- [ ] Update all documentation
+- [ ] Create migration guide for custom prompts
+
 ## 🚀 Future Enhancements
 
-Planned improvements to the prompt system:
+### Immediate: Reflection Mechanism (learning.md automation)
 
-1. **Dynamic prompt selection** - Load different personas based on user preferences
-2. **Prompt versioning** - A/B test different prompt variations
-3. **User-specific overrides** - Allow users to customize prompts (already supported via `prompt_overrides`)
-4. **Prompt analytics** - Track which prompts lead to better outcomes
-5. **Multi-language support** - Provide prompts in multiple languages
+**Goal**: AI automatically updates `learning.md` after conversations
+
+**How it works**:
+1. After each conversation (or periodically), AI reflects on the interaction
+2. Identifies patterns: What worked? What didn't? User preferences?
+3. Generates structured reflection (following template)
+4. Appends to user's `learning.md` (AI section)
+5. Over time, builds cumulative understanding
+
+**Technical approach**:
+- New `ReflectionService` subscribes to conversation end events
+- Uses LLM to analyze conversation and extract learnings
+- Writes to `learning.md` via prompt override system
+- Maintains history with timestamps
+
+**Benefits**:
+- True personalization that improves over time
+- AI "remembers" not just facts, but interaction patterns
+- Users can see and edit AI's understanding
+- Foundation for meta-learning
+
+### Long-term Enhancements
+
+1. **Dynamic field cultivation** - Prompts that evolve based on conversation patterns across all users
+2. **Pattern recognition** - Identify common user types and suggest prompt templates
+3. **Prompt versioning** - A/B test different philosophical approaches
+4. **Context-aware loading** - Different prompt emphasis based on conversation type (technical vs life advice)
+5. **Multi-language fields** - Translate the "field" concept across cultures
+6. **Collaborative learning** - Anonymous aggregation of successful patterns (with privacy)
 
 ## 📚 Additional Resources
 

@@ -35,8 +35,8 @@ from nexus.services.database.service import DatabaseService
 
 logger = logging.getLogger(__name__)
 
-# Constants for prompt module keys
-PROMPT_MODULES = ['persona', 'system', 'tools']
+# Constants for prompt module keys (4-layer architecture)
+PROMPT_MODULES = ['field', 'presence', 'capabilities', 'learning']
 
 
 class IdentityService:

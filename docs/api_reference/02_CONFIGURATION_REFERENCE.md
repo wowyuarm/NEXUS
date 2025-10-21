@@ -192,25 +192,30 @@ Modular prompt system with structured metadata.
 ```yaml
 user_defaults:
   prompts:
-    persona:
-      content: ""      # Loaded from nexus/prompts/nexus/persona.md
-      editable: true   # User can customize via /prompt panel
+    field:
+      content: ""      # Loaded from nexus/prompts/nexus/field.md
+      editable: false  # System-managed, defines the interaction space
       order: 1         # Concatenation order in system prompt
     
-    system:
-      content: ""      # Loaded from nexus/prompts/nexus/system.md
-      editable: false  # System-managed, not user-editable
+    presence:
+      content: ""      # Loaded from nexus/prompts/nexus/presence.md
+      editable: false  # System-managed, defines AI's way of being
       order: 2
     
-    tools:
-      content: ""      # Loaded from nexus/prompts/nexus/tools.md
-      editable: false
+    capabilities:
+      content: ""      # Loaded from nexus/prompts/nexus/capabilities.md
+      editable: false  # System-managed, defines tools and abilities
       order: 3
+    
+    learning:
+      content: ""      # Loaded from nexus/prompts/nexus/learning.md
+      editable: true   # User can customize, includes user profile & learning log
+      order: 4
 ```
 
 **Fields**:
 -   `content`: Actual prompt text (loaded from `.md` files during initialization)
--   `editable`: Whether user can modify this prompt (only `persona` is editable)
+-   `editable`: Whether user can modify this prompt (only `learning` is editable)
 -   `order`: Concatenation sequence for final system prompt composition
 
 **Prompt Loading**:
@@ -218,7 +223,7 @@ user_defaults:
 # In scripts/database_manager.py
 def load_prompt_files(prompts_dir: Path) -> Dict[str, str]:
     prompts = {}
-    for prompt_name in ['persona', 'system', 'tools']:
+    for prompt_name in ['field', 'presence', 'capabilities', 'learning']:
         file_path = prompts_dir / f"{prompt_name}.md"
         if file_path.exists():
             prompts[prompt_name] = file_path.read_text(encoding='utf-8')
@@ -226,22 +231,22 @@ def load_prompt_files(prompts_dir: Path) -> Dict[str, str]:
 ```
 
 **User Override Mechanism**:
-Users can override `persona` via `POST /api/v1/prompts`:
+Users can override `learning` via `POST /api/v1/prompts` or it can be updated by the Memory Agent:
 ```python
 # Stored in identities collection:
 {
   "public_key": "0x...",
   "prompt_overrides": {
-    "persona": "I am a creative writing assistant..."
+    "learning": "用户档案：我是一个创意写作助手..."
   }
 }
 
 # Effective prompts preserve metadata:
 {
-  "persona": {
-    "content": "I am a creative writing assistant...",  # User's override
+  "learning": {
+    "content": "用户档案：我是一个创意写作助手...",  # User's override
     "editable": true,    # From user_defaults
-    "order": 1           # From user_defaults
+    "order": 4           # From user_defaults
   }
 }
 ```
@@ -263,7 +268,7 @@ ui:
     - "config.temperature"
     - "config.max_tokens"
     - "config.history_context_size"
-    - "prompts.persona"
+    - "prompts.learning"
 ```
 
 **Usage**:
@@ -366,18 +371,22 @@ user_defaults:
     history_context_size: 20
   
   prompts:
-    persona:
-      content: ""  # Loaded from nexus/prompts/nexus/persona.md
-      editable: true
+    field:
+      content: ""  # Loaded from nexus/prompts/nexus/field.md
+      editable: false
       order: 1
-    system:
-      content: ""  # Loaded from nexus/prompts/nexus/system.md
+    presence:
+      content: ""  # Loaded from nexus/prompts/nexus/presence.md
       editable: false
       order: 2
-    tools:
-      content: ""  # Loaded from nexus/prompts/nexus/tools.md
+    capabilities:
+      content: ""  # Loaded from nexus/prompts/nexus/capabilities.md
       editable: false
       order: 3
+    learning:
+      content: ""  # Loaded from nexus/prompts/nexus/learning.md
+      editable: true
+      order: 4
 
 ui:
   editable_fields:
@@ -385,7 +394,7 @@ ui:
     - "config.temperature"
     - "config.max_tokens"
     - "config.history_context_size"
-    - "prompts.persona"
+    - "prompts.learning"
   
   field_options:
     "config.model":

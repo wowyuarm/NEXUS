@@ -46,22 +46,27 @@ class TestLoadSystemPrompt:
 
     def test_composes_prompts_from_config_defaults(self, context_service):
         """Prompts are composed from ConfigService defaults when no overrides provided."""
-        # Arrange: mock ConfigService return (new object structure)
+        # Arrange: mock ConfigService return (new 4-layer structure)
         default_prompts = {
-            "persona": {
-                "content": "You are Xi, a helpful AI assistant.",
-                "editable": True,
+            "field": {
+                "content": "场域：共同成长的对话空间...",
+                "editable": False,
                 "order": 1
             },
-            "system": {
-                "content": "Follow these system guidelines...",
+            "presence": {
+                "content": "在场方式：我如何存在于这个空间...",
                 "editable": False,
                 "order": 2
             },
-            "tools": {
-                "content": "Available tools: search, calculate...",
+            "capabilities": {
+                "content": "能力与工具：我可以做什么...",
                 "editable": False,
                 "order": 3
+            },
+            "learning": {
+                "content": "用户档案与学习记录...",
+                "editable": True,
+                "order": 4
             }
         }
         context_service.config_service = Mock()
@@ -75,27 +80,32 @@ class TestLoadSystemPrompt:
         combined = context_service._build_system_prompt_from_prompts(effective)
 
         # Assert
-        expected_content = f"{default_prompts['persona']['content']}\n\n---\n\n{default_prompts['system']['content']}\n\n---\n\n{default_prompts['tools']['content']}"
+        expected_content = f"{default_prompts['field']['content']}\n\n---\n\n{default_prompts['presence']['content']}\n\n---\n\n{default_prompts['capabilities']['content']}\n\n---\n\n{default_prompts['learning']['content']}"
         assert combined == expected_content
 
-    def test_overrides_persona_only(self, context_service):
-        """When only persona is overridden, system/tools remain defaults."""
-        # Arrange defaults (new object structure)
+    def test_overrides_learning_only(self, context_service):
+        """When only learning is overridden, field/presence/capabilities remain defaults."""
+        # Arrange defaults (new 4-layer structure)
         default_prompts = {
-            "persona": {
-                "content": "You are Xi, a helpful AI assistant.",
-                "editable": True,
+            "field": {
+                "content": "场域：共同成长的对话空间...",
+                "editable": False,
                 "order": 1
             },
-            "system": {
-                "content": "Follow these system guidelines...",
+            "presence": {
+                "content": "在场方式：我如何存在于这个空间...",
                 "editable": False,
                 "order": 2
             },
-            "tools": {
-                "content": "Available tools: search, calculate...",
+            "capabilities": {
+                "content": "能力与工具：我可以做什么...",
                 "editable": False,
                 "order": 3
+            },
+            "learning": {
+                "content": "用户档案与学习记录（默认模板）...",
+                "editable": True,
+                "order": 4
             }
         }
         context_service.config_service = Mock()
@@ -103,34 +113,40 @@ class TestLoadSystemPrompt:
             "config": {},
             "prompts": default_prompts
         }
-        user_profile = {"prompt_overrides": {"persona": "我是曦，你的AI灵魂伴侣。"}}
+        user_profile = {"prompt_overrides": {"learning": "用户档案：这是自定义的学习记录..."}}
 
         # Act
         effective = context_service._compose_effective_prompts(user_profile)
         combined = context_service._build_system_prompt_from_prompts(effective)
 
         # Assert
-        assert combined.startswith("我是曦")
-        assert "Follow these system guidelines" in combined
-        assert "Available tools" in combined
+        assert "用户档案：这是自定义的学习记录" in combined
+        assert "场域：共同成长的对话空间" in combined
+        assert "在场方式：我如何存在于这个空间" in combined
+        assert "能力与工具：我可以做什么" in combined
 
     def test_partial_defaults_and_overrides(self, context_service):
-        """Supports partial overrides while combining with defaults."""
+        """Supports partial overrides while combining with defaults (only learning is user-editable)."""
         default_prompts = {
-            "persona": {
-                "content": "You are Xi, a helpful AI assistant.",
-                "editable": True,
+            "field": {
+                "content": "场域：共同成长的对话空间...",
+                "editable": False,
                 "order": 1
             },
-            "system": {
-                "content": "Follow these system guidelines...",
+            "presence": {
+                "content": "在场方式：我如何存在于这个空间...",
                 "editable": False,
                 "order": 2
             },
-            "tools": {
-                "content": "Available tools: search, calculate...",
+            "capabilities": {
+                "content": "能力与工具：我可以做什么...",
                 "editable": False,
                 "order": 3
+            },
+            "learning": {
+                "content": "用户档案与学习记录（默认）...",
+                "editable": True,
+                "order": 4
             }
         }
         context_service.config_service = Mock()
@@ -138,20 +154,20 @@ class TestLoadSystemPrompt:
             "config": {},
             "prompts": default_prompts
         }
-        user_profile = {"prompt_overrides": {"tools": "工具：web_search"}}
+        user_profile = {"prompt_overrides": {"learning": "自定义学习记录..."}}
 
         effective = context_service._compose_effective_prompts(user_profile)
         combined = context_service._build_system_prompt_from_prompts(effective)
 
-        assert combined.endswith("工具：web_search")
-        assert combined.startswith(default_prompts["persona"]["content"])
+        assert "自定义学习记录" in combined
+        assert combined.startswith(default_prompts["field"]["content"])
 
     def test_fallback_when_all_empty(self, context_service):
         """If defaults are empty and no overrides, fallback system prompt is used."""
         context_service.config_service = Mock()
         context_service.config_service.get_user_defaults.return_value = {
             "config": {},
-            "prompts": {"persona": "", "system": "", "tools": ""}
+            "prompts": {"field": "", "presence": "", "capabilities": "", "learning": ""}
         }
         effective = context_service._compose_effective_prompts({})
         combined = context_service._build_system_prompt_from_prompts(effective)
@@ -171,14 +187,15 @@ class TestLoadSystemPrompt:
         context_service.config_service.get_user_defaults.return_value = {
             "config": {},
             "prompts": {
-                "persona": {"content": "   \n\t  \n   ", "editable": True, "order": 1},
-                "system": {"content": "Actual system content", "editable": False, "order": 2},
-                "tools": {"content": "", "editable": False, "order": 3}
+                "field": {"content": "   \n\t  \n   ", "editable": False, "order": 1},
+                "presence": {"content": "Actual presence content", "editable": False, "order": 2},
+                "capabilities": {"content": "", "editable": False, "order": 3},
+                "learning": {"content": "", "editable": True, "order": 4}
             }
         }
         effective = context_service._compose_effective_prompts({})
         combined = context_service._build_system_prompt_from_prompts(effective)
-        assert "Actual system content" in combined
+        assert "Actual presence content" in combined
 
 
 class TestFormatLlmMessages:

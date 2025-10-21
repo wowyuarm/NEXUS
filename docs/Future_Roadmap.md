@@ -48,16 +48,16 @@
 ---
 ---
 
-2. ## 将“近期工具结果”以 Markdown 文本注入到 system prompt（tools.md 之后）
+2. ## 将"近期工具结果"以 Markdown 文本注入到 system prompt（capabilities.md 之后）
 
 本计划暂不实施，仅进行方案沉淀，待后续把 prompts 迁移至数据库后统一推进。
 
 目标
 - 在首次构建上下文时（`ContextService._build_messages_with_history()`），仍旧跳过历史 `role: tool` 消息进入 `messages[]`，以避免 OpenAI/Gemini 兼容 API 的 schema 问题。
-- 同时，提供一个可配置的策略，将“最近的工具调用结果”以纯文本 Markdown 形式，拼接在 system prompt 的 `tools.md` 段落之后，让模型在“首轮”也能看到有限的工具历史要点。
+- 同时，提供一个可配置的策略，将"最近的工具调用结果"以纯文本 Markdown 形式，拼接在 system prompt 的 `capabilities.md` 段落之后，让模型在"首轮"也能看到有限的工具历史要点。
 
 注入位置
-- 拼接到 `nexus/prompts/xi/tools.md` 之后（即 persona.md + system.md + tools.md + 近期工具结果 注释段）。
+- 拼接到 `nexus/prompts/nexus/capabilities.md` 之后（即 field.md + presence.md + capabilities.md + 近期工具结果 注释段 + learning.md）。
 
 配置项（通过 ConfigService 读取；模板示例放在 `config.example.yml`）
 - `memory.tool_results.enabled`: 是否启用该特性（默认 false）。
@@ -74,7 +74,7 @@
 
 边界与后续
 - 先不做脱敏/正则清洗（可在后续增强）。
-- prompts 迁移至数据库后，可将“注入到 tools.md 后面”的逻辑统一为“在 DB 中对最终合成的 system prompt 进行动态拼接”。
+- prompts 已迁移至数据库（4层架构：field/presence/capabilities/learning），可将"注入到 capabilities.md 后面"的逻辑统一为"在 DB 中对最终合成的 system prompt 进行动态拼接"。
 - 上述 4 个配置项已足够支撑首版能力，未来如需增加总字数上限或更多显示策略，再迭代。
 
 ---

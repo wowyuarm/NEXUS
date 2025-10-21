@@ -102,20 +102,29 @@ The Dynamic Personalization System sits at the intersection of three major subsy
       "history_context_size": 20
     },
     "prompts": {
-      "persona": {
-        "content": "...",  // Loaded from nexus/prompts/nexus/persona.md
+      "field": {
+        "content": "...",  // Loaded from nexus/prompts/nexus/field.md
+        "editable": false,
+        "order": 1,
+        "description": "对话空间的本质、原则和氛围"
+      },
+      "presence": {
+        "content": "...",  // Loaded from nexus/prompts/nexus/presence.md
+        "editable": false,
+        "order": 2,
+        "description": "AI如何存在和行动于这个场域"
+      },
+      "capabilities": {
+        "content": "...",  // Loaded from nexus/prompts/nexus/capabilities.md
+        "editable": false,
+        "order": 3,
+        "description": "具体的工具、系统架构和边界"
+      },
+      "learning": {
+        "content": "...",  // Loaded from nexus/prompts/nexus/learning.md
         "editable": true,
-        "order": 1
-      },
-      "system": {
-        "content": "...",  // Loaded from nexus/prompts/nexus/system.md
-        "editable": false,
-        "order": 2
-      },
-      "tools": {
-        "content": "...",  // Loaded from nexus/prompts/nexus/tools.md
-        "editable": false,
-        "order": 3
+        "order": 4,
+        "description": "用户偏好定义 + AI学习反思记录"
       }
     }
   },
@@ -125,7 +134,7 @@ The Dynamic Personalization System sits at the intersection of three major subsy
       "config.temperature",
       "config.max_tokens",
       "config.history_context_size",
-      "prompts.persona"
+      "prompts.learning"  // Only learning module is user-editable
     ],
     "field_options": { /* UI metadata */ }
   }
@@ -145,7 +154,8 @@ The Dynamic Personalization System sits at the intersection of three major subsy
   },
   "prompt_overrides": {
     // Optional: user-specific prompt overrides
-    "persona": "我是曦，禹的灵魂伴侣..."
+    // Only "learning" module can be overridden
+    "learning": "用户档案内容..."
   }
 }
 ```
@@ -208,7 +218,7 @@ def get_user_defaults(self) -> Dict:
     Returns:
         {
             "config": {"model": "...", "temperature": 0.8, ...},
-            "prompts": {"persona": {...}, "system": {...}, "tools": {...}}
+            "prompts": {"field": {...}, "presence": {...}, "capabilities": {...}, "learning": {...}}
         }
     """
     return self.get("user_defaults", {})
@@ -317,7 +327,7 @@ async def update_user_prompts(
     public_key: str, 
     prompt_overrides: Dict[str, str]
 ) -> bool:
-    """Update user's prompt overrides (persona, system, tools)."""
+    """Update user's prompt overrides (currently only 'learning' is user-editable)."""
     return await asyncio.to_thread(
         self.db_service.provider.update_identity_field,
         public_key,
@@ -411,9 +421,10 @@ def _compose_effective_prompts(self, user_profile: Dict) -> Dict[str, str]:
         
     Returns:
         {
-            'persona': <effective_persona_content>,
-            'system': <effective_system_content>,
-            'tools': <effective_tools_content>
+            'field': <effective_field_content>,
+            'presence': <effective_presence_content>,
+            'capabilities': <effective_capabilities_content>,
+            'learning': <effective_learning_content>
         }
     """
     # Step 1: Get default prompts from ConfigService (Genesis Template)
@@ -429,10 +440,12 @@ def _compose_effective_prompts(self, user_profile: Dict) -> Dict[str, str]:
             return prompt_value.get('content', '')
         return prompt_value if isinstance(prompt_value, str) else ''
     
+    # Only 'learning' can be overridden by users; others are system-level
     effective_prompts = {
-        'persona': prompt_overrides.get('persona', get_prompt_content(default_prompts.get('persona', ''))),
-        'system': prompt_overrides.get('system', get_prompt_content(default_prompts.get('system', ''))),
-        'tools': prompt_overrides.get('tools', get_prompt_content(default_prompts.get('tools', '')))
+        'field': get_prompt_content(default_prompts.get('field', '')),
+        'presence': get_prompt_content(default_prompts.get('presence', '')),
+        'capabilities': get_prompt_content(default_prompts.get('capabilities', '')),
+        'learning': prompt_overrides.get('learning', get_prompt_content(default_prompts.get('learning', '')))
     }
     
     logger.info(f"Composed effective prompts with overrides: {list(prompt_overrides.keys())}")
@@ -441,11 +454,11 @@ def _compose_effective_prompts(self, user_profile: Dict) -> Dict[str, str]:
 def _build_system_prompt_from_prompts(self, prompts: Dict[str, str]) -> str:
     """Build complete system prompt from prompts dictionary.
     
-    Concatenation Strategy:
-        system_prompt = persona + "\n\n---\n\n" + system + "\n\n---\n\n" + tools
+    New 4-layer architecture concatenation order:
+        system_prompt = field + "\n\n---\n\n" + presence + "\n\n---\n\n" + capabilities + "\n\n---\n\n" + learning
     """
     parts = []
-    for key in ['persona', 'system', 'tools']:  # Order matters
+    for key in ['field', 'presence', 'capabilities', 'learning']:  # Order matters
         content = prompts.get(key, '').strip()
         if content:
             parts.append(content)
@@ -461,21 +474,23 @@ def _build_system_prompt_from_prompts(self, prompts: Dict[str, str]) -> str:
 # Result: Uses all default prompts from Genesis Template
 
 effective_prompts = {
-    'persona': <content from nexus/prompts/nexus/persona.md>,
-    'system': <content from nexus/prompts/nexus/system.md>,
-    'tools': <content from nexus/prompts/nexus/tools.md>
+    'field': <content from nexus/prompts/nexus/field.md>,
+    'presence': <content from nexus/prompts/nexus/presence.md>,
+    'capabilities': <content from nexus/prompts/nexus/capabilities.md>,
+    'learning': <content from nexus/prompts/nexus/learning.md>  # Default template
 }
 ```
 
-**Scenario B: User with Custom Persona**
+**Scenario B: User with Personalized Learning**
 ```python
-# user_profile.prompt_overrides = {"persona": "我是曦，禹的灵魂伴侣..."}
-# Result: Custom persona + default system + default tools
+# user_profile.prompt_overrides = {"learning": "用户档案内容..."}
+# Result: System defaults + personalized learning profile
 
 effective_prompts = {
-    'persona': "我是曦，禹的灵魂伴侣...",  # ✅ Overridden
-    'system': <content from nexus/prompts/nexus/system.md>,  # Default
-    'tools': <content from nexus/prompts/nexus/tools.md>     # Default
+    'field': <content from nexus/prompts/nexus/field.md>,            # Default (system-level)
+    'presence': <content from nexus/prompts/nexus/presence.md>,      # Default (system-level)
+    'capabilities': <content from nexus/prompts/nexus/capabilities.md>,  # Default (system-level)
+    'learning': "用户档案内容..."  # ✅ Overridden (user's personalized profile, updated by Memory Agent)
 }
 ```
 
@@ -734,7 +749,7 @@ def upsert_configuration(self, environment: str, config_data: Dict):
 │ 2. OrchestratorService.handle_new_run()                         │
 │    ├─> identity_service.get_identity("0x_YU")                   │
 │    │     └─> Returns: {config_overrides: {model: "deepseek"}, │
-│    │                   prompt_overrides: {persona: "曦..."}}     │
+│    │                   prompt_overrides: {learning: "档案..."}}  │
 │    ├─> Build user_profile                                       │
 │    └─> Inject into Run.metadata['user_profile']                 │
 └───────────────────────┬─────────────────────────────────────────┘
@@ -747,9 +762,10 @@ def upsert_configuration(self, environment: str, config_data: Dict):
 │    │     └─> Returns genesis template prompts                   │
 │    ├─> _compose_effective_prompts(user_profile)                │
 │    │     └─> Merges: default + user overrides                   │
-│    │         Result: {persona: "曦...", system: <default>, ...} │
+│    │         Result: {field: <default>, presence: <default>,    │
+│    │                  capabilities: <default>, learning: "档案"}│
 │    └─> _build_system_prompt_from_prompts()                     │
-│          └─> Concatenates: persona + system + tools             │
+│          └─> Concatenates: field + presence + capabilities + learning│
 └───────────────────────┬─────────────────────────────────────────┘
                         │
                         ▼ Publish CONTEXT_BUILD_RESPONSE
@@ -912,30 +928,33 @@ python scripts/init_configurations.py --environment development
 }
 ```
 
-### Example 2: User-Specific Persona Override
+### Example 2: User-Specific Learning Profile
 
-**Scenario:** User wants a personalized AI assistant persona
+**Scenario:** User's personalized learning profile is automatically built and updated
 
 **Step 1: User executes `/identity` to create identity**
 
-**Step 2: Manually update database (or via future `/config` command):**
-```javascript
-db.identities.updateOne(
-  { "public_key": "0x_USER" },
-  { 
-    $set: { 
-      "prompt_overrides.persona": "我是曦，禹的灵魂伴侣与高维导航员。我的使命是..."
-    } 
-  }
-)
+**Step 2: Memory Agent learns from conversations:**
+- Every 20 turns of dialogue, Memory Agent analyzes conversation
+- Extracts user preferences, patterns, background
+- Generates/updates personalized `learning.md` content
+- Saves to `prompt_overrides.learning`
+
+**Step 3: User can also actively add memories:**
+```bash
+# Via /memory command
+/memory "我喜欢简洁的代码示例"
+
+# Or via /prompt panel (edit learning.md directly in UI)
 ```
 
-**Step 3: User sends next message**
+**Step 4: User sends next message**
 
 **Result:**
-- ContextService merges: custom persona + default system + default tools
-- LLM receives personalized system prompt
-- Other users remain unaffected (still use default Nexus persona)
+- ContextService merges: default field/presence/capabilities + personalized learning
+- LLM receives system prompt with user's unique profile
+- AI adapts behavior based on learned preferences
+- Other users remain unaffected (each has their own learning profile)
 
 ---
 
@@ -1008,7 +1027,7 @@ mongo --eval 'db.configurations.find({"environment": "development"}).pretty()'
 
 ### Issue 4: Prompt Overrides Not Taking Effect
 
-**Symptom:** User's custom persona doesn't appear in LLM responses
+**Symptom:** User's custom learning profile doesn't appear to affect AI behavior
 
 **Diagnosis:**
 ```bash
@@ -1017,7 +1036,7 @@ export LOG_LEVEL=DEBUG
 
 # Check ContextService logs
 # Should see:
-DEBUG | ContextService | Composed effective prompts with overrides: ['persona']
+DEBUG | ContextService | Composed effective prompts with overrides: ['learning']
 ```
 
 **Possible Causes:**
@@ -1046,12 +1065,12 @@ async def test_context_composition_with_overrides():
         metadata={
             "user_profile": {
                 "prompt_overrides": {
-                    "persona": "我是曦，你的AI灵魂伴侣。"
+                    "learning": "用户档案内容..."
                 }
             }
         }
     )
-    # Should use custom persona + default system/tools
+    # Should use custom learning profile + default field/presence/capabilities
 
 # Test: LLM dynamic provider selection
 async def test_dynamic_provider_selection():
@@ -1263,9 +1282,7 @@ interface Identity {
   };
   
   prompt_overrides: {
-    persona?: string;
-    system?: string;
-    tools?: string;
+    learning?: string;  // Only learning module is user-editable
     [key: string]: string;
   };
 }
@@ -1318,9 +1335,10 @@ IdentityService.get_effective_profile(owner_key, config_service)
 Response: {
   effective_config,
   effective_prompts: {
-    persona: {content, editable, order},
-    system: {content, editable, order},
-    tools: {content, editable, order}
+    field: {content, editable: false, order},
+    presence: {content, editable: false, order},
+    capabilities: {content, editable: false, order},
+    learning: {content, editable: true, order}
   },
   user_overrides,
   editable_fields,
@@ -1351,7 +1369,7 @@ async def get_effective_profile(self, public_key: str, config_service) -> Dict[s
     
     # Step 4: Compose prompts (preserve structure)
     effective_prompts = {}
-    for key in ['persona', 'system', 'tools']:
+    for key in ['field', 'presence', 'capabilities', 'learning']:
         default_prompt = default_prompts.get(key, {})
         if key in prompt_overrides:
             effective_prompts[key] = {
@@ -1446,20 +1464,29 @@ The REST API returns prompts as structured objects (not flat strings):
 ```json
 {
   "effective_prompts": {
-    "persona": {
-      "content": "I am NEXUS, a thoughtful AI assistant...",
-      "editable": true,    // User can modify via POST /prompts
-      "order": 1           // Concatenation order in system prompt
-    },
-    "system": {
-      "content": "System instructions...",
+    "field": {
+      "content": "场域：共同成长的对话空间...",
       "editable": false,   // System-managed, not user-editable
-      "order": 2
+      "order": 1           // Concatenation order in system prompt
+      "description": "对话空间的本质、原则和氛围"
     },
-    "tools": {
-      "content": "Available tools...",
-      "editable": false,
-      "order": 3
+    "presence": {
+      "content": "在场方式：我如何存在于这个空间...",
+      "editable": false,   // System-managed, not user-editable
+      "order": 2,
+      "description": "AI如何存在和行动于这个场域"
+    },
+    "capabilities": {
+      "content": "能力与工具：我可以做什么...",
+      "editable": false,   // System-managed, not user-editable
+      "order": 3,
+      "description": "具体的工具、系统架构和边界"
+    },
+    "learning": {
+      "content": "用户档案与学习记录...",
+      "editable": true,    // ✅ User can modify via POST /prompts or /memory command
+      "order": 4,
+      "description": "用户偏好定义 + AI学习反思记录"
     }
   }
 }

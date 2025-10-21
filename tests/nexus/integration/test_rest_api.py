@@ -60,20 +60,25 @@ class TestRESTAPIIntegration:
                     'history_context_size': 20
                 },
                 'effective_prompts': {
-                    'persona': {
-                        'content': 'I am NEXUS...',
-                        'editable': True,
+                    'field': {
+                        'content': '场域：共同成长的对话空间...',
+                        'editable': False,
                         'order': 1
                     },
-                    'system': {
-                        'content': 'System prompt...',
+                    'presence': {
+                        'content': '在场方式：我如何存在...',
                         'editable': False,
                         'order': 2
                     },
-                    'tools': {
-                        'content': 'Tools prompt...',
+                    'capabilities': {
+                        'content': '能力与工具...',
                         'editable': False,
                         'order': 3
+                    },
+                    'learning': {
+                        'content': '用户档案与学习记录...',
+                        'editable': True,
+                        'order': 4
                     }
                 },
                 'user_overrides': {
@@ -85,7 +90,7 @@ class TestRESTAPIIntegration:
                     'config.temperature',
                     'config.max_tokens',
                     'config.history_context_size',
-                    'prompts.persona'
+                    'prompts.learning'
                 ],
                 'field_options': {
                     'config.model': {
@@ -269,11 +274,17 @@ class TestRESTAPIIntegration:
         assert data['effective_config']['model'] == 'gemini-2.5-flash'
         assert data['effective_config']['temperature'] == 0.8
         
-        # Verify prompt structure
-        assert 'persona' in data['effective_prompts']
-        assert 'content' in data['effective_prompts']['persona']
-        assert 'editable' in data['effective_prompts']['persona']
-        assert 'order' in data['effective_prompts']['persona']
+        # Verify prompt structure (4-layer architecture)
+        assert 'field' in data['effective_prompts']
+        assert 'presence' in data['effective_prompts']
+        assert 'capabilities' in data['effective_prompts']
+        assert 'learning' in data['effective_prompts']
+        assert 'content' in data['effective_prompts']['learning']
+        assert 'editable' in data['effective_prompts']['learning']
+        assert 'order' in data['effective_prompts']['learning']
+        # Only learning should be editable
+        assert data['effective_prompts']['learning']['editable'] == True
+        assert data['effective_prompts']['field']['editable'] == False
         
         # Verify service was called
         mock_identity_service.get_effective_profile.assert_called_once()
@@ -380,11 +391,17 @@ class TestRESTAPIIntegration:
         assert response.status_code == 200
         data = response.json()
         
-        # Same structure as /config
+        # Same structure as /config (4-layer architecture)
         assert 'effective_prompts' in data
-        assert 'persona' in data['effective_prompts']
-        assert data['effective_prompts']['persona']['editable'] == True
-        assert data['effective_prompts']['system']['editable'] == False
+        assert 'field' in data['effective_prompts']
+        assert 'presence' in data['effective_prompts']
+        assert 'capabilities' in data['effective_prompts']
+        assert 'learning' in data['effective_prompts']
+        # Only learning should be editable
+        assert data['effective_prompts']['learning']['editable'] == True
+        assert data['effective_prompts']['field']['editable'] == False
+        assert data['effective_prompts']['presence']['editable'] == False
+        assert data['effective_prompts']['capabilities']['editable'] == False
     
     # ============================================================================
     # Test POST /prompts
@@ -406,7 +423,7 @@ class TestRESTAPIIntegration:
         }
         
         request_body = {
-            "overrides": {"persona": "I am a creative writing assistant..."},
+            "overrides": {"learning": "用户档案：我是一个创意写作助手..."},
             "auth": {
                 "publicKey": test_owner_key,
                 "signature": "0x" + "b" * 130
@@ -427,7 +444,7 @@ class TestRESTAPIIntegration:
         # Verify update_user_prompts was called
         mock_identity_service.update_user_prompts.assert_called_once_with(
             test_owner_key,
-            {"persona": "I am a creative writing assistant..."}
+            {"learning": "用户档案：我是一个创意写作助手..."}
         )
     
     # ============================================================================

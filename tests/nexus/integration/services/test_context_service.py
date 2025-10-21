@@ -70,20 +70,25 @@ class TestContextServiceIntegration:
                 "temperature": 0.8
             },
             "prompts": {
-                "persona": {
-                    "content": "You are Nexus, an AI assistant.",
-                    "editable": True,
+                "field": {
+                    "content": "场域：共同成长的对话空间...",
+                    "editable": False,
                     "order": 1
                 },
-                "system": {
-                    "content": "System instructions for Nexus.",
+                "presence": {
+                    "content": "You are Nexus, an AI assistant.",
                     "editable": False,
                     "order": 2
                 },
-                "tools": {
-                    "content": "Available tools description.",
+                "capabilities": {
+                    "content": "Available tools description",
                     "editable": False,
                     "order": 3
+                },
+                "learning": {
+                    "content": "用户档案与学习记录...",
+                    "editable": True,
+                    "order": 4
                 }
             }
         }
@@ -187,7 +192,7 @@ class TestContextServiceIntegration:
         assert len(messages) >= 3  # At least system + current input + some history
         assert messages[0]["role"] == "system"
         # System prompt should be from user_defaults (since no overrides)
-        # It should contain default persona "Nexus"
+        # It should contain default content "Nexus"
         assert "Nexus" in messages[0]["content"]
         assert messages[-1]["role"] == "user"
         # The final message should be in XML context format
@@ -298,7 +303,7 @@ class TestContextServiceIntegration:
     async def test_context_composition_with_overrides(self, context_service, mock_bus, mock_tool_registry, mock_persistence_service, mock_config_service):
         """
         Test that ContextService composes prompts correctly when user has prompt_overrides.
-        Verifies that user's custom persona overrides the default.
+        Verifies that user's custom learning profile overrides the default.
         """
         # Arrange: Create Run object with user_profile containing prompt_overrides
         human_message = Message(
@@ -318,7 +323,7 @@ class TestContextServiceIntegration:
                     "public_key": "user-with-overrides",
                     "config_overrides": {},
                     "prompt_overrides": {
-                        "persona": "我是曦，你的AI灵魂伴侣。"
+                        "learning": "我是曦，你的AI灵魂伴侣。用户档案..."
                     }
                 }
             }
@@ -343,21 +348,21 @@ class TestContextServiceIntegration:
         call_args = mock_bus.publish.call_args
         published_message = call_args[0][1]
         
-        # Verify the system prompt includes the overridden persona
+        # Verify the system prompt includes the overridden learning profile
         messages = published_message.content["messages"]
         system_message = messages[0]
         assert system_message["role"] == "system"
-        # System prompt should contain the overridden persona "我是曦"
+        # System prompt should contain the overridden learning "我是曦"
         assert "我是曦" in system_message["content"]
         assert "你的AI灵魂伴侣" in system_message["content"]
-        # The persona was overridden, but system and tools parts still use defaults
+        # The learning was overridden, but field/presence/capabilities parts still use defaults
         # which is correct behavior - only specified overrides are applied
 
     @pytest.mark.asyncio
     async def test_context_uses_defaults_for_new_user(self, context_service, mock_bus, mock_tool_registry, mock_persistence_service, mock_config_service):
         """
         Test that ContextService uses default prompts when user has no overrides.
-        Verifies that system uses the default persona from config.
+        Verifies that system uses the default prompts from config.
         """
         # Arrange: Create Run object with user_profile but empty overrides
         human_message = Message(
@@ -400,11 +405,11 @@ class TestContextServiceIntegration:
         call_args = mock_bus.publish.call_args
         published_message = call_args[0][1]
         
-        # Verify the system prompt includes the default persona
+        # Verify the system prompt includes the default prompts
         messages = published_message.content["messages"]
         system_message = messages[0]
         assert system_message["role"] == "system"
-        # System prompt should contain the default persona "Nexus"
+        # System prompt should contain the default content "Nexus"
         assert "Nexus" in system_message["content"]
-        assert "System instructions for Nexus" in system_message["content"]
+        # Should contain content from all 4 layers
         assert "Available tools description" in system_message["content"]

@@ -118,20 +118,25 @@ Authorization: Bearer 0xYourPublicKey
     "history_context_size": 20
   },
   "effective_prompts": {
-    "persona": {
-      "content": "I am NEXUS...",
-      "editable": true,
+    "field": {
+      "content": "场域：共同成长的对话空间...",
+      "editable": false,
       "order": 1
     },
-    "system": {
-      "content": "System instructions...",
+    "presence": {
+      "content": "在场方式：我如何存在...",
       "editable": false,
       "order": 2
     },
-    "tools": {
-      "content": "Available tools...",
+    "capabilities": {
+      "content": "能力与工具...",
       "editable": false,
       "order": 3
+    },
+    "learning": {
+      "content": "用户档案与学习记录...",
+      "editable": true,
+      "order": 4
     }
   },
   "user_overrides": {
@@ -143,7 +148,7 @@ Authorization: Bearer 0xYourPublicKey
     "config.temperature",
     "config.max_tokens",
     "config.history_context_size",
-    "prompts.persona"
+    "prompts.learning"
   ],
   "field_options": {
     "config.model": {
@@ -240,7 +245,7 @@ Authorization: Bearer 0xYourPublicKey
 
 ### 5. POST /prompts
 
-**Description**: Update user's prompt overrides (currently only `persona` is editable).
+**Description**: Update user's prompt overrides (currently only `learning` is editable).
 
 **Authentication**: Bearer token + cryptographic signature required
 
@@ -254,7 +259,7 @@ Content-Type: application/json
 ```json
 {
   "overrides": {
-    "persona": "I am a creative writing assistant..."
+    "learning": "用户档案：我是一个创意写作助手..."
   },
   "auth": {
     "publicKey": "0xYourPublicKey",
@@ -272,8 +277,9 @@ Content-Type: application/json
 ```
 
 **Notes**:
--   Only `persona` prompt is editable by design
--   `system` and `tools` prompts are system-managed for consistency
+-   Only `learning` prompt is editable by design (user profile & learning log)
+-   `field`, `presence`, and `capabilities` prompts are system-managed for consistency
+-   The `learning` prompt can be updated by users directly or by the Memory Agent
 
 ---
 

@@ -330,7 +330,7 @@ async def get_prompts(
         
     Returns:
         {
-            "effective_prompts": {"persona": "...", "system": "...", "tools": "..."},
+            "effective_prompts": {"field": "...", "presence": "...", "capabilities": "...", "learning": "..."},
             "prompt_overrides": {...},
             "editable_fields": [...],
             "field_options": {...}
@@ -359,7 +359,7 @@ async def update_prompts(
     identity_svc=Depends(get_identity_service)
 ) -> Dict[str, Any]:
     """
-    Update current user's prompt overrides.
+    Update current user's prompt overrides (only 'learning' is user-editable).
     
     Authentication:
         - Header: Authorization: Bearer <owner_key>
@@ -367,7 +367,7 @@ async def update_prompts(
         
     Request Body:
         {
-            "overrides": {"persona": "My custom persona..."},
+            "overrides": {"learning": "用户档案：..."},
             "auth": {"publicKey": "0x...", "signature": "0x..."}
         }
         

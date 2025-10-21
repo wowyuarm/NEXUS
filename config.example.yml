@@ -13,7 +13,7 @@ system:
   max_tool_iterations: 5
   # 工具执行超时时间（秒）
   tool_execution_timeout: 20
-  # [新增] 定义应用名称，可下发给前端用于显示，进一步也可作用户自定义
+  # 定义应用名称，可下发给前端用于显示，（可选）也可作用户自定义
   app_name: "YX Nexus"
 
 # -------------------------------------------------------------------
@@ -90,28 +90,35 @@ user_defaults:
     max_tokens: 4096
     history_context_size: 20
   
-  # 默认的、模块化的Prompt集合 - 这是通用人格 Nexus 的定义
+  # 默认的、模块化的Prompt集合 - 基于"场域"理念的4层架构
   prompts:
-    persona:
+    # 第一层：场域定义（系统级，不可编辑）
+    field:
       content: ""
-      editable: true # 此模块是否允许用户编辑，在/prompt面板
-      order: 1       # 在最终Prompt中的拼接顺序
+      editable: false
+      order: 1
+      description: "对话空间的本质、原则和氛围"
 
-    system:
+    # 第二层：在场方式（系统级，不可编辑）
+    presence:
       content: ""
       editable: false
       order: 2
+      description: "AI如何存在和行动于这个场域"
 
-    tools:
+    # 第三层：能力工具（系统级，不可编辑）
+    capabilities:
       content: ""
       editable: false
       order: 3
-    
-    # 为未来的reflection功能预留
-    # reflection:
-    #  content: ""
-    #  editable: false
-    #  order: 4
+      description: "具体的工具、系统架构和边界"
+
+    # 第四层：学习与个性化（用户级，可编辑）
+    learning:
+      content: ""
+      editable: true  # 用户可以编辑，也会被AI反思功能更新
+      order: 4
+      description: "用户偏好定义 + AI学习反思记录"
 
 # -------------------------------------------------------------------
 # D. UI 渲染元数据 (UI Rendering Metadata)
@@ -124,7 +131,7 @@ ui:
     - "config.temperature"
     - "config.max_tokens"
     - "config.history_context_size"
-    - "prompts.persona" # 允许编辑整个persona模块，这里是在/prompt面板中更改persona的内容
+    - "prompts.learning" # 允许编辑learning模块（用户偏好 + AI学习记录）
 
   # 告诉/config面板每个字段的类型和可选值
   field_options:
