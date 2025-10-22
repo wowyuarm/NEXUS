@@ -39,12 +39,12 @@ Every code change must follow this sequence:
 
 ### Layer 2 (The Core): Frontend Component Tests (AURA)
 
--   **Location**: `tests/aura/component/`
+-   **Location**: Colocated `__tests__/` directories inside each feature or service folder (e.g., `aura/src/features/chat/components/__tests__/`).
 -   **Core Focus**: Ensuring our UI components are visually correct, functionally robust, and resilient to change.
 -   **What to Test**:
     -   Individual React components in isolation (e.g., `ToolCallCard`, `ChatInput`).
-    -   We simulate user interactions (clicks, typing) and assert that the component renders the expected output and calls the correct functions.
--   **Tools**: `Vitest` + `React Testing Library`.
+    -   Simulated user interactions (clicks, typing) to assert rendered output and function calls.
+-   **Tools**: `Vitest` + `React Testing Library` (commands: `pnpm test`, `pnpm test:run`, `pnpm test:coverage`).
 -   **CI/CD Status**: **Mandatory & Automated**. These tests also run on every commit. A failure here blocks all deployments.
 
 ### Layer 3 (The Apex): Backend End-to-End (E2E) Tests (NEXUS)

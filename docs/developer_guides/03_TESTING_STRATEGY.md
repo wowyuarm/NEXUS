@@ -1,68 +1,90 @@
 # 03: Testing Strategy
 
-This document outlines the testing strategy for the YX NEXUS project. Our approach is based on the "Testing Pyramid" model, which emphasizes a healthy mix of test types to ensure code quality, maintainability, and developer confidence.
+This document formalizes the testing approach for YX NEXUS and complements the mandatory charter in `tests/README.md`. Follow these practices along with the project-wide rules in `CLAUDE.md` / `AGENTS.md`.
 
-## I. The Testing Pyramid
+## Required Reading
+- `tests/README.md` – authoritative TDD policy and QA pyramid
+- `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md` – planning, retry protocol, definition of done
+- Feature or service documentation pertinent to the area under test (e.g., `nexus/services/**`, `aura/src/features/**`)
 
-Our strategy is structured in three layers:
+## Guiding Principles
+- **TDD Always**: Write the failing test first, observe RED → GREEN → REFACTOR.
+- **Confidence with Pragmatism**: Favor fast, deterministic tests that mirror real contracts.
+- **Contracts Over Internals**: Assert observable behavior (events published, UI rendered, state mutations) instead of private implementation details.
+- **Isolation Where It Matters**: Mock external services, network calls, and databases unless the test layer explicitly calls for live integration.
 
-1.  **Unit Tests (Base)**: Fast, isolated tests for individual functions and classes. They form the largest part of our test suite.
-2.  **Integration Tests (Middle)**: Tests for individual services, verifying their interaction with mocked dependencies (like the `NexusBus`).
-3.  **End-to-End (E2E) Tests (Peak)**: A small number of tests that run the entire application stack to verify a complete user flow.
+## The NEXUS Testing Pyramid
 
-## II. Unit Tests
+### Layer 1 – Backend Unit & Service Tests (Foundation)
+- **Location**: `tests/nexus/unit/` and `tests/nexus/integration/`
+- **Purpose**: Validate pure logic (unit) and service-level behavior within the event-driven system (integration).
+- **Tooling**: `pytest`, `pytest-asyncio`, `pytest-mock`
+- **Patterns**:
+  - Unit tests mock all IO and focus on deterministic logic (e.g., prompt assembly utilities, tool registry helpers).
+  - Integration tests construct real service instances with mocked dependencies (especially `NexusBus`) and assert published messages or state transitions.
+- **When to Add**: Any change inside `nexus/services/`, `nexus/core/`, or backend utilities.
+- **Example**: Verifying `OrchestratorService` publishes expected events when receiving a `Topics.RUN_STARTED` message.
 
--   **Purpose**: To verify the correctness of the smallest, isolated pieces of logic.
--   **Location**: `tests/unit/`
--   **Technology**: `pytest`, `pytest-mock`
--   **When to Write**: When adding or modifying a utility function, a provider (`MongoProvider`), or a class with pure logic (`ToolRegistry`, `ConfigService`).
--   **Key Principle**: **Isolation**. Unit tests must **never** touch the network, the filesystem (unless using a temporary fixture), or a real database. Use mocks to replace all external dependencies.
+### Layer 2 – Frontend Component, Hook, & Store Tests (Core)
+- **Location**: Colocated under `__tests__/` directories within feature folders, e.g., `aura/src/features/chat/components/__tests__/ChatInput.test.tsx`
+- **Purpose**: Ensure React components, Zustand stores, and hooks behave as designed across interaction scenarios.
+- **Tooling**: Vitest (`pnpm test`, `pnpm test:run`, `pnpm test:coverage`), Testing Library, `@testing-library/user-event`
+- **Patterns**:
+  - Treat components as black boxes: render, simulate user behavior, and observe DOM output.
+  - For stores/hooks, initialize state with the provided helpers and assert state snapshots or emitted actions.
+  - Respect the grayscale design and motion rules when asserting styles; prefer semantic expectations over pixel checks.
+- **When to Add**: UI changes, new WebSocket event handling, state-store mutations, or hook refactors.
+- **Example**: Testing `ToolCallCard` renders the correct status timeline when a tool completes with streaming output.
 
-**Example**: Testing the `ConfigService` by mocking the `open` function and providing fake YAML content.
+### Layer 3 – Backend End-to-End (Apex)
+- **Location**: `tests/nexus/e2e/`
+- **Purpose**: Validate critical user journeys across the fully wired backend (FastAPI, WebSocket, Mongo persistence).
+- **Tooling**: `pytest`, `pytest-asyncio`, `httpx`, `websockets`; fixtures spin up the service and temporary Mongo instance.
+- **Usage**:
+  - Reserved for high-value flows (e.g., complete run with tool execution).
+  - Executed manually or pre-release; not part of default CI to avoid flakiness.
+- **Example**: `test_full_interaction_flow.py` connecting via WebSocket, sending user input, and asserting the resulting event stream.
 
-## III. Integration Tests
+## Writing Effective Tests
+- Mirror naming conventions: `test_<behavior>_<expected_outcome>`.
+- Use fixtures from `tests/conftest.py` or feature-specific helpers to reduce duplication.
+- Prefer parametrization when covering multiple scenarios of the same behavior.
+- Validate enums and constants (e.g., `Role`, topic names) against real definitions before asserting.
+- Limit snapshot tests to stable UI fragments; justify them in the PR description.
+- Keep tests resilient to refactors by focusing on public API contracts.
 
--   **Purpose**: To verify that a single service behaves correctly within the event-driven ecosystem. This is our **most critical testing layer**.
--   **Location**: `tests/integration/`
--   **Technology**: `pytest`, `pytest-asyncio`, `pytest-mock`
--   **When to Write**: When adding or modifying the logic of any service in the `nexus/services/` directory.
--   **Key Principle**: **Contract Testing**. We are not testing the dependencies, but rather our service's **contract** with them. We mock the `NexusBus` and assert that our service `publishes` the correct events to the correct topics in response to incoming events.
-
-**Example**: Testing the `OrchestratorService` by:
-1.  Creating an `OrchestratorService` instance with a mocked `NexusBus`.
-2.  Manually calling a handler method (e.g., `await orchestrator.handle_new_run(...)`).
-3.  Asserting that `mock_bus.publish` was called with the expected topic and message content.
-
-## IV. End-to-End (E2E) Tests
-
--   **Purpose**: To verify that a complete user journey through the entire, integrated system works as expected.
--   **Location**: `tests/e2e/`
--   **Technology**: `pytest`, `pytest-asyncio`, `websockets`
--   **When to Write**: Sparingly. We only write E2E tests for the most critical user flows (e.g., a full dialogue with a tool call). They are not for testing edge cases.
--   **Key Principle**: **Black Box Testing**. The E2E test acts like a real user. It knows nothing about the internal workings of the system. It only interacts with the public interface (our WebSocket API) and asserts the final output.
--   **Environment**: Our E2E tests are designed to be self-contained. The `conftest.py` fixture automatically starts the NEXUS service in a separate process and connects it to a **temporary, isolated MongoDB database** that is destroyed after the test run.
-
-**Example**: The `test_full_interaction_flow.py` script:
-1.  The `nexus_service` fixture starts the entire application.
-2.  The test connects to the WebSocket URL provided by the fixture.
-3.  It sends a user message.
-4.  It collects all UI events broadcast back from the server.
-5.  It asserts that the sequence and content of these events match the expected user experience.
-6.  The fixture tears down the service and the temporary database.
-
-## V. How to Run Tests
-
-From the project's root directory (`NEXUS/`):
-
+## Running Tests
 ```bash
-# Run all tests
+# Backend – entire suite
 pytest
 
-# Run only unit tests
-pytest tests/unit/
+# Backend – targeted scopes
+pytest tests/nexus/unit
+pytest tests/nexus/integration
+pytest tests/nexus/e2e/test_full_interaction_flow.py::test_tool_call_interaction
 
-# Run tests for a specific file
-pytest tests/integration/services/test_orchestrator_service.py
+# Frontend – watch / CI / coverage
+cd aura
+pnpm test        # watch mode
+pnpm test:run    # CI-friendly
+pnpm test:coverage
+```
+- Run lint/format commands (`flake8`, `black`, `pnpm lint`) after making changes.
+- Record the commands you executed in your task summary or PR template.
 
-# Run a specific test function
-pytest tests/e2e/test_full_interaction_flow.py::test_tool_call_interaction
+## Fixture & Data Management
+- Reuse shared fixtures in `tests/conftest.py` for backend services and event bus setup.
+- Frontend tests can define local fixtures inside `__tests__/fixtures.ts` or similar files.
+- When integration tests require Mongo data, seed via fixtures and clean up between tests; never point at production databases.
+- Avoid hard-coding secrets or environment-specific paths; use configuration helpers or dependency injection.
+
+## When to Escalate Testing Concerns
+- Flaky or slow tests discovered during implementation must be flagged immediately with reproduction details.
+- If a new feature cannot be covered with existing layers, propose an extension to the pyramid in your plan before coding.
+- For cross-cutting changes (e.g., protocol redesigns), coordinate updates for backend + frontend tests within the same effort.
+
+## References
+- `tests/README.md`
+- `docs/developer_guides/02_CONTRIBUTING_GUIDE.md`
+- `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md`
+- `docs/rules/frontend_design_principles.md`

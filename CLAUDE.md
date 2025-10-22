@@ -1,217 +1,105 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. Treat every instruction as binding policy, not optional advice.
 
-## 🏗️ Architecture Overview
+## Before You Start
+- `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md` – mandatory planning, retry, and communication protocol.
+- `tests/README.md` – TDD workflow and testing pyramid expectations.
+- `docs/rules/frontend_design_principles.md` – required for any UI, motion, or styling work.
+- `docs/developer_guides/02_CONTRIBUTING_GUIDE.md` and `docs/developer_guides/03_TESTING_STRATEGY.md` – workflow and test patterns.
+- `docs/tasks/` – mission briefs for major subsystems; read the relevant file (e.g., `tasks/context_md_xml.md`) before drafting `IMPLEMENTATION_PLAN.md`.
+- `docs/knowledge_base/` and `docs/api_reference/` – architectural, protocol, and reference material to cite during planning.
+- `docs/learn/` – past incident reports and lessons; scan for similar issues when debugging.
+- `docs/Future_Roadmap.md` – upcoming initiatives that may affect scope or design decisions.
+- For unfamiliar domains, inspect at least three related implementations or tests before writing new code. Reference the material you consult in plans or status updates.
 
-NEXUS is a dual-stack AI assistant platform with:
-- **Backend (NEXUS)**: Python FastAPI service with event-driven architecture
-- **Frontend (AURA)**: React + TypeScript + Vite chat interface
+## Architecture Overview
+- **Backend (NEXUS)** – FastAPI event-driven service orchestrating `NexusBus`, `ConfigService`, `DatabaseService`, `PersistenceService`, `IdentityService`, `CommandService`, `ContextService`, `ToolExecutorService`, `LLMService`, and `OrchestratorService`, plus REST/WebSocket interfaces (`nexus/main.py`).
+- **Frontend (AURA)** – React 19 + TypeScript + Vite client using Zustand state, Tailwind CSS (grayscale-only tokens), and Framer Motion.
+- **Tool System** – Functions and metadata in `nexus/tools/definition/` auto-discovered by `ToolRegistry.discover_and_register('nexus.tools.definition')`.
 
-### Backend Architecture
-- **Event Bus**: `NexusBus` (nexus/core/bus.py) - Pub/sub system for inter-service communication
-- **Core Services**: LLM, Database, Context, ToolExecutor, Orchestrator services
-- **WebSocket Interface**: Real-time communication with frontend
-- **Tool System**: Dynamic tool discovery and execution
+## Repository Layout
+- `nexus/core/` – Bus, topics, shared models.
+- `nexus/services/` – Service implementations; keep responsibilities bounded by existing modules or propose new folders.
+- `nexus/interfaces/` – `rest.py` and `websocket.py` IO surfaces.
+- `nexus/prompts/` – Prompt layer templates exposed to clients.
+- `aura/src/` – Feature-first frontend tree (`app/`, `components/`, `features/`, `hooks/`, `services/`, `stores/`, `lib/`, `test/setup.ts`).
+- **Testing** – Backend suites live in `tests/nexus/{unit,integration,e2e}` with fixtures in `tests/conftest.py`; frontend Vitest suites sit alongside code under `__tests__/` directories (e.g., `aura/src/features/chat/components/__tests__/`).
+- Tooling helpers: `scripts/shell/run.sh` (local bootstrap) and `docker-compose.yml` (container orchestration).
 
-### Frontend Architecture  
-- **React 19 + TypeScript**: Modern component-based UI
-- **Zustand**: State management
-- **WebSocket**: Real-time communication with backend
-- **Tailwind CSS**: Styling with custom design system
-- **Framer Motion**: Animations
+## Documentation-Driven Workflow
+- **Task Intake**: Identify the relevant entry in `docs/tasks/` and read it fully. Use `docs/tasks/Implementation/` when long-form implementation plans exist; otherwise create your own `IMPLEMENTATION_PLAN.md` at the project root.
+- **Context Gathering**: Pull architectural details from `docs/knowledge_base/` (e.g., `technical_references/command_system.md`) and protocol specifics from `docs/api_reference/`.
+- **Risk & History Check**: Search `docs/learn/` for similar incidents to avoid repeating past issues; note applicable lessons in your plan.
+- **Future Alignment**: Confirm your design does not conflict with items in `docs/Future_Roadmap.md`.
+- Cite the documentation you used inside `IMPLEMENTATION_PLAN.md`, work logs, and final summaries so reviewers can trace reasoning.
 
-## 🚀 Development Commands
+## Development Workflow
+1. **Backend**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   python -m nexus.main
+   ```
+2. **Frontend**
+   ```bash
+   cd aura
+   pnpm install
+   pnpm dev
+   pnpm build      # production bundle
+   pnpm lint       # ESLint
+   pnpm test       # Vitest watch
+   pnpm test:run   # Vitest CI
+   pnpm test:coverage
+   ```
+   _Note_: there is no `pnpm typecheck` script today; add one only with team approval.
+3. Use `scripts/shell/run.sh` to launch both stacks locally once dependencies are installed. `docker-compose.yml` builds `nexus-backend` and `aura-frontend` on the `nexus-net` bridge network.
+4. Always follow the RED → GREEN → REFACTOR cadence from the AI charter and maintain an `IMPLEMENTATION_PLAN.md` while a task is in flight.
 
-### Backend (Python)
-```bash
-# Activate virtual environment
-source .venv/bin/activate
+## Configuration & Secrets
+- Copy `.env.example` → `.env` at the repo root. Provide `MONGO_URI`, `GEMINI_API_KEY`, `TAVILY_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY` (if catalog entries require it), and set `NEXUS_ENV` (`development` by default).
+- Backend honors `HOST`, `PORT`, and `ALLOWED_ORIGINS` for deployment-time overrides (`nexus/main.py`).
+- Frontend expects `aura/.env` with `VITE_WS_URL` (defaults to `ws://localhost:8000/api/v1/ws`).
+- System defaults (LLM catalog, editable fields, prompts) live in Mongo's `configurations` collection; see `config.example.yml` before altering runtime config.
+- Never commit secrets or production configuration overrides.
 
-# Install dependencies
-pip install -r requirements.txt
+## Testing Expectations
+- TDD is mandatory. Write the failing test first, implement the minimal fix, then refactor.
+- Backend: run `pytest`, or scope with `pytest tests/nexus/unit`, `pytest tests/nexus/integration`, etc. Prefer asserting bus publications and service outputs over internal state. Use `pytest.mark.asyncio` for async routines.
+- Frontend: run `pnpm test` (watch) or `pnpm test:run` (CI). Tests use Vitest + Testing Library; keep fixtures colocated with the feature. Limit snapshots to stable UI fragments.
+- Maintain reusable fixtures in `tests/conftest.py` and shared helpers per feature.
+- All suites must pass before delivering work; never skip tests or use `--no-verify`.
 
-# Run development server
-python -m nexus.main
+## Coding Style & Quality
+- Python: format with `black` (line length 88) and lint with `flake8`.
+- TypeScript/React: rely on Prettier defaults and the ESLint config in `aura/eslint.config.js`.
+- Enforce grayscale-only styling, motion timing, and interaction rules from `docs/rules/frontend_design_principles.md`.
+- Keep modules ≤ 600 lines as mandated in the AI charter; refactor when approaching limits.
+- Provide explicit typing for services, hooks, and complex data structures.
 
-# Run with specific config (from project root)
-python -m nexus.main
-```
+## Tooling & Integration Contracts
+- When introducing new WebSocket events, update `nexus/core/topics.py`, the orchestrator publisher, `aura/src/services/websocket/protocol.ts`, and the associated Zustand store (`aura/src/features/chat/store/auraStore.ts`).
+- New tools require a synchronous function and metadata constant in `nexus/tools/definition/*.py`; discovery is automatic on startup.
+- Reference `scripts/shell/run.sh` for local bootstrapping and ensure new tooling respects existing ANSI logging/output conventions.
 
-### Frontend (Node.js)
-```bash
-# Install dependencies (from aura/ directory)
-cd aura && pnpm install
+## Process & Collaboration
+- Plans must be multi-stage (`IMPLEMENTATION_PLAN.md`) and referenced in status updates. Archive or link plans when tasks finish.
+- Respect the retry limit in the AI charter: stop after three failed attempts and escalate with the required report.
+- Interrogate user requests against security, architecture, and process priorities. When guidance conflicts, cite the charter and propose safer alternatives.
+- Use Conventional Commits (`feat:`, `fix:`, `refactor(ui):`), English only, no AI signatures. Explain the "why" within commit bodies when not obvious.
+- Surface risks, technical debt, and smells proactively; request prioritization before refactoring unrelated areas.
 
-# Start development server
-pnpm dev
+## Security & Operations
+- Protect WebSocket endpoints during demos (use password-protected tunnels such as `ngrok`).
+- Verify Mongo indexes after migrations and avoid seeding production data (`scripts/seed_config.py` is for disposable environments only).
+- Logging defaults to INFO (`nexus/main.py`); adjust via config when necessary, not through ad-hoc code changes.
 
-# Build for production
-pnpm build
-
-# Lint code
-pnpm lint
-
-# Type check
-pnpm typecheck  # Note: Add this script if missing
-```
-
-## 📁 Key Directories
-
-### Backend (`./nexus/`)
-- `core/`: Event bus, models, topics
-- `services/`: Core services (LLM, Database, Context, etc.)
-- `tools/definition/`: Tool definitions and registry
-- `interfaces/`: WebSocket interface
-
-### Frontend (`./aura/src/`)
-- `app/`: App entry and global styles
-- `components/`: Reusable UI components
-- `features/chat/`: Chat functionality
-- `hooks/`: Custom React hooks
-- `services/`: External service interfaces
-- `lib/`: Utility functions
-
-## 🔧 Configuration
-
-### Environment Variables (.env)
-```
-GEMINI_API_KEY=your_gemini_key
-OPENROUTER_API_KEY=your_openrouter_key  
-MONGO_URI=mongodb_atlas
-```
-
-### Config File (config.default.yml)
-- System settings, LLM providers, database config
-- Copy to `config.yml` and customize as needed
-
-## 🧪 Testing
-
-### Backend Testing
-```bash
-# Run Python tests (add pytest to requirements if needed)
-python -m pytest
-```
-
-### Frontend Testing  
-```bash
-# Run tests (add testing framework if needed)
-cd aura && pnpm test
-```
-
-## 📡 Communication Protocol
-
-### WebSocket Events
-- Messages flow through WebSocket between AURA and NEXUS
-- Real-time streaming and tool execution status
-- See `nexus/interfaces/websocket.py` and `aura/src/services/websocket.ts`
-
-## 🎨 Design System
-
-### Frontend Styling
-- **Tailwind CSS** with custom design tokens
-- **Grayscale palette** only - no colors allowed
-- **Container/Presenter pattern** for component separation
-- **TypeScript** for full type safety
-
-### Component Guidelines
-- PascalCase for component files (`ComponentName.tsx`)
-- `use` prefix for hooks (`useHook.ts`)
-- camelCase for utilities (`utilityFunction.ts`)
-
-## 🔄 Development Workflow
-
-1. **Backend first**: Start NEXUS service (`python -m nexus.main`)
-2. **Frontend second**: Start AURA dev server (`cd aura && pnpm dev`)
-3. **Environment**: Set required API keys in `.env`
-4. **Database**: MongoDB required for persistence
-
-## 🛠️ Tool System
-
-- Tools are auto-discovered from `nexus/tools/definition/`
-- Tool registry manages discovery and execution
-- Tools can be called by LLM through tool calling mechanism
-
-## 📊 Monitoring & Logging
-
-- Backend uses Python logging with INFO level by default
-- Log format: `%(asctime)s | %(levelname)s | %(name)s | %(message)s`
-- Adjust log level in `config.yml`
-
-## 🚨 Common Issues
-
-- **Missing API keys**: Check `.env` file for required keys
-- **MongoDB connection**: Ensure MongoDB is running
-- **WebSocket connection**: Verify backend is running on correct port
-- **Type errors**: Run `pnpm typecheck` in aura directory
-
-## 🤖 Agent Collaboration Best Practices
-
-### When delegating to test-engineer agent:
-1. **Provide specific context**: Include file paths to existing test patterns, service implementations, and relevant constants
-2. **Specify test scope**: Clearly define success/failure scenarios, edge cases, and expected behaviors
-3. **Include project-specific patterns**: Mention pytest fixtures, mocking approaches, and async/await patterns used
-4. **Verify enum values**: Always check actual enum definitions (Role.HUMAN vs Role.USER) before writing tests
-5. **Review generated tests**: Check for proper mocking, async handling, and alignment with existing code patterns
-
-### Test Writing Guidelines:
-- Use `mocker` fixture for consistent mocking
-- Follow existing test structure and naming conventions
-- Test both success and failure paths comprehensively
-- Verify async/await patterns match service implementations
-- Check for proper constant usage from core models
-
-## 🔍 Code Navigation Tips
-
-- **Backend entry**: `nexus/main.py`
-- **Frontend entry**: `aura/src/app/`
-- **Event system**: `nexus/core/bus.py`
-- **WebSocket**: `nexus/interfaces/websocket.py` and `aura/src/services/websocket.ts`
-- **LLM integration**: `nexus/services/llm/service.py`
-- **Database**: `nexus/services/database/service.py`
-
-## 📝 Git Commit Guidelines
-
-### Commit Message Rules
-- **English only**: All commit messages must be written in English
-- **No Claude Code signature**: Do not include `🤖 Generated with [Claude Code](https://claude.ai/code)` or `Co-Authored-By: Claude <noreply@anthropic.com>` in commit messages
-- **Conventional commits**: Use the format `type: description` (e.g., `feat: add new feature`, `fix: resolve bug`)
-- **Be descriptive**: Include what changed and why in the commit message
-
-## 🌐 Render MCP Server Usage
-
-### Getting Started
-1. **Workspace Selection**: The MCP server automatically selects the available workspace. Only one workspace is supported.
-2. **Service Management**: Use `mcp__render__list_services` to get all services and their IDs
-3. **Deployment Logs**: Use `mcp__render__list_logs` with `resource` parameter set to service ID array
-
-### Common MCP Commands
-```bash
-# List all services
-mcp__render__list_services includePreviews=false
-
-# Get service details  
-mcp__render__get_service serviceId=srv-xxxxx
-
-# List deployments for a service
-mcp__render__list_deploys serviceId=srv-xxxxx
-
-# Get specific deployment details
-mcp__render__get_deploy serviceId=srv-xxxxx deployId=dep-xxxxx
-
-# Get deployment logs (CRITICAL: resource must be array)
-mcp__render__list_logs resource=["srv-xxxxx"]
-```
-
-### Important Notes
-- **Resource Parameter**: Must be an array of service IDs, not a single string
-- **Workspace**: Only one workspace supported, auto-selected
-- **Service IDs**: Use the exact service ID from list_services output
-- **Log Filtering**: Can filter by level, type, time range using additional parameters
-- **Health Checks**: Render automatically uses Dockerfile HEALTHCHECK instructions, no need for manual healthCheck config in render.yaml
-
-### Troubleshooting Render Deployments
-1. **Docker Context Issues**: Ensure `dockerContext` is set correctly in render.yaml for subdirectories
-2. **Missing Files**: Check that package.json, Dockerfile, and other required files are in the correct context
-3. **Environment Variables**: Use `sync: false` for secrets that need to be set in Render dashboard
-4. **Build Failures**: Check logs for specific error messages and file path issues
+## Reference Materials
+- `AGENTS.md` – mirrors this policy for other agents.
+- `docs/developer_guides/01_SETUP_AND_RUN.md`, `02_CONTRIBUTING_GUIDE.md`, `03_TESTING_STRATEGY.md`, `04_AI_COLLABORATION_CHARTER.md` – canonical process documentation.
+- `docs/rules/frontend_design_principles.md` – non-negotiable UI/UX philosophy.
+- `docs/tasks/` – mission briefs and architecture plans for major subsystems.
+- `docs/learn/` – lessons learned repository for prior incidents and fixes.
+- `docs/knowledge_base/` & `docs/api_reference/` – architectural and protocol references.
+- `docs/Future_Roadmap.md` – upcoming initiatives to consider during planning.

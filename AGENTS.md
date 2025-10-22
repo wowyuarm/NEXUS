@@ -1,24 +1,66 @@
 # Repository Guidelines
 
+These rules apply to every AI assistant working on the YX NEXUS project. Treat them as non-negotiable.
+
+## Before You Start
+- Read the foundational docs for each task:
+  - `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md`
+  - `tests/README.md`
+  - `docs/rules/frontend_design_principles.md` for UI/UX, motion, or styling work
+  - `docs/developer_guides/02_CONTRIBUTING_GUIDE.md` & `03_TESTING_STRATEGY.md`
+  - Relevant briefs in `docs/tasks/`
+  - Supporting references in `docs/knowledge_base/` and `docs/api_reference/`
+  - Related postmortems in `docs/learn/`
+  - `docs/Future_Roadmap.md` for upcoming initiatives
+- Perform a contextual scan of existing code/tests (minimum three related files) before modifying anything.
+- Reference the materials you relied on inside your implementation plan and status updates.
+
 ## Project Structure & Module Organization
-NEXUS backend code lives in `nexus/`, structured by domain: `core/` for bus infrastructure, `services/` for orchestrators and adapters, `commands/` for CLI routines, and `prompts/` for AI system prompt templates. Real-time interfaces sit under `nexus/interfaces/` (`rest` API and WebSocket bridge). The AURA frontend in `aura/` follows a feature-first layout inside `src/`, and shared UI primitives stay in `src/components`. Tests are mirrored in `tests/unit`, `tests/integration`, while reference material lives in `docs/`.
+- **Backend (NEXUS)**: `nexus/core/`, `nexus/services/`, `nexus/interfaces/`, `nexus/tools/definition/`, `nexus/prompts/`
+- **Frontend (AURA)**: Feature-first layout under `aura/src/` (`app/`, `components/`, `features/`, `hooks/`, `services/`, `stores/`, `lib/`, `test/setup.ts`)
+- **Testing**: Backend tests in `tests/nexus/{unit,integration,e2e}`, frontend Vitest suites colocated in `__tests__/` folders.
+- Helper tooling: `scripts/shell/run.sh`, `docker-compose.yml`.
+
+## Documentation-Driven Workflow
+1. **Task Intake** – Read the matching `docs/tasks/*.md` file; create or update `IMPLEMENTATION_PLAN.md` (see AI charter) referencing that brief.
+2. **Context Gathering** – Pull architectural/protocol knowledge from `docs/knowledge_base/` and `docs/api_reference/`.
+3. **Risk & History** – Search `docs/learn/` for similar incidents, capturing lessons in your plan.
+4. **Future Alignment** – Ensure changes respect items in `docs/Future_Roadmap.md`.
+5. Cite every consulted document in your plan or final report.
 
 ## Build, Test, and Development Commands
-Use a virtualenv at root dir with `source .venv/bin/activate` and start the backend with `python -m nexus.main`; `scripts/shell/run.sh` will bootstrap both services if you prefer one command. Run backend checks with `pytest` (all suites) or target scopes such as `pytest tests/integration`. Frontend tasks live under `aura/`: `pnpm dev` runs Vite locally, `pnpm build` emits production assets, and `pnpm test` executes Vitest suites.
+- Backend: `python -m venv .venv`, `source .venv/bin/activate`, `pip install -r requirements.txt`, `python -m nexus.main`
+- Frontend: `cd aura && pnpm install`, `pnpm dev`, `pnpm build`, `pnpm lint`, `pnpm test`, `pnpm test:run`, `pnpm test:coverage`
+- Full stack: `scripts/shell/run.sh` (local) or `docker-compose up --build`
 
 ## Coding Style & Naming Conventions
-Format Python with `black` (line length 88) and lint with `flake8`; modules and packages stay lowercase with underscores, while classes use `CapWords` and async coroutines end in `_async` where it clarifies intent. Docstrings follow Google style and every service exposes explicit type hints. In AURA, run `pnpm lint` (ESLint) and keep Prettier enabled in your editor; components use `PascalCase.tsx`, hooks use `useCamelCase.ts`, and Tailwind utilities favor neutral palette tokens from `globals.css`.
+- Python: `black` (line length 88), `flake8`, snake_case modules, CapWords classes, `_async` suffix where helpful, Google-style docstrings, explicit typing.
+- TypeScript/React: Prettier + ESLint, `PascalCase.tsx` for components, `useCamelCase.ts` hooks, camelCase utilities, Tailwind grayscale tokens only.
 
 ## Testing Guidelines
-Unit tests belong beside the code under `tests/unit/nexus`, integration tests focus on service contracts with a mocked `NexusBus`, and E2E tests simulate the full websocket flow. Name tests after behavior, e.g., `test_orchestrator_handles_identity_gate`, and keep fixtures in `tests/conftest.py`. Write the failing test first, assert publications instead of implementation details, and prefer `pytest.mark.asyncio` for async workflows. For the frontend, rely on `vitest` + Testing Library, and snapshot only stable UI fragments.
+- Follow TDD (RED → GREEN → REFACTOR).
+- Backend: emphasize service-level integration tests asserting bus publications; use `pytest.mark.asyncio` for async behavior.
+- Frontend: Vitest + Testing Library, colocated `__tests__/`, snapshot only stable UI fragments.
+- Run relevant suites (`pytest`, `pnpm test:run`) and record commands in hand-offs.
 
 ## Commit & Pull Request Guidelines
-Follow Conventional Commits (`feat:`, `fix:`, `refactor(ui):`) so release notes stay predictable. Group logically related changes per commit and reference issue IDs in the subject or body when applicable. Pull requests need a short summary, an itemized test plan (include console commands you ran), and screenshots or recordings for UI-visible changes. Confirm `pytest` and `pnpm test` both pass before requesting review.
+- Conventional Commits in English (e.g., `feat: add config hot reload`).
+- Every commit must build/run with associated tests.
+- Pull requests require summary, risks, and explicit test plan.
 
 ## Security & Configuration Tips
-Copy `.env.example` to `.env` to provide `MONGO_URI`, `GEMINI_API_KEY`, and `TAVILY_API_KEY`; never commit secrets. Local config documents live in `config.example.yml`—derive new variants there rather than editing production values in place. When seeding data, run `python scripts/seed_config.py` against disposable databases only, and verify Mongo indexes after migrations. Keep WebSocket endpoints private when demoing by tunneling through vetted tools such as `ngrok` with password protection.
+- Duplicate `.env.example` → `.env`; supply `MONGO_URI`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `TAVILY_API_KEY`, `DEEPSEEK_API_KEY`, `NEXUS_ENV`.
+- Respect `config.example.yml` schema when adjusting runtime behavior.
+- Protect WebSocket endpoints with authenticated tunnels during demos; never seed production data.
 
 ## Frontend Design Principles
+Always follow `docs/rules/frontend_design_principles.md` for motion, rhythm, and grayscale styling.
 
-When need to develop or optimize frontend components and specific UI/UX effects, you must follow the frontend design principles; see `docs/rules/frontend_design_principles.md`, which is very important.
-
+## Reference Materials
+- `docs/developer_guides/01_SETUP_AND_RUN.md`
+- `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md`
+- `docs/tasks/`
+- `docs/learn/`
+- `docs/knowledge_base/`
+- `docs/api_reference/`
+- `docs/Future_Roadmap.md`
