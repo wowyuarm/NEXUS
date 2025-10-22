@@ -27,6 +27,7 @@ aura/node_modules/
 .augment/
 .claude/
 .cursor/
+.windsurf/
 
 # 第三方
 lib/
@@ -36,3 +37,6 @@ dist/
 
 # 自用脚本
 scripts/
+
+# 临时文档
+docs/design/

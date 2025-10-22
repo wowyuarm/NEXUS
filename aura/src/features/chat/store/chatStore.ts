@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { websocketManager } from '@/services/websocket/manager';
-import type { Command } from '@/features/command/command.types';
+import type { Command, CommandExecutionOptions } from '@/features/command/command.types';
 import type { Message, ToolCall } from '../types';
 import type {
   RunStartedPayload,
@@ -509,19 +509,34 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ lastError: null });
   },
 
-  executeCommand: async (command: string, availableCommands?: Command[]) => {
-    const commandName = command.startsWith('/') ? command.slice(1) : command;
-    
-    // Find command definition
-    const commandDef = availableCommands?.find(cmd => cmd.name === commandName);
-    
+  executeCommand: async (commandInput: string, availableCommands?: Command[]) => {
+    const rawInput = commandInput.trim();
+    if (!rawInput) {
+      return { status: 'error', message: 'Command cannot be empty' };
+    }
+
+    const withoutSlash = rawInput.startsWith('/') ? rawInput.slice(1) : rawInput;
+    const tokens = withoutSlash.split(/\s+/).filter(Boolean);
+    const commandNameToken = tokens.shift();
+
+    if (!commandNameToken) {
+      return { status: 'error', message: 'Command name is missing' };
+    }
+
+    const commandName = commandNameToken.toLowerCase();
+    const commandDef = availableCommands?.find((cmd) => cmd.name.toLowerCase() === commandName);
+
     if (!commandDef) {
       return { status: 'error', message: `Unknown command: ${commandName}` };
     }
-    
-    // Use the new commandExecutor from the new architecture
+
+    const options: CommandExecutionOptions = {
+      rawInput,
+      args: tokens,
+    };
+
     const { executeCommand: execute } = await import('@/features/command/commandExecutor');
-    return await execute(commandDef);
+    return await execute(commandDef, options);
   },
 
   setVisitorMode: (isVisitor: boolean) => {

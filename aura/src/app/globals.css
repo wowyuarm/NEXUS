@@ -3,8 +3,38 @@
 @tailwind utilities;
 
 @layer base {
-  :root, .dark {
-    /* 灰度中庸调色板 (Grayscale Moderation Palette) */
+  :root {
+    /* 亮色主题：柔和灰阶，保证静默与舒适 */
+    --background: 0 0% 96%;         /* #f5f5f5 - 基础背景 */
+    --foreground: 0 0% 18%;         /* #2e2e2e - 主文本 */
+
+    --card: 0 0% 100%;              /* #ffffff - 内容容器 */
+    --card-foreground: 0 0% 18%;    /* #2e2e2e - 卡片文本 */
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 16%;
+
+    --primary: 0 0% 12%;            /* #1f1f1f - 主要交互按钮 */
+    --primary-foreground: 0 0% 98%; /* #fafafa - 按钮文字 */
+
+    --secondary: 0 0% 90%;          /* #e6e6e6 - 次级背景 */
+    --secondary-foreground: 0 0% 40%;/* #666666 - 次要文本 */
+
+    --muted: 0 0% 88%;              /* #e1e1e1 - 静音区域 */
+    --muted-foreground: 0 0% 45%;   /* #737373 - 静音文本 */
+
+    --accent: 0 0% 86%;             /* #dadada - Hover/强调 */
+    --accent-foreground: 0 0% 20%;  /* #333333 - 强调文本 */
+
+    --border: 0 0% 82%;             /* #d2d2d2 - 边框 */
+    --input: 0 0% 82%;
+    --ring: 0 0% 18%;               /* 焦点环 */
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* 暗色主题：灰度中庸调色板 */
     --background: 0 0% 10%;         /* #1a1a1a - 核心背景 */
     --foreground: 0 0% 75%;         /* #bfbfbf - 主文本 */
 

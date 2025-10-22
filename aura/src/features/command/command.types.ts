@@ -78,6 +78,12 @@ export interface CommandResult {
   data?: Record<string, unknown>;
 }
 
+export interface CommandExecutionOptions {
+  rawInput: string;
+  args: string[];
+  payload?: Record<string, unknown>;
+}
+
 /**
  * Type guard to check if a command uses REST handler
  */

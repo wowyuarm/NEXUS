@@ -118,11 +118,13 @@ class TestCommandServiceIntegration:
         assert "ping" in commands
         assert "help" in commands
         assert "clear" in commands
+        assert "theme" in commands
         
         # Verify handler field is present
         assert commands["ping"]["handler"] == "websocket"
         assert commands["help"]["handler"] == "client"  # help is now a client-side command
         assert commands["clear"]["handler"] == "client"
+        assert commands["theme"]["handler"] == "client"
         
         assert result_message.run_id == "test-run-789"
         assert result_message.owner_key == "test-session-012"
@@ -174,6 +176,7 @@ class TestCommandServiceIntegration:
         assert "ping" in service._command_registry
         assert "help" in service._command_registry
         assert "clear" in service._command_registry
+        assert "theme" in service._command_registry
 
     @pytest.mark.asyncio
     async def test_command_error_handling(self, mock_bus, mock_database_service):

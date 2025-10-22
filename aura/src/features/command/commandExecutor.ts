@@ -10,7 +10,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { Command, CommandResult } from './command.types';
+import type { Command, CommandResult, CommandExecutionOptions } from './command.types';
 import { isClientCommand, isWebSocketCommand, isRestCommand, isGUICommand } from './command.types';
 import { websocketManager } from '@/services/websocket/manager';
 import { IdentityService } from '@/services/identity/identity';
@@ -19,173 +19,233 @@ import { useCommandStore } from './store/commandStore';
 import type { Message } from '@/features/chat/types';
 import { useUIStore } from '@/stores/uiStore';
 import type { ModalType } from '@/stores/uiStore';
+import { useThemeStore, type ThemePreference } from '@/stores/themeStore';
+
+const THEME_OPTION_SYSTEM = 'system';
+
+const getCommandText = (command: Command, options?: CommandExecutionOptions) =>
+  options?.rawInput?.trim() && options.rawInput.trim().startsWith('/')
+    ? options.rawInput.trim()
+    : `/${command.name}`;
+
+const appendSystemMessage = (
+  commandText: string,
+  result: string | Record<string, unknown>,
+  status: 'success' | 'error',
+  message: string,
+  data?: Record<string, unknown>
+) => {
+  const systemMsg: Message = {
+    id: uuidv4(),
+    role: 'SYSTEM',
+    content: {
+      command: commandText,
+      result,
+    },
+    timestamp: new Date(),
+    metadata: {
+      status: 'completed',
+      commandResult: {
+        status,
+        message,
+        data,
+      },
+    },
+  };
+
+  useChatStore.setState((state) => ({
+    messages: [...state.messages, systemMsg],
+  }));
+};
+
+const formatThemeResult = (theme: ThemePreference, source: 'toggle' | 'explicit' | 'system') => {
+  const readable = theme === 'dark' ? 'dark theme' : 'light theme';
+  if (source === 'system') {
+    return `Following system preference (${readable}).`;
+  }
+  if (source === 'toggle') {
+    return `Theme toggled to ${readable}.`;
+  }
+  return `Theme set to ${readable}.`;
+};
 
 /**
  * Execute a client-side command
- * 
+ *
  * Handles commands that run entirely in the browser without
  * backend communication (e.g., /clear).
- * 
- * @param command - Command definition
- * @param args - Optional command arguments
- * @returns Promise resolving to command result
  */
 async function executeClientCommand(
-  command: Command
-  // args parameter reserved for future use
+  command: Command,
+  options?: CommandExecutionOptions
 ): Promise<CommandResult> {
   const chatStore = useChatStore.getState();
-  
+
   switch (command.name) {
     case 'clear':
       chatStore.clearMessages();
       return {
         status: 'success',
-        message: 'Chat history cleared'
+        message: 'Chat history cleared',
       };
-      
+
     case 'help': {
-      // Client-side help: render from commandStore (no backend communication)
       const commandStore = useCommandStore.getState();
       const commands = commandStore.availableCommands;
-      
-      // Format help message as markdown list
+      const commandText = getCommandText(command, options);
+
       const helpText = commands
-        .map(cmd => `**/${cmd.name}** - ${cmd.description}`)
+        .map((cmd) => `**/${cmd.name}** - ${cmd.description}`)
         .join('\n\n');
-      
-      // Create SYSTEM message with structured content
-      const systemMsg: Message = {
-        id: uuidv4(),
-        role: 'SYSTEM',
-        content: {
-          command: '/help',
-          result: helpText
-        },
-        timestamp: new Date(),
-        metadata: { status: 'completed' }
-      };
-      
-      // Add message to chat history using Zustand setState
-      useChatStore.setState((state) => ({
-        messages: [...state.messages, systemMsg]
-      }));
-      
+
+      appendSystemMessage(commandText, helpText, 'success', 'Help displayed', {
+        commandCount: commands.length,
+      });
+
       return {
         status: 'success',
-        message: 'Help displayed'
+        message: 'Help displayed',
+        data: {
+          commands,
+        },
       };
     }
-      
+
+    case 'theme': {
+      const themeStore = useThemeStore.getState();
+      const args = options?.args ?? [];
+      const commandText = getCommandText(command, options);
+      const firstArg = args[0]?.toLowerCase();
+
+      let nextTheme: ThemePreference;
+      let source: 'toggle' | 'explicit' | 'system';
+
+      if (!firstArg) {
+        nextTheme = themeStore.toggleTheme();
+        source = 'toggle';
+      } else if (firstArg === 'light' || firstArg === 'dark') {
+        themeStore.setTheme(firstArg);
+        nextTheme = firstArg;
+        source = 'explicit';
+      } else if (firstArg === THEME_OPTION_SYSTEM) {
+        nextTheme = themeStore.resetToSystem();
+        source = THEME_OPTION_SYSTEM;
+      } else {
+        const errorMessage = `Unsupported theme option: ${args[0]}. Use /theme [light|dark|system].`;
+        appendSystemMessage(commandText, errorMessage, 'error', errorMessage);
+        return {
+          status: 'error',
+          message: errorMessage,
+        };
+      }
+
+      const resultText = formatThemeResult(nextTheme, source);
+      appendSystemMessage(commandText, resultText, 'success', resultText, {
+        theme: nextTheme,
+        source,
+      });
+
+      return {
+        status: 'success',
+        message: resultText,
+        data: {
+          theme: nextTheme,
+          source,
+        },
+      };
+    }
+
     default:
       console.warn(`Unknown client command: ${command.name}`);
       return {
         status: 'error',
-        message: `Unknown client command: ${command.name}`
+        message: `Unknown client command: ${command.name}`,
       };
   }
 }
 
 /**
  * Execute a WebSocket command
- * 
+ *
  * Handles commands that require real-time server communication
- * via WebSocket (e.g., /identity, /help on first load).
- * 
- * @param command - Command definition
- * @param args - Optional command arguments
- * @returns Promise resolving to command result
+ * via WebSocket (e.g., /identity).
  */
 async function executeWebSocketCommand(
-  command: Command
-  // args parameter reserved for future use
+  command: Command,
+  options?: CommandExecutionOptions
 ): Promise<CommandResult> {
   if (!websocketManager.connected) {
     const error = 'Cannot execute server command: not connected to NEXUS';
     console.error(error);
     return {
       status: 'error',
-      message: error
+      message: error,
     };
   }
 
-  const commandText = `/${command.name}`;
+  const commandText = getCommandText(command, options);
 
-  // Check if command requires signature
   const requiresSignature = command.requiresSignature || command.name === 'identity';
   let auth: { publicKey: string; signature: string } | undefined;
 
   if (requiresSignature) {
     try {
       auth = await IdentityService.signCommand(commandText);
-      console.log('✍️ Signed command:', command.name);
     } catch (error) {
       console.error('Failed to sign command:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to sign command';
       return {
         status: 'error',
-        message: errorMessage
+        message: errorMessage,
       };
     }
   }
 
-  // Note: Command result handling will be done by WebSocket event handlers in chatStore
-
-  // Create pending SYSTEM message BEFORE sending command
-  // This ensures the command text is accurately recorded, preventing "unknown" display
   const pendingMsg: Message = {
     id: uuidv4(),
     role: 'SYSTEM',
     content: { command: commandText },
     timestamp: new Date(),
-    metadata: { status: 'pending' }
+    metadata: { status: 'pending' },
   };
-  
+
   useChatStore.setState((state) => ({
-    messages: [...state.messages, pendingMsg]
+    messages: [...state.messages, pendingMsg],
   }));
 
-  // Send command to backend (result will update the pending message)
   websocketManager.sendCommand(commandText, auth);
-  
+
   return {
     status: 'pending',
-    message: 'Command sent to server'
+    message: 'Command sent to server',
   };
 }
 
 /**
  * Execute a REST command
- * 
- * Handles commands that use HTTP REST API for communication.
- * This is for future stateless operations.
- * 
- * @param command - Command definition
- * @param args - Optional command arguments
- * @returns Promise resolving to command result
  */
 async function executeRestCommand(
   command: Command,
-  args?: Record<string, unknown>
+  options?: CommandExecutionOptions
 ): Promise<CommandResult> {
   if (!command.restOptions) {
     return {
       status: 'error',
-      message: `REST command ${command.name} missing restOptions configuration`
+      message: `REST command ${command.name} missing restOptions configuration`,
     };
   }
 
   try {
     const { endpoint, method, headers = {} } = command.restOptions;
     const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    
+
     const response = await fetch(`${baseURL}${endpoint}`, {
       method,
       headers: {
         'Content-Type': 'application/json',
-        ...headers
+        ...headers,
       },
-      body: method !== 'GET' ? JSON.stringify(args) : undefined
+      body: method !== 'GET' ? JSON.stringify(options?.payload ?? {}) : undefined,
     });
 
     if (!response.ok) {
@@ -196,76 +256,55 @@ async function executeRestCommand(
     return {
       status: 'success',
       message: `Command ${command.name} executed successfully`,
-      data
+      data,
     };
-
   } catch (error) {
     console.error(`REST command ${command.name} failed:`, error);
     return {
       status: 'error',
-      message: error instanceof Error ? error.message : 'REST command failed'
+      message: error instanceof Error ? error.message : 'REST command failed',
     };
   }
 }
 
 /**
  * Main command executor
- * 
- * Routes commands to the appropriate handler based on their handler type.
- * This is the primary entry point for command execution in the application.
- * 
- * @param command - Command definition
- * @param args - Optional command arguments
- * @returns Promise resolving to command result
- * 
- * @example
- * ```ts
- * const result = await executeCommand(clearCommand);
- * if (result.status === 'success') {
- *   console.log('Command executed successfully');
- * }
- * ```
  */
 export async function executeCommand(
   command: Command,
-  args?: Record<string, unknown>
+  options?: CommandExecutionOptions
 ): Promise<CommandResult> {
-  console.log(`[CommandExecutor] Executing command: ${command.name} (handler: ${command.handler}, requiresGUI: ${command.requiresGUI})`);
-
   try {
-    // GUI command routing - open modal instead of executing through normal flow
-    // This represents the transition from dialogue mode to maintenance mode
     if (isGUICommand(command)) {
       const modalType = command.name as Exclude<ModalType, null>;
       useUIStore.getState().openModal(modalType);
-      
-      console.log(`[CommandExecutor] Opened GUI modal: ${modalType}`);
-      
       return {
         status: 'success',
-        message: `Opening ${command.name} panel`
+        message: `Opening ${command.name} panel`,
       };
     }
-    
-    // Route to appropriate handler for non-GUI commands
+
     if (isClientCommand(command)) {
-      return await executeClientCommand(command);
-    } else if (isWebSocketCommand(command)) {
-      return await executeWebSocketCommand(command);
-    } else if (isRestCommand(command)) {
-      return await executeRestCommand(command, args);
-    } else {
-      return {
-        status: 'error',
-        message: `Unknown command handler type: ${command.handler}`
-      };
+      return await executeClientCommand(command, options);
     }
+
+    if (isWebSocketCommand(command)) {
+      return await executeWebSocketCommand(command, options);
+    }
+
+    if (isRestCommand(command)) {
+      return await executeRestCommand(command, options);
+    }
+
+    return {
+      status: 'error',
+      message: `Unknown command handler type: ${command.handler}`,
+    };
   } catch (error) {
     console.error(`Command execution error for ${command.name}:`, error);
     return {
       status: 'error',
-      message: error instanceof Error ? error.message : 'Command execution failed'
+      message: error instanceof Error ? error.message : 'Command execution failed',
     };
   }
 }
-

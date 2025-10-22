@@ -1,9 +1,11 @@
 import { ChatView } from "@/features/chat";
+import { useThemeManager } from "@/hooks/useThemeManager";
 import { Modal, Panel } from "@/components/common";
 import { useUIStore } from "@/stores/uiStore";
 import { IdentityPanel } from "@/features/command/components/IdentityPanel";
 
 function App() {
+  useThemeManager();
   const activeModal = useUIStore((state) => state.activeModal);
   const closeModal = useUIStore((state) => state.closeModal);
 

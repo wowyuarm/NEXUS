@@ -28,6 +28,13 @@ const FALLBACK_COMMANDS: Command[] = [
     handler: 'client',
     examples: ['/clear']
   },
+  {
+    name: 'theme',
+    description: 'Toggle between light and dark themes.',
+    usage: '/theme [light|dark|system]',
+    handler: 'client',
+    examples: ['/theme', '/theme light', '/theme dark']
+  },
   // Intentionally omit 'identity' from fallback: requires backend + signature
 ];
 

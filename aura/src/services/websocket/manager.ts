@@ -236,7 +236,6 @@ export class WebSocketManager {
 
     try {
       this.ws.send(messageStr);
-      console.log('Sent message to NEXUS:', { input, publicKey: this.publicKey, clientTimestamp });
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -253,11 +252,6 @@ export class WebSocketManager {
 
     try {
       this.ws.send(messageStr);
-      console.log('Sent command to NEXUS:', { 
-        command, 
-        publicKey: this.publicKey,
-        signed: !!auth
-      });
     } catch (error) {
       console.error('Failed to send command:', error);
     }

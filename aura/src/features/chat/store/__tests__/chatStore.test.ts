@@ -447,7 +447,7 @@ describe('chatStore', () => {
       const result = await executeCommand('/unknown', commands);
 
       expect(result?.status).toBe('error');
-      expect(result?.message).toContain('Unknown client command');
+      expect(result?.message).toContain('Unknown client command: unknown');
     });
   });
 
