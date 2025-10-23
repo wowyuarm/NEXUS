@@ -588,7 +588,7 @@ Honest assessment of what went well and what could be better.
 
 **What Could Be Improved:**
 - GET /messages endpoint has no pagination - will be slow with large message history
-  - **Follow-up**: Add cursor-based pagination (linked to Future_Roadmap.md)
+  - **Follow-up**: Add cursor-based pagination (linked to docs/future/Future_Roadmap.md)
 - Error messages are English-only - frontend needs i18n
   - **Follow-up**: Not blocking for MVP, but should be standardized project-wide
 - No rate limiting on POST endpoints
@@ -613,7 +613,7 @@ Link to commits, PRs, and related issues.
   - `def5678` - Implement config endpoints
   - `ghi9012` - Add integration tests
 - **Related Issues**: #45 (API authentication)
-- **Follow-up Tasks**: See `docs/Future_Roadmap.md` - "REST API pagination"
+- **Follow-up Tasks**: See `docs/future/Future_Roadmap.md` - "REST API pagination"
 ```
 
 ---

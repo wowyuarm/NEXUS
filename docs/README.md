@@ -10,13 +10,27 @@ The `docs/` directory is the knowledge nervous system for YX NEXUS. Every AI con
 - **`knowledge_base/`** – Conceptual and architectural references (vision, backend/frontend architecture, technical deep dives). Use these to understand "why" and "how" before proposing changes.
 - **`api_reference/`** – Precise contracts for WebSocket, REST, configuration schemas, etc. Consult when altering protocols or building integrations.
 - **`learn/`** – Postmortems and lessons learned. Review relevant entries before debugging; add new entries after resolving incidents so future agents inherit the fix.
-- **`Future_Roadmap.md`** – Upcoming initiatives and deferred ideas. Check for conflicts or dependencies during planning.
+- **`future/Future_Roadmap.md`** – Upcoming initiatives and deferred ideas. Check for conflicts or dependencies during planning.
 
 ## Workflow Integration
 
-### For Single-Conversation Tasks
+Choose the appropriate workflow based on task complexity:
+
+### Simple Changes (Direct Commit)
+**Use for:** Documentation updates, minor config changes, simple fixes (≤3 files, no business logic).
+
+1. Make changes directly on current branch (typically `main`)
+2. Test and commit with clear message
+
+**No branch creation, no task file required.**
+
+---
+
+### Medium Tasks (Branch + Task File)
+**Use for:** Feature additions, bug fixes, refactoring, or any work involving ≤15 files.
+
 1. **Exploration Phase (Read-Only)**: Read foundational docs, scan related code (≥3 files), identify dependencies and risks. No modifications during this phase.
-2. **Branch Creation (MANDATORY)**: Create a dedicated feature branch following `[type]/[descriptive-name]` pattern. Never work directly on `main`.
+2. **Branch Creation**: Create a dedicated feature branch following `[type]/[descriptive-name]` pattern.
 3. **Task File Creation**: Create a three-part task file in `tasks/YY-MMDD_name.md`:
    - **Part 1: Task Brief** – Background, objectives, deliverables, pragmatic risk assessment, real technical dependencies, references, acceptance criteria.
    - **Part 2: Implementation Plan** – Architecture overview, phase-based decomposition (by technical dependencies), detailed design with function signatures, complete test case lists.
@@ -25,8 +39,16 @@ The `docs/` directory is the knowledge nervous system for YX NEXUS. Every AI con
 5. **Execution**: Follow TDD workflow (RED → GREEN → REFACTOR), commit frequently.
 6. **Append Completion Report**: Add Part 3 to the same task file with real debugging stories, technical decisions, test verification, and reflections.
 
-### For Large-Scale Initiatives
-If a task requires multiple conversations or exceeds context limits (>15 files), create a strategic plan in `strategic_plans/` that decomposes into multiple sub-tasks, each with its own task file in `tasks/`.
+---
+
+### Large Initiatives (Branch + Strategic Plan)
+**Use for:** Multi-conversation work, tasks exceeding context limits (>15 files).
+
+1. **Exploration & Research**: Deep dive into architecture, dependencies, and scope.
+2. **Branch Creation**: Create feature branch for the initiative.
+3. **Strategic Plan Creation**: Create plan in `strategic_plans/` that decomposes into multiple sub-tasks, each with its own task file in `tasks/`.
+4. **Wait for Approval**: Present strategic plan to user.
+5. **Execute Sub-Tasks**: Follow Medium Tasks workflow for each sub-task.
 
 ## Keeping Docs Alive (AI Responsibilities)
 - **Exploration**: During contextual scans, note mismatches between docs and code. Log gaps in your task file; propose doc updates alongside code changes.

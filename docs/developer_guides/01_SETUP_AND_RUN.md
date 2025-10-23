@@ -21,16 +21,17 @@ git clone <your-repository-url>
 cd NEXUS
 ```
 
-### Step 2: Create a Feature Branch (MANDATORY)
+### Step 2: Create a Feature Branch (For Non-Trivial Changes)
 
-**IMPORTANT**: Before making any changes, create a dedicated feature branch. This project supports parallel development and **you should never work directly on `main`**.
+**Branch Strategy**: 
+- **Simple changes** (documentation updates, minor fixes) can be committed directly to `main`
+- **Feature development, bug fixes, refactoring** require a dedicated feature branch
+
+For feature branches:
 
 ```bash
 # Check current branch (should be 'main')
 git branch --show-current
-
-# Pull latest changes
-git pull origin main
 
 # Create your feature branch
 git checkout -b [type]/[descriptive-name]
@@ -120,7 +121,7 @@ The AURA frontend reads its configuration from its own `.env` file.
     ```bash
     cp .env.example .env
     ```
-2.  The default value `VITE_WS_URL=ws://localhost:8000/api/v1/ws` is typically correct for local development and does not need to be changed.
+2.  The default values `VITE_AURA_WS_URL=ws://localhost:8000/api/v1/ws` and `VITE_AURA_API_URL=http://localhost:8000/api/v1` are typically correct for local development and do not need to be changed.
 
 ### Step 9: Run the Frontend
 

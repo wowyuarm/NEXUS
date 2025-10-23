@@ -58,7 +58,7 @@
 - 历史持久化与首次上下文构建不应直接复用 `role: tool` 的消息，改用“运行期历史注入”或“文本化总结”的方式更稳妥。
 
 ## 后续改进建议
-- 在 `docs/Future_Roadmap.md` 规划中新增了一项：
+- 在 `docs/future/Future_Roadmap.md` 规划中新增了一项：
   - 通过可配置的方式，将“近期工具结果”以纯文本 Markdown 注入到 system prompt 的 `tools.md` 之后，而非 `role: tool` 形式。
   - 配置项（首版）：`enabled`, `lookback_count`, `per_item_char_limit`, `allowed_tool_names`。
 - 可考虑增加总字符上限、脱敏规则、以及 DB 层按 role 的直查接口来优化性能与灵活度。

@@ -21,7 +21,23 @@ This charter is not a set of guidelines; it is a system of **binding, executable
 
 ## II. The Execution Flow (Mandatory Process)
 
-Every implementation task must follow this sequence without exception:
+The workflow varies based on task complexity. Choose the appropriate path:
+
+### Workflow A: Simple Changes (Direct Commit)
+
+**Use for:** Documentation updates, minor config changes, simple fixes with no code logic changes.
+
+1.  **Quick Verification**: Confirm the change is truly simple (≤3 files, no business logic).
+2.  **Make Changes**: Edit files directly on current branch (typically `main`).
+3.  **Test & Commit**: Verify changes, commit with clear message.
+
+**No branch creation, no task file, no git pull required.**
+
+---
+
+### Workflow B: Medium Tasks (Branch + Task File)
+
+**Use for:** Feature additions, bug fixes, refactoring, or any work involving ≤15 files that fits within AI context limits.
 
 1.  **Exploration Phase (Read-Only)**: Before any modifications:
     - Read all foundational documentation relevant to the task
@@ -29,12 +45,10 @@ Every implementation task must follow this sequence without exception:
     - Identify technical dependencies and potential risks
     - **No code changes or branch creation during this phase**
 
-2.  **Branch Creation (MANDATORY)**: After exploration, create a dedicated feature branch:
+2.  **Branch Creation**: After exploration, create a dedicated feature branch:
     - Check current branch: `git branch --show-current`
-    - Pull latest (if no uncommitted changes): `git pull origin main`
     - Create branch: `git checkout -b [type]/[descriptive-name]` (e.g., `feat/config-hot-reload`)
     - Verify: `git branch --show-current`
-    - **Never work directly on `main`** unless explicitly instructed
 
 3.  **Task File Creation**: Create a three-part task file in `docs/tasks/YY-MMDD_descriptive-name.md`:
     - **Part 1: Task Brief** – Background, objectives, deliverables, risk assessment, dependencies, references, acceptance criteria
@@ -58,6 +72,21 @@ Every implementation task must follow this sequence without exception:
     - Test verification results
     - Reflections and improvement suggestions
     - Links to relevant commits/PRs
+
+---
+
+### Workflow C: Large Initiatives (Branch + Strategic Plan)
+
+**Use for:** Multi-conversation work, tasks exceeding context limits (>15 files), or initiatives requiring decomposition.
+
+1.  **Exploration & Research**: Deep dive into architecture, dependencies, and scope.
+2.  **Branch Creation**: Create feature branch for the initiative.
+3.  **Strategic Plan Creation**: Create plan in `docs/strategic_plans/` that:
+    - Defines overall architecture and vision
+    - Decomposes into multiple sub-tasks
+    - Each sub-task will have its own task file in `docs/tasks/`
+4.  **Wait for Approval**: Present strategic plan to user.
+5.  **Execute Sub-Tasks**: Follow Workflow B for each sub-task.
 
 ### Task File Structure
 
@@ -115,4 +144,4 @@ A task is considered complete only when all of the following are true:
 -   [ ] No linter or formatter warnings remain.
 -   [ ] The commit messages are clear and follow Conventional Commits format.
 -   [ ] Part 3 (Completion Report) has been appended to the task file with technical blog-level detail.
--   [ ] No untracked `TODO`s exist (if a `TODO` must remain, it must be linked to `Future_Roadmap.md`).
+-   [ ] No untracked `TODO`s exist (if a `TODO` must remain, it must be linked to `docs/future/Future_Roadmap.md`).

@@ -18,7 +18,7 @@ Review these documents at the start of every task. Reference them in your implem
    - **Part 3: Completion Report** – (Added after execution) Technical blog-style summary with implementation details, debugging processes, reflections.
 3. **Reference Scan** – Pull architecture/protocol context from `docs/knowledge_base/` and `docs/api_reference/`; note the specific files you relied on.
 4. **History Check** – Search `docs/learn/` for similar incidents to inherit lessons, adding citations in your task file.
-5. **Future Alignment** – Review `docs/Future_Roadmap.md` to ensure upcoming initiatives are not impacted or to coordinate scope.
+5. **Future Alignment** – Review `docs/future/Future_Roadmap.md` to ensure upcoming initiatives are not impacted or to coordinate scope.
 6. **Wait for Approval** – User reviews and approves the task file before execution begins.
 7. **Execute & Document** – Follow TDD workflow, then append Part 3 (Completion Report) to the same task file.
 8. Document all consulted materials in your task file and completion report so reviewers can trace the reasoning.
@@ -32,21 +32,39 @@ Review these documents at the start of every task. Reference them in your implem
 - **Incremental Delivery** — favor small, verifiable changes that keep the repository buildable at every commit.
 - **Transparency** — document assumptions, risks, and trade-offs explicitly in your notes or plan.
 
-## Default Workflow
+## Workflow Selection
+
+Choose the appropriate workflow based on task complexity:
+
+### Workflow A: Simple Changes (Direct Commit)
+
+**Use for:** Documentation updates, minor config changes, simple fixes with no code logic changes.
+
+**Steps:**
+1. Quick verification: Confirm the change is truly simple (≤3 files, no business logic)
+2. Make changes: Edit files directly on current branch (typically `main`)
+3. Test & commit: Verify changes, commit with clear message
+
+**No branch creation, no task file required.**
+
+---
+
+### Workflow B: Medium Tasks (Branch + Task File)
+
+**Use for:** Feature additions, bug fixes, refactoring, or any work involving ≤15 files.
+
 1. **Exploration Phase (Read-Only, MANDATORY FIRST STEP)**
    - Read all required documentation listed above.
    - Scan at least three related code files to understand existing patterns.
    - Identify technical dependencies and potential risks.
    - **No code changes or branch creation during this phase**.
 
-2. **Branch Creation (MANDATORY SECOND STEP)**
+2. **Branch Creation**
    - Check current branch: `git branch --show-current`
-   - Pull latest changes (if no uncommitted changes): `git pull origin main`
    - Create feature branch: `git checkout -b [type]/[descriptive-name]`
      - Types: `feat/`, `fix/`, `refactor/`, `docs/`, `test/`
      - Example: `feat/config-hot-reload`, `fix/websocket-timeout`
    - Verify branch: `git branch --show-current`
-   - **NEVER work directly on `main`** unless explicitly instructed
 
 3. **Task File Creation**
    - Create `docs/tasks/YY-MMDD_descriptive-name.md` with three parts:
@@ -84,10 +102,23 @@ Review these documents at the start of every task. Reference them in your implem
      - Reflections and improvement suggestions
      - Links to relevant commits/PRs
 
+---
+
+### Workflow C: Large Initiatives (Branch + Strategic Plan)
+
+**Use for:** Multi-conversation work, tasks exceeding context limits (>15 files).
+
+1. **Exploration & Research**: Deep dive into architecture, dependencies, and scope.
+2. **Branch Creation**: Create feature branch for the initiative.
+3. **Strategic Plan Creation**: Create plan in `docs/strategic_plans/` that decomposes into multiple sub-tasks.
+4. **Wait for Approval**: Present strategic plan to user.
+5. **Execute Sub-Tasks**: Follow Workflow B for each sub-task.
+
 ## Branching & Commits
 
 ### Branch Management
-- **ALWAYS create a branch before starting work** — this project supports parallel development.
+- **Create a branch for medium and large tasks** — this project supports parallel development.
+- **Simple changes can be committed directly to `main`** (documentation updates, minor fixes).
 - Branch from `main`; use descriptive names following these patterns:
   - `feat/[feature-name]` for new features (e.g., `feat/llm-dynamic-temperature`)
   - `fix/[bug-description]` for bug fixes (e.g., `fix/websocket-timeout`)
@@ -96,7 +127,6 @@ Review these documents at the start of every task. Reference them in your implem
   - `test/[scope]` for test additions (e.g., `test/orchestrator-service`)
 - Keep branch names lowercase with hyphens (kebab-case), 3-5 words max.
 - Push your branch regularly: `git push -u origin [branch-name]`
-- **Never work directly on `main`** unless explicitly instructed.
 
 ### Commit Guidelines
 - Follow Conventional Commits (English only). Examples:
@@ -170,4 +200,4 @@ Review these documents at the start of every task. Reference them in your implem
 - `docs/learn/` – Postmortems and lessons learned
 - `docs/knowledge_base/` – Architecture and technical references
 - `docs/api_reference/` – API specifications
-- `docs/Future_Roadmap.md`
+- `docs/future/Future_Roadmap.md`

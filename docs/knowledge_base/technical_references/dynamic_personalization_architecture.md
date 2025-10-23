@@ -176,7 +176,7 @@ The Dynamic Personalization System sits at the intersection of three major subsy
 
 #### 1.2 Database Initialization
 
-**Script:** `scripts/init_configurations.py`
+**Script:** `scripts/database_manager.py --init-config`
 
 **Purpose:** One-time initialization of the `configurations` collection
 
@@ -188,7 +188,7 @@ The Dynamic Personalization System sits at the intersection of three major subsy
 
 **Usage:**
 ```bash
-python scripts/init_configurations.py --environment development
+python scripts/database_manager.py --init-config --environment development
 ```
 
 ---
@@ -826,7 +826,7 @@ def upsert_configuration(self, environment: str, config_data: Dict):
 
 **Initialization:**
 ```bash
-python scripts/init_configurations.py --environment development
+python scripts/database_manager.py --init-config --environment development
 ```
 
 **Fallback Behavior:**
@@ -840,7 +840,7 @@ python scripts/init_configurations.py --environment development
 
 **Initialization:**
 ```bash
-python scripts/init_configurations.py --environment production
+python scripts/database_manager.py --init-config --environment production
 ```
 
 **Critical Requirement:** Database must be properly initialized; fallback is **not suitable** for production use.
@@ -869,7 +869,7 @@ llm:
         max_tokens: 4096
 ```
 
-**2. Update `scripts/init_configurations.py`:**
+**2. Update `config.example.yml` and re-run initialization:**
 ```python
 "llm": {
     "providers": {
@@ -914,7 +914,7 @@ elif provider_name == "anthropic":
 
 **5. Re-run database initialization:**
 ```bash
-python scripts/init_configurations.py --environment development
+python scripts/database_manager.py --init-config --environment development
 ```
 
 **6. User can now select the new model:**
@@ -1013,7 +1013,7 @@ INFO | LLMService | Using provider: deepseek for model: deepseek-chat
 **Diagnosis:**
 ```bash
 # Test database connection
-python scripts/init_configurations.py --environment development
+python scripts/database_manager.py --init-config --environment development
 
 # Check if configuration exists
 mongo --eval 'db.configurations.find({"environment": "development"}).pretty()'
@@ -1175,11 +1175,11 @@ db.identities.find({
 - **Identity System:** `identity_and_data_sovereignty.md`
 - **Architecture Overview:** `../../02_NEXUS_ARCHITECTURE.md`
 - **Setup Guide:** `../../../developer_guides/01_SETUP_AND_RUN.md`
-- **Future Roadmap:** `../../../docs/Future_Roadmap.md`
+- **Future Roadmap:** `../../../future/Future_Roadmap.md`
 
 ### Key Files
 - **Configuration Template:** `config.example.yml`
-- **Initialization Script:** `scripts/init_configurations.py`
+- **Initialization Script:** `scripts/database_manager.py --init-config`
 - **Core Services:**
   - `nexus/services/config.py`
   - `nexus/services/identity.py`

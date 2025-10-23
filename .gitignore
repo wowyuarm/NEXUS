@@ -28,6 +28,8 @@ aura/node_modules/
 .claude/
 .cursor/
 .windsurf/
+CLAUDE.md
+WINDSURF.md
 
 # 第三方
 lib/
@@ -35,8 +37,6 @@ vendor/
 dist/
 .pyscn/
 
-# 自用脚本
-scripts/
-
 # 临时文档
 docs/future
+docs/backup
