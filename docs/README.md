@@ -5,29 +5,40 @@ The `docs/` directory is the knowledge nervous system for YX NEXUS. Every AI con
 ## Directory Map & Usage
 - **`developer_guides/`** – Process manuals (setup, contributing, testing, AI collaboration). Read before you touch code; they define the baseline workflow.
 - **`rules/`** – Non-negotiable design and behavior principles (e.g., `frontend_design_principles.md`). Apply these anytime you work on matching areas.
-- **`tasks/`** – Mission briefs and architecture plans for major subsystems. Start here when scoping features/refactors; cite them in `IMPLEMENTATION_PLAN.md`. Long-running plans live in `tasks/Implementation/`.
-- **`knowledge_base/`** – Conceptual and architectural references (vision, backend/frontend architecture, technical deep dives). Use these to understand “why” and “how” before proposing changes.
+- **`tasks/`** – Three-part task files (Task Brief → Implementation Plan → Completion Report) for single-conversation work. Each file is a complete lifecycle document from planning to delivery. See `tasks/README.md` for detailed format specifications.
+- **`strategic_plans/`** – Strategic planning documents for large-scale initiatives requiring multiple conversations or exceeding context limits. Each strategic plan decomposes into multiple task files.
+- **`knowledge_base/`** – Conceptual and architectural references (vision, backend/frontend architecture, technical deep dives). Use these to understand "why" and "how" before proposing changes.
 - **`api_reference/`** – Precise contracts for WebSocket, REST, configuration schemas, etc. Consult when altering protocols or building integrations.
 - **`learn/`** – Postmortems and lessons learned. Review relevant entries before debugging; add new entries after resolving incidents so future agents inherit the fix.
 - **`Future_Roadmap.md`** – Upcoming initiatives and deferred ideas. Check for conflicts or dependencies during planning.
 
 ## Workflow Integration
-1. **Branch Creation (MANDATORY)**: Before starting any work, create a dedicated feature branch following the protocol in `developer_guides/02_CONTRIBUTING_GUIDE.md`. Never work directly on `main`. Use naming pattern `[type]/[descriptive-name]` (e.g., `feat/config-hot-reload`, `fix/websocket-timeout`).
-2. **Task Kickoff**: Read the relevant `docs/tasks/*.md`, pull supporting context from `knowledge_base/` and `api_reference/`, and search `learn/` for similar issues.
-3. **Planning**: Draft or update `IMPLEMENTATION_PLAN.md`, citing every document consulted (path + key insight). Store long-form plans in `tasks/Implementation/` if work spans milestones.
-4. **Execution**: Follow process checklists from `developer_guides/`, apply design rules, and stick to the tests spelled out in `03_TESTING_STRATEGY.md`.
-5. **Delivery**: When handing off, link to the docs that informed your work and note any new knowledge captured in `learn/` or updates needed elsewhere.
+
+### For Single-Conversation Tasks
+1. **Exploration Phase (Read-Only)**: Read foundational docs, scan related code (≥3 files), identify dependencies and risks. No modifications during this phase.
+2. **Branch Creation (MANDATORY)**: Create a dedicated feature branch following `[type]/[descriptive-name]` pattern. Never work directly on `main`.
+3. **Task File Creation**: Create a three-part task file in `tasks/YY-MMDD_name.md`:
+   - **Part 1: Task Brief** – Background, objectives, deliverables, pragmatic risk assessment, real technical dependencies, references, acceptance criteria.
+   - **Part 2: Implementation Plan** – Architecture overview, phase-based decomposition (by technical dependencies), detailed design with function signatures, complete test case lists.
+   - **Part 3: Completion Report** – (Added after execution) Technical blog-style documentation with implementation details, debugging processes, reflections.
+4. **Wait for Approval**: Present task file to user for review and approval.
+5. **Execution**: Follow TDD workflow (RED → GREEN → REFACTOR), commit frequently.
+6. **Append Completion Report**: Add Part 3 to the same task file with real debugging stories, technical decisions, test verification, and reflections.
+
+### For Large-Scale Initiatives
+If a task requires multiple conversations or exceeds context limits (>15 files), create a strategic plan in `strategic_plans/` that decomposes into multiple sub-tasks, each with its own task file in `tasks/`.
 
 ## Keeping Docs Alive (AI Responsibilities)
-- **Exploration**: During contextual scans, note mismatches between docs and code. Log gaps in your plan; propose doc updates alongside code changes.
+- **Exploration**: During contextual scans, note mismatches between docs and code. Log gaps in your task file; propose doc updates alongside code changes.
 - **Iteration**: If a doc lacks clarity, add front-matter (summary, owners, updated date) or cross-links to related material. Prefer augmenting over duplicating content.
 - **Validation**: After implementing changes, ensure referenced docs still reflect reality. Update specs, diagrams, or examples when behavior shifts.
-- **Escalation**: When systemic reorganizations are needed (e.g., moving `api_reference` under `knowledge_base`), outline a proposal in your plan and confirm before restructuring.
+- **Completion Reports**: Use Part 3 of task files to document real challenges, debugging processes, and lessons learned – creating a knowledge base for future developers.
+- **Escalation**: When systemic reorganizations are needed, outline a proposal in your task file and confirm before restructuring.
 
 ## Continuous Improvement Checklist
-- [ ] Documentation cited in `IMPLEMENTATION_PLAN.md` and final summary
+- [ ] Documentation cited in task file (Part 1 and Part 3)
 - [ ] New lessons recorded in `docs/learn/` where applicable
-- [ ] Task briefs updated with outcomes, risks, or follow-ups
+- [ ] Completion report (Part 3) added with technical blog-level detail
 - [ ] Cross references added/adjusted in `knowledge_base/` and `api_reference`
 - [ ] Roadmap reviewed and updated if scope changes impact future work
 

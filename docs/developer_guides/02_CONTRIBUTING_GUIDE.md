@@ -11,11 +11,19 @@ Review these documents at the start of every task. Reference them in your implem
 - Feature- or service-specific files uncovered during your contextual scan (see below)
 
 ## Documentation Workflow
-1. **Task Brief** – Locate the closest `docs/tasks/*.md` entry and read it fully. Use the `Implementation/` subdirectory if a long-form plan already exists; otherwise create/update `IMPLEMENTATION_PLAN.md` at the project root.
-2. **Reference Scan** – Pull architecture/protocol context from `docs/knowledge_base/` and `docs/api_reference/`; note the specific files you relied on.
-3. **History Check** – Search `docs/learn/` for similar incidents to inherit lessons, adding citations in your plan.
-4. **Future Alignment** – Review `docs/Future_Roadmap.md` to ensure upcoming initiatives are not impacted or to coordinate scope.
-5. Document all consulted materials in your plan and final status update so reviewers can trace the reasoning.
+1. **Exploration Phase (Read-Only)** – Read foundational docs, scan related code (≥3 files), identify dependencies. No modifications during this phase.
+2. **Task File Creation** – Create a three-part task file in `docs/tasks/YY-MMDD_name.md`:
+   - **Part 1: Task Brief** – Background, objectives, deliverables, risk assessment (pragmatic technical risks only), dependencies (real technical dependencies only), references, acceptance criteria.
+   - **Part 2: Implementation Plan** – Architecture overview, Phase 1/2/3... (decomposed by technical dependencies), detailed design with function signatures, complete test case lists.
+   - **Part 3: Completion Report** – (Added after execution) Technical blog-style summary with implementation details, debugging processes, reflections.
+3. **Reference Scan** – Pull architecture/protocol context from `docs/knowledge_base/` and `docs/api_reference/`; note the specific files you relied on.
+4. **History Check** – Search `docs/learn/` for similar incidents to inherit lessons, adding citations in your task file.
+5. **Future Alignment** – Review `docs/Future_Roadmap.md` to ensure upcoming initiatives are not impacted or to coordinate scope.
+6. **Wait for Approval** – User reviews and approves the task file before execution begins.
+7. **Execute & Document** – Follow TDD workflow, then append Part 3 (Completion Report) to the same task file.
+8. Document all consulted materials in your task file and completion report so reviewers can trace the reasoning.
+
+**For Large-Scale Initiatives**: If a task requires multiple conversations or exceeds context limits, create a strategic plan in `docs/strategic_plans/` that decomposes into multiple sub-tasks, each with its own task file in `docs/tasks/`.
 
 ## Core Philosophy
 - **Security > Architecture > Process > Preference** — follow the priority order defined in the AI charter.
@@ -25,35 +33,56 @@ Review these documents at the start of every task. Reference them in your implem
 - **Transparency** — document assumptions, risks, and trade-offs explicitly in your notes or plan.
 
 ## Default Workflow
-1. **Branch Creation (MANDATORY FIRST STEP)**
+1. **Exploration Phase (Read-Only, MANDATORY FIRST STEP)**
+   - Read all required documentation listed above.
+   - Scan at least three related code files to understand existing patterns.
+   - Identify technical dependencies and potential risks.
+   - **No code changes or branch creation during this phase**.
+
+2. **Branch Creation (MANDATORY SECOND STEP)**
    - Check current branch: `git branch --show-current`
-   - Pull latest changes: `git pull origin main`
+   - Pull latest changes (if no uncommitted changes): `git pull origin main`
    - Create feature branch: `git checkout -b [type]/[descriptive-name]`
      - Types: `feat/`, `fix/`, `refactor/`, `docs/`, `test/`
      - Example: `feat/config-hot-reload`, `fix/websocket-timeout`
    - Verify branch: `git branch --show-current`
    - **NEVER work directly on `main`** unless explicitly instructed
-2. **Contextual Scan**
-   - Read the required docs above.
-   - Locate adjacent implementations with `rg`, repo search, or directory inspection.
-   - Collect open design constraints (e.g., prompt layers, event contracts, motion rules).
-3. **Implementation Plan**
-   - Create or update `IMPLEMENTATION_PLAN.md` following the template in the AI charter.
-   - Break work into 3–5 verifiable stages; keep only one stage `In Progress` at a time.
-4. **Test First (RED)**
+
+3. **Task File Creation**
+   - Create `docs/tasks/YY-MMDD_descriptive-name.md` with three parts:
+     - **Part 1: Task Brief** (Background, objectives, deliverables, risk assessment, dependencies, references, acceptance criteria)
+     - **Part 2: Implementation Plan** (Architecture overview, Phase decomposition with detailed design and test cases)
+     - **Part 3: Completion Report** (Leave empty until execution completes)
+   - See `docs/tasks/README.md` for detailed format specifications.
+
+4. **Wait for Approval**
+   - Present the task file to the user.
+   - Await explicit approval before proceeding to implementation.
+
+5. **Test First (RED)**
    - Add or extend tests in the correct location (`tests/nexus/...` or `aura/src/**/__tests__/`).
    - Run the relevant suite and confirm the new test fails for the expected reason.
-5. **Minimal Implementation (GREEN)**
+
+6. **Minimal Implementation (GREEN)**
    - Write the smallest change to satisfy the failing test.
    - Stay within existing architectural boundaries (service, feature, store).
-6. **Refactor & Harden**
+
+7. **Refactor & Harden**
    - Clean code and tests for readability and consistency.
    - Ensure formatting (`black`, Prettier) and lint tools (`flake8`, ESLint) pass.
    - Run the full relevant test scope (`pytest`, `pnpm test:run`, etc.).
-7. **Self-Audit & Status Update**
+
+8. **Self-Audit & Commit**
    - Verify no unrelated files changed and no TODOs are left without tracking.
-   - Update the implementation plan, marking completed stages.
-   - Summarize results, risks, and test commands in your hand-off or PR description.
+   - Commit frequently with clear conventional commit messages.
+
+9. **Append Completion Report**
+   - Add Part 3 to the same task file with technical blog-style documentation:
+     - Implementation overview and key decisions
+     - Problems encountered and debugging processes (with failed attempts)
+     - Test verification results (commands + outputs)
+     - Reflections and improvement suggestions
+     - Links to relevant commits/PRs
 
 ## Branching & Commits
 
@@ -121,12 +150,13 @@ Review these documents at the start of every task. Reference them in your implem
 4. If behavior surfaces in the UI, extend WebSocket or REST tests accordingly.
 
 ## Definition of Done Checklist
-- [ ] Implementation plan stages completed and updated.
+- [ ] All phases in the task file's Implementation Plan are executed.
 - [ ] New or modified tests written, fail before fix, and now pass.
 - [ ] `pytest` (scope-appropriate) and `pnpm test:run` or other relevant suites executed successfully.
 - [ ] Formatters and linters pass with no warnings.
 - [ ] Secrets, credentials, or production configs are untouched.
-- [ ] Risks, follow-ups, and verification steps documented in the task hand-off.
+- [ ] Part 3 (Completion Report) appended to the task file with technical blog-level detail.
+- [ ] Risks, follow-ups, and verification steps documented in the completion report.
 
 ## References
 - `CLAUDE.md`, `AGENTS.md`
@@ -135,8 +165,9 @@ Review these documents at the start of every task. Reference them in your implem
 - `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md`
 - `tests/README.md`
 - `docs/rules/frontend_design_principles.md`
-- `docs/tasks/`
-- `docs/learn/`
-- `docs/knowledge_base/`
-- `docs/api_reference/`
+- `docs/tasks/` – Single-conversation task files
+- `docs/strategic_plans/` – Multi-conversation strategic initiatives
+- `docs/learn/` – Postmortems and lessons learned
+- `docs/knowledge_base/` – Architecture and technical references
+- `docs/api_reference/` – API specifications
 - `docs/Future_Roadmap.md`

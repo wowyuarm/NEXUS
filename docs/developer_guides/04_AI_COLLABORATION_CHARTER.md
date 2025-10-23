@@ -23,29 +23,45 @@ This charter is not a set of guidelines; it is a system of **binding, executable
 
 Every implementation task must follow this sequence without exception:
 
-1.  **Branch Creation (MANDATORY)**: Before any code changes, create a dedicated feature branch:
+1.  **Exploration Phase (Read-Only)**: Before any modifications:
+    - Read all foundational documentation relevant to the task
+    - Scan at least three related code files to understand existing patterns
+    - Identify technical dependencies and potential risks
+    - **No code changes or branch creation during this phase**
+
+2.  **Branch Creation (MANDATORY)**: After exploration, create a dedicated feature branch:
     - Check current branch: `git branch --show-current`
-    - Pull latest: `git pull origin main`
+    - Pull latest (if no uncommitted changes): `git pull origin main`
     - Create branch: `git checkout -b [type]/[descriptive-name]` (e.g., `feat/config-hot-reload`)
     - Verify: `git branch --show-current`
     - **Never work directly on `main`** unless explicitly instructed
-2.  **Contextual Scan**: Read the repository to understand existing patterns. Identify at least three similar implementations or components.
-3.  **Phased Planning (Mandatory)**: Deconstruct the task into 3–5 distinct stages. Document this in a temporary `IMPLEMENTATION_PLAN.md` using the template below.
-4.  **Test First (Red)**: Write or extend a test for the immediate requirement. Ensure it fails first.
-5.  **Minimal Implementation (Green)**: Write the minimum amount of code required to make the test pass.
-6.  **Refactor**: Clean up the code, improving names, boundaries, and structure, while ensuring all tests continue to pass.
-7.  **Self-Audit & Commit**: Run formatters and linters. Review your own code. Commit with a message explaining the "why," linking to the implementation plan.
-8.  **Update & Archive**: Mark the stage in `IMPLEMENTATION_PLAN.md` as complete. Upon task completion, the plan can be archived or referenced in the Pull Request.
 
-### `IMPLEMENTATION_PLAN.md` Template
+3.  **Task File Creation**: Create a three-part task file in `docs/tasks/YY-MMDD_descriptive-name.md`:
+    - **Part 1: Task Brief** – Background, objectives, deliverables, risk assessment, dependencies, references, acceptance criteria
+    - **Part 2: Implementation Plan** – Architecture overview, Phase-based decomposition (by technical dependencies), detailed design with function signatures, complete test case lists
+    - **Part 3: Completion Report** – (Left empty until execution completes)
 
-```markdown
-## Stage 1: [Stage Name]
-**Goal**: [Specific, testable deliverable]
-**Success Criteria**: [Measurable outcome]
-**Tests**: [List of specific test cases to be written/passed]
-**Status**: [Not Started | In Progress | Complete]
-```
+4.  **Wait for Approval**: Present the task file to the user. Await explicit approval before proceeding.
+
+5.  **Test First (Red)**: Write or extend a test for the immediate requirement. Ensure it fails first.
+
+6.  **Minimal Implementation (Green)**: Write the minimum amount of code required to make the test pass.
+
+7.  **Refactor**: Clean up the code, improving names, boundaries, and structure, while ensuring all tests continue to pass.
+
+8.  **Self-Audit & Commit**: Run formatters and linters. Review your own code. Commit with a message explaining the "why."
+
+9.  **Append Completion Report**: Add Part 3 to the same task file:
+    - Technical blog-style documentation
+    - Implementation details with key decisions
+    - Problems encountered and debugging processes
+    - Test verification results
+    - Reflections and improvement suggestions
+    - Links to relevant commits/PRs
+
+### Task File Structure
+
+See `docs/tasks/README.md` for detailed format specifications.
 
 ---
 
@@ -93,10 +109,10 @@ You are allocated a **maximum of three attempts** to solve a single problem. If 
 ## VI. Definition of Done
 
 A task is considered complete only when all of the following are true:
--   [ ] All stages in `IMPLEMENTATION_PLAN.md` are marked as `Complete`.
+-   [ ] All phases in the task file's Implementation Plan are executed.
 -   [ ] All relevant tests have been written and are passing.
 -   [ ] The code adheres to all project conventions and architectural principles.
 -   [ ] No linter or formatter warnings remain.
--   [ ] The commit message is clear and linked to the plan.
--   [ ] No untracked `TODO`s exist (if a `TODO` must remain, it must be linked to a `ROADMAP.md` item).
-```
+-   [ ] The commit messages are clear and follow Conventional Commits format.
+-   [ ] Part 3 (Completion Report) has been appended to the task file with technical blog-level detail.
+-   [ ] No untracked `TODO`s exist (if a `TODO` must remain, it must be linked to `Future_Roadmap.md`).

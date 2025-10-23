@@ -1,14 +1,13 @@
-### **任务委托单：AURA-LIGHT-THEME**
+### **任务：AURA-LIGHT-THEME**
 
-**致：** 工程师AI  
-**发令者：** “枢”，AURA 项目首席体验架构师  
+**日期：** 2025-10-22
 **任务 ID：** `LIGHT-THEME`
 
 ---
 
-#### **背景与动机**
+#### **背景**
 
-在 AURA 的灰度审美哲学下（参考《docs/rules/frontend_design_principles.md》与《docs/knowledge_base/01_VISION_AND_PHILOSOPHY.md》），我们长期以暗色主题作为唯一视觉基调。随着系统进入“思维驾驶舱”阶段，我们需要在保持“Silence · Comfort · Intuition · Rhythm”四大原则的同时，为白天环境与高亮场景提供一套**同样克制、同样精心调校**的亮色主题。
+在 AURA 的灰度审美哲学下（参考`docs/rules/frontend_design_principles.md`与`docs/knowledge_base/01_VISION_AND_PHILOSOPHY.md`），我们长期以暗色主题作为唯一视觉基调。随着系统进入“思维驾驶舱”阶段，我们需要在保持“Silence · Comfort · Intuition · Rhythm”四大原则的同时，为白天环境与高亮场景提供一套**同样克制、同样精心调校**的亮色主题。
 
 该主题不仅是一组颜色变量，还包含：
 - 与暗色主题等价的设计语义（背景、前景、卡片、强调、边界等）；
@@ -17,7 +16,7 @@
 
 ---
 
-#### **核心目标**
+#### **目标**
 
 1. **设计语言**：为亮色主题定义一套完整的灰阶变量（背景、前景、卡片、强调、边界等），并在 `globals.css` 与 `tailwind.config.js` 中落地，保证视觉对比度符合舒适阅读标准（WCAG AA）。
 2. **主题管理**：实现独立的主题状态管理（Zustand store），支持本地持久化、系统偏好兜底，以及无闪烁的类名切换。
@@ -36,14 +35,14 @@
 
 ---
 
-#### **参考资料**
+#### **文档引用**
 
-- 《docs/rules/frontend_design_principles.md》
-- 《docs/knowledge_base/01_VISION_AND_PHILOSOPHY.md》
-- 《docs/knowledge_base/03_AURA_ARCHITECTURE.md》
-- 《docs/knowledge_base/frontend_references/motion_and_animation.md》
-- 《docs/developer_guides/04_AI_COLLABORATION_CHARTER.md》
-- 《docs/developer_guides/03_TESTING_STRATEGY.md》
+- `docs/rules/frontend_design_principles.md`
+- `docs/knowledge_base/01_VISION_AND_PHILOSOPHY.md`
+- `docs/knowledge_base/03_AURA_ARCHITECTURE.md`
+- `docs/knowledge_base/frontend_references/motion_and_animation.md`
+- `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md`
+- `docs/developer_guides/03_TESTING_STRATEGY.md`
 
 ---
 

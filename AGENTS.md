@@ -3,17 +3,16 @@
 These rules apply to every AI assistant working on the YX NEXUS project. Treat them as non-negotiable.
 
 ## Before You Start
-- Read the foundational docs for each task:
-  - `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md`
-  - `tests/README.md`
-  - `docs/rules/frontend_design_principles.md` for UI/UX, motion, or styling work
-  - `docs/developer_guides/02_CONTRIBUTING_GUIDE.md` & `03_TESTING_STRATEGY.md`
-  - Relevant briefs in `docs/tasks/`
-  - Supporting references in `docs/knowledge_base/` and `docs/api_reference/`
-  - Related postmortems in `docs/learn/`
-  - `docs/Future_Roadmap.md` for upcoming initiatives
-- Perform a contextual scan of existing code/tests (minimum three related files) before modifying anything.
-- Reference the materials you relied on inside your implementation plan and status updates.
+- `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md` – mandatory planning, retry, and communication protocol.
+- `tests/README.md` – TDD workflow and testing pyramid expectations.
+- `docs/rules/frontend_design_principles.md` – required for any UI, motion, or styling work.
+- `docs/developer_guides/02_CONTRIBUTING_GUIDE.md` and `docs/developer_guides/03_TESTING_STRATEGY.md` – workflow and test patterns.
+- `docs/tasks/` – Three-part task files (Task Brief → Implementation Plan → Completion Report) for single-conversation work. See `tasks/README.md` for detailed format specifications.
+- `docs/strategic_plans/` – Strategic planning documents for large-scale initiatives requiring multiple conversations or exceeding context limits.
+- `docs/knowledge_base/` and `docs/api_reference/` – architectural, protocol, and reference material to cite during planning.
+- `docs/learn/` – past incident reports and lessons; scan for similar issues when debugging.
+- `docs/Future_Roadmap.md` – upcoming initiatives that may affect scope or design decisions.
+- For unfamiliar domains, inspect at least three related implementations or tests before writing new code. Reference the material you consult in task files or status updates.
 
 ## Project Structure & Module Organization
 - **Backend (NEXUS)**: `nexus/core/`, `nexus/services/`, `nexus/interfaces/`, `nexus/tools/definition/`, `nexus/prompts/`
@@ -22,18 +21,19 @@ These rules apply to every AI assistant working on the YX NEXUS project. Treat t
 - Helper tooling: `scripts/shell/run.sh`, `docker-compose.yml`.
 
 ## Git & Branch Management (MANDATORY)
-**CRITICAL**: Before starting ANY task, you MUST create a dedicated feature branch. This project supports parallel development across multiple branches.
+**CRITICAL**: After the exploration phase (read-only), you MUST create a dedicated feature branch before any modifications. This project supports parallel development across multiple branches.
 
 ### Branch Creation Protocol
-1. **Check Current Branch**: Run `git branch --show-current` to verify you're on `main` or another appropriate base branch.
-2. **Pull Latest Changes**: Run `git pull origin main` to ensure you have the latest code.
-3. **Create Feature Branch**: Use descriptive naming following these patterns:
+1. **Complete Exploration First**: Read docs, scan code, identify dependencies – NO branch creation or modifications yet.
+2. **Check Current Branch**: Run `git branch --show-current` to verify current branch.
+3. **Pull Latest Changes** (if no uncommitted changes): Run `git pull origin main` to ensure you have the latest code.
+4. **Create Feature Branch**: Use descriptive naming following these patterns:
    - `feat/[feature-name]` for new features (e.g., `feat/llm-dynamic-temperature`)
    - `fix/[bug-description]` for bug fixes (e.g., `fix/websocket-timeout`)
    - `refactor/[scope]` for refactoring (e.g., `refactor/ui-tool-card`)
    - `docs/[topic]` for documentation updates (e.g., `docs/api-reference`)
    - `test/[scope]` for test additions (e.g., `test/orchestrator-service`)
-4. **Verify Branch Creation**: Run `git branch --show-current` to confirm you're on the new branch.
+5. **Verify Branch Creation**: Run `git branch --show-current` to confirm you're on the new branch.
 
 ### Branch Naming Rules
 - Use lowercase with hyphens (kebab-case)
@@ -57,11 +57,20 @@ These rules apply to every AI assistant working on the YX NEXUS project. Treat t
 6. After merge, delete the feature branch
 
 ## Documentation-Driven Workflow
-1. **Task Intake** – Read the matching `docs/tasks/*.md` file; create or update `IMPLEMENTATION_PLAN.md` (see AI charter) referencing that brief.
-2. **Context Gathering** – Pull architectural/protocol knowledge from `docs/knowledge_base/` and `docs/api_reference/`.
-3. **Risk & History** – Search `docs/learn/` for similar incidents, capturing lessons in your plan.
-4. **Future Alignment** – Ensure changes respect items in `docs/Future_Roadmap.md`.
-5. Cite every consulted document in your plan or final report.
+1. **Exploration Phase (Read-Only)** – Read foundational docs, scan related code (≥3 files), identify dependencies. No modifications during this phase.
+2. **Task File Creation** – Create a three-part task file in `docs/tasks/YY-MMDD_name.md`:
+   - **CRITICAL**: Before creating any task file, MUST read `docs/tasks/README.md` to understand the required three-part format and guidelines.
+   - **Part 1: Task Brief** – Background, objectives, deliverables, risk assessment, dependencies, references, acceptance criteria.
+   - **Part 2: Implementation Plan** – Architecture overview, Phase 1/2/3... (decomposed by technical dependencies), detailed design with function signatures, complete test case lists, acceptance criteria.
+   - **Part 3: Completion Report** (added after execution) – Technical blog-style summary with implementation details, debugging processes, test verification, reflections.
+3. **Context Gathering** – Pull architectural/protocol knowledge from `docs/knowledge_base/` and `docs/api_reference/`.
+   - **Best Practice**: Always read README files in relevant directories before creating or modifying documentation.
+4. **Risk & History** – Search `docs/learn/` for similar incidents, capturing lessons in your task file.
+5. **Future Alignment** – Ensure changes respect items in `docs/Future_Roadmap.md`.
+6. **Wait for Approval** – User reviews and approves the task file before execution begins.
+7. **Execute Implementation** – Follow TDD workflow (RED → GREEN → REFACTOR), commit frequently.
+8. **Append Completion Report** – Add Part 3 to the same task file with technical blog-style documentation.
+9. Cite every consulted document in your task file and completion report.
 
 ## Build, Test, and Development Commands
 - Backend: `python -m venv .venv`, `source .venv/bin/activate`, `pip install -r requirements.txt`, `python -m nexus.main`
@@ -94,8 +103,9 @@ Always follow `docs/rules/frontend_design_principles.md` for motion, rhythm, and
 ## Reference Materials
 - `docs/developer_guides/01_SETUP_AND_RUN.md`
 - `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md`
-- `docs/tasks/`
-- `docs/learn/`
-- `docs/knowledge_base/`
-- `docs/api_reference/`
+- `docs/tasks/` – Single-conversation task files
+- `docs/strategic_plans/` – Multi-conversation strategic initiatives
+- `docs/learn/` – Postmortems and lessons learned
+- `docs/knowledge_base/` – Architecture and technical references
+- `docs/api_reference/` – API specifications
 - `docs/Future_Roadmap.md`

@@ -7,11 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `tests/README.md` – TDD workflow and testing pyramid expectations.
 - `docs/rules/frontend_design_principles.md` – required for any UI, motion, or styling work.
 - `docs/developer_guides/02_CONTRIBUTING_GUIDE.md` and `docs/developer_guides/03_TESTING_STRATEGY.md` – workflow and test patterns.
-- `docs/tasks/` – mission briefs for major subsystems; read the relevant file (e.g., `tasks/context_md_xml.md`) before drafting `IMPLEMENTATION_PLAN.md`.
+- `docs/tasks/` – Three-part task files (Task Brief → Implementation Plan → Completion Report) for single-conversation work. See `tasks/README.md` for detailed format specifications.
+- `docs/strategic_plans/` – Strategic planning documents for large-scale initiatives requiring multiple conversations or exceeding context limits.
 - `docs/knowledge_base/` and `docs/api_reference/` – architectural, protocol, and reference material to cite during planning.
 - `docs/learn/` – past incident reports and lessons; scan for similar issues when debugging.
 - `docs/Future_Roadmap.md` – upcoming initiatives that may affect scope or design decisions.
-- For unfamiliar domains, inspect at least three related implementations or tests before writing new code. Reference the material you consult in plans or status updates.
+- For unfamiliar domains, inspect at least three related implementations or tests before writing new code. Reference the material you consult in task files or status updates.
 
 ## Architecture Overview
 - **Backend (NEXUS)** – FastAPI event-driven service orchestrating `NexusBus`, `ConfigService`, `DatabaseService`, `PersistenceService`, `IdentityService`, `CommandService`, `ContextService`, `ToolExecutorService`, `LLMService`, and `OrchestratorService`, plus REST/WebSocket interfaces (`nexus/main.py`).
@@ -28,18 +29,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Tooling helpers: `scripts/shell/run.sh` (local bootstrap) and `docker-compose.yml` (container orchestration).
 
 ## Git & Branch Management (MANDATORY)
-**CRITICAL**: Before starting ANY task, you MUST create a dedicated feature branch. This project supports parallel development across multiple branches.
+**CRITICAL**: After the exploration phase (read-only), you MUST create a dedicated feature branch before any modifications. This project supports parallel development across multiple branches.
 
 ### Branch Creation Protocol
-1. **Check Current Branch**: Run `git branch --show-current` to verify you're on `main` or another appropriate base branch.
-2. **Pull Latest Changes**: Run `git pull origin main` to ensure you have the latest code.
-3. **Create Feature Branch**: Use descriptive naming following these patterns:
+1. **Complete Exploration First**: Read docs, scan code, identify dependencies – NO branch creation or modifications yet.
+2. **Check Current Branch**: Run `git branch --show-current` to verify current branch.
+3. **Pull Latest Changes** (if no uncommitted changes): Run `git pull origin main` to ensure you have the latest code.
+4. **Create Feature Branch**: Use descriptive naming following these patterns:
    - `feat/[feature-name]` for new features (e.g., `feat/llm-dynamic-temperature`)
    - `fix/[bug-description]` for bug fixes (e.g., `fix/websocket-timeout`)
    - `refactor/[scope]` for refactoring (e.g., `refactor/ui-tool-card`)
    - `docs/[topic]` for documentation updates (e.g., `docs/api-reference`)
    - `test/[scope]` for test additions (e.g., `test/orchestrator-service`)
-4. **Verify Branch Creation**: Run `git branch --show-current` to confirm you're on the new branch.
+5. **Verify Branch Creation**: Run `git branch --show-current` to confirm you're on the new branch.
 
 ### Branch Naming Rules
 - Use lowercase with hyphens (kebab-case)
@@ -63,30 +65,53 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 6. After merge, delete the feature branch
 
 ## Documentation-Driven Workflow
-- **Task Intake**: Identify the relevant entry in `docs/tasks/` and read it fully. Use `docs/tasks/Implementation/` when long-form implementation plans exist; otherwise create your own `IMPLEMENTATION_PLAN.md` at the project root.
-- **Context Gathering**: Pull architectural details from `docs/knowledge_base/` (e.g., `technical_references/command_system.md`) and protocol specifics from `docs/api_reference/`.
-- **Risk & History Check**: Search `docs/learn/` for similar incidents to avoid repeating past issues; note applicable lessons in your plan.
-- **Future Alignment**: Confirm your design does not conflict with items in `docs/Future_Roadmap.md`.
-- Cite the documentation you used inside `IMPLEMENTATION_PLAN.md`, work logs, and final summaries so reviewers can trace reasoning.
+
+### For Single-Conversation Tasks
+1. **Exploration Phase (Read-Only)**: Read foundational docs, scan related code (≥3 files), identify dependencies and risks. No modifications yet.
+2. **Create Branch**: After exploration, create feature branch following the protocol above.
+3. **Create Task File**: Create `docs/tasks/YY-MMDD_name.md` with three parts:
+   - **CRITICAL**: Before creating any task file, MUST read `docs/tasks/README.md` to understand the required three-part format and guidelines.
+   - **Part 1: Task Brief** – Background, objectives, deliverables, pragmatic risk assessment, real technical dependencies, references, acceptance criteria.
+   - **Part 2: Implementation Plan** – Architecture overview, phase-based decomposition (by technical dependencies), detailed design with function signatures, complete test case lists.
+   - **Part 3: Completion Report** – (Leave empty until execution completes)
+4. **Wait for Approval**: Present task file to user for review and approval.
+5. **Execute Implementation**: Follow TDD workflow (RED → GREEN → REFACTOR), commit frequently.
+6. **Append Completion Report**: Add Part 3 with technical blog-style documentation: implementation details, debugging processes (including failed attempts), test verification, reflections, and links to commits/PRs.
+
+### For Large-Scale Initiatives
+If a task requires multiple conversations or exceeds context limits (>15 files), create a strategic plan in `docs/strategic_plans/` that decomposes into multiple sub-tasks, each with its own task file in `docs/tasks/`.
+
+### Context Gathering
+- Pull architectural details from `docs/knowledge_base/` and protocol specifics from `docs/api_reference/`.
+- Search `docs/learn/` for similar incidents to avoid repeating past issues.
+- Confirm your design does not conflict with items in `docs/Future_Roadmap.md`.
+- **Best Practice**: Always read README files in relevant directories before creating or modifying documentation.
+- Cite every document consulted in your task file.
 
 ## Development Workflow
-1. **Branch Creation (MANDATORY FIRST STEP)**
+1. **Exploration Phase (MANDATORY FIRST STEP - Read-Only)**
+   - Read required documentation
+   - Scan at least 3 related code files
+   - Identify dependencies and risks
+   - NO code changes or branch creation yet
+
+2. **Branch Creation (MANDATORY SECOND STEP)**
    ```bash
    git branch --show-current        # verify current branch
-   git pull origin main             # pull latest changes
+   git pull origin main             # pull latest (if no uncommitted changes)
    git checkout -b [type]/[name]    # create feature branch
    git branch --show-current        # confirm new branch
    ```
    **Never work directly on `main`** unless explicitly instructed.
 
-2. **Backend**
+3. **Backend**
    ```bash
    python -m venv .venv
    source .venv/bin/activate
    pip install -r requirements.txt
    python -m nexus.main
    ```
-3. **Frontend**
+4. **Frontend**
    ```bash
    cd aura
    pnpm install
@@ -98,8 +123,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    pnpm test:coverage
    ```
    _Note_: there is no `pnpm typecheck` script today; add one only with team approval.
-4. Use `scripts/shell/run.sh` to launch both stacks locally once dependencies are installed. `docker-compose.yml` builds `nexus-backend` and `aura-frontend` on the `nexus-net` bridge network.
-5. Always follow the RED → GREEN → REFACTOR cadence from the AI charter and maintain an `IMPLEMENTATION_PLAN.md` while a task is in flight.
+5. Use `scripts/shell/run.sh` to launch both stacks locally once dependencies are installed. `docker-compose.yml` builds `nexus-backend` and `aura-frontend` on the `nexus-net` bridge network.
+6. Always follow the RED → GREEN → REFACTOR cadence from the AI charter and maintain a three-part task file in `docs/tasks/` while a task is in flight.
 
 ## Configuration & Secrets
 - Copy `.env.example` → `.env` at the repo root. Provide `MONGO_URI`, `GEMINI_API_KEY`, `TAVILY_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY` (if catalog entries require it), and set `NEXUS_ENV` (`development` by default).
@@ -128,11 +153,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Reference `scripts/shell/run.sh` for local bootstrapping and ensure new tooling respects existing ANSI logging/output conventions.
 
 ## Process & Collaboration
-- Plans must be multi-stage (`IMPLEMENTATION_PLAN.md`) and referenced in status updates. Archive or link plans when tasks finish.
+- Task files must be three-part (Task Brief → Implementation Plan → Completion Report) and created in `docs/tasks/YY-MMDD_name.md`.
 - Respect the retry limit in the AI charter: stop after three failed attempts and escalate with the required report.
 - Interrogate user requests against security, architecture, and process priorities. When guidance conflicts, cite the charter and propose safer alternatives.
 - Use Conventional Commits (`feat:`, `fix:`, `refactor(ui):`), English only, no AI signatures. Explain the "why" within commit bodies when not obvious.
 - Surface risks, technical debt, and smells proactively; request prioritization before refactoring unrelated areas.
+- Completion reports (Part 3) must be technical blog-style: document real debugging processes including failed attempts, technical decisions, and reflections.
 
 ## Security & Operations
 - Protect WebSocket endpoints during demos (use password-protected tunnels such as `ngrok`).
@@ -143,7 +169,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `AGENTS.md` – mirrors this policy for other agents.
 - `docs/developer_guides/01_SETUP_AND_RUN.md`, `02_CONTRIBUTING_GUIDE.md`, `03_TESTING_STRATEGY.md`, `04_AI_COLLABORATION_CHARTER.md` – canonical process documentation.
 - `docs/rules/frontend_design_principles.md` – non-negotiable UI/UX philosophy.
-- `docs/tasks/` – mission briefs and architecture plans for major subsystems.
+- `docs/tasks/` – Three-part task files for single-conversation work. See `tasks/README.md` for format specifications.
+- `docs/strategic_plans/` – Strategic planning documents for large-scale initiatives.
 - `docs/learn/` – lessons learned repository for prior incidents and fixes.
 - `docs/knowledge_base/` & `docs/api_reference/` – architectural and protocol references.
 - `docs/Future_Roadmap.md` – upcoming initiatives to consider during planning.
