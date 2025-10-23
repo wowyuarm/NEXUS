@@ -23,13 +23,19 @@ This charter is not a set of guidelines; it is a system of **binding, executable
 
 Every implementation task must follow this sequence without exception:
 
-1.  **Contextual Scan**: Read the repository to understand existing patterns. Identify at least three similar implementations or components.
-2.  **Phased Planning (Mandatory)**: Deconstruct the task into 3–5 distinct stages. Document this in a temporary `IMPLEMENTATION_PLAN.md` using the template below.
-3.  **Test First (Red)**: Write or extend a test for the immediate requirement. Ensure it fails first.
-4.  **Minimal Implementation (Green)**: Write the minimum amount of code required to make the test pass.
-5.  **Refactor**: Clean up the code, improving names, boundaries, and structure, while ensuring all tests continue to pass.
-6.  **Self-Audit & Commit**: Run formatters and linters. Review your own code. Commit with a message explaining the "why," linking to the implementation plan.
-7.  **Update & Archive**: Mark the stage in `IMPLEMENTATION_PLAN.md` as complete. Upon task completion, the plan can be archived or referenced in the Pull Request.
+1.  **Branch Creation (MANDATORY)**: Before any code changes, create a dedicated feature branch:
+    - Check current branch: `git branch --show-current`
+    - Pull latest: `git pull origin main`
+    - Create branch: `git checkout -b [type]/[descriptive-name]` (e.g., `feat/config-hot-reload`)
+    - Verify: `git branch --show-current`
+    - **Never work directly on `main`** unless explicitly instructed
+2.  **Contextual Scan**: Read the repository to understand existing patterns. Identify at least three similar implementations or components.
+3.  **Phased Planning (Mandatory)**: Deconstruct the task into 3–5 distinct stages. Document this in a temporary `IMPLEMENTATION_PLAN.md` using the template below.
+4.  **Test First (Red)**: Write or extend a test for the immediate requirement. Ensure it fails first.
+5.  **Minimal Implementation (Green)**: Write the minimum amount of code required to make the test pass.
+6.  **Refactor**: Clean up the code, improving names, boundaries, and structure, while ensuring all tests continue to pass.
+7.  **Self-Audit & Commit**: Run formatters and linters. Review your own code. Commit with a message explaining the "why," linking to the implementation plan.
+8.  **Update & Archive**: Mark the stage in `IMPLEMENTATION_PLAN.md` as complete. Upon task completion, the plan can be archived or referenced in the Pull Request.
 
 ### `IMPLEMENTATION_PLAN.md` Template
 

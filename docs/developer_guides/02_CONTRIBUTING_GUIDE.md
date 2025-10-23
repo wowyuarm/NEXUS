@@ -25,33 +25,60 @@ Review these documents at the start of every task. Reference them in your implem
 - **Transparency** — document assumptions, risks, and trade-offs explicitly in your notes or plan.
 
 ## Default Workflow
-1. **Contextual Scan**
+1. **Branch Creation (MANDATORY FIRST STEP)**
+   - Check current branch: `git branch --show-current`
+   - Pull latest changes: `git pull origin main`
+   - Create feature branch: `git checkout -b [type]/[descriptive-name]`
+     - Types: `feat/`, `fix/`, `refactor/`, `docs/`, `test/`
+     - Example: `feat/config-hot-reload`, `fix/websocket-timeout`
+   - Verify branch: `git branch --show-current`
+   - **NEVER work directly on `main`** unless explicitly instructed
+2. **Contextual Scan**
    - Read the required docs above.
    - Locate adjacent implementations with `rg`, repo search, or directory inspection.
    - Collect open design constraints (e.g., prompt layers, event contracts, motion rules).
-2. **Implementation Plan**
+3. **Implementation Plan**
    - Create or update `IMPLEMENTATION_PLAN.md` following the template in the AI charter.
    - Break work into 3–5 verifiable stages; keep only one stage `In Progress` at a time.
-3. **Test First (RED)**
+4. **Test First (RED)**
    - Add or extend tests in the correct location (`tests/nexus/...` or `aura/src/**/__tests__/`).
    - Run the relevant suite and confirm the new test fails for the expected reason.
-4. **Minimal Implementation (GREEN)**
+5. **Minimal Implementation (GREEN)**
    - Write the smallest change to satisfy the failing test.
    - Stay within existing architectural boundaries (service, feature, store).
-5. **Refactor & Harden**
+6. **Refactor & Harden**
    - Clean code and tests for readability and consistency.
    - Ensure formatting (`black`, Prettier) and lint tools (`flake8`, ESLint) pass.
    - Run the full relevant test scope (`pytest`, `pnpm test:run`, etc.).
-6. **Self-Audit & Status Update**
+7. **Self-Audit & Status Update**
    - Verify no unrelated files changed and no TODOs are left without tracking.
    - Update the implementation plan, marking completed stages.
    - Summarize results, risks, and test commands in your hand-off or PR description.
 
 ## Branching & Commits
-- Branch from `main`; prefer descriptive names such as `feat/llm-dynamic-temperature`.
-- Follow Conventional Commits (English only). Examples: `feat: add tool execution audit log`, `fix: respect websocket retry delay`, `refactor(ui): simplify tool card motion`.
+
+### Branch Management
+- **ALWAYS create a branch before starting work** — this project supports parallel development.
+- Branch from `main`; use descriptive names following these patterns:
+  - `feat/[feature-name]` for new features (e.g., `feat/llm-dynamic-temperature`)
+  - `fix/[bug-description]` for bug fixes (e.g., `fix/websocket-timeout`)
+  - `refactor/[scope]` for refactoring (e.g., `refactor/ui-tool-card`)
+  - `docs/[topic]` for documentation (e.g., `docs/api-reference`)
+  - `test/[scope]` for test additions (e.g., `test/orchestrator-service`)
+- Keep branch names lowercase with hyphens (kebab-case), 3-5 words max.
+- Push your branch regularly: `git push -u origin [branch-name]`
+- **Never work directly on `main`** unless explicitly instructed.
+
+### Commit Guidelines
+- Follow Conventional Commits (English only). Examples:
+  - `feat: add tool execution audit log`
+  - `fix: respect websocket retry delay`
+  - `refactor(ui): simplify tool card motion`
+  - `docs: update AI collaboration charter`
+  - `test: add integration tests for orchestrator`
 - Each commit must be independently buildable and accompanied by passing tests for the changed area.
 - Reference issue IDs or task identifiers when available.
+- Commit frequently with clear, descriptive messages explaining the "why" behind changes.
 
 ## Local Command Reference
 - Backend setup: `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`.

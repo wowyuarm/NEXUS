@@ -27,6 +27,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Testing** – Backend suites live in `tests/nexus/{unit,integration,e2e}` with fixtures in `tests/conftest.py`; frontend Vitest suites sit alongside code under `__tests__/` directories (e.g., `aura/src/features/chat/components/__tests__/`).
 - Tooling helpers: `scripts/shell/run.sh` (local bootstrap) and `docker-compose.yml` (container orchestration).
 
+## Git & Branch Management (MANDATORY)
+**CRITICAL**: Before starting ANY task, you MUST create a dedicated feature branch. This project supports parallel development across multiple branches.
+
+### Branch Creation Protocol
+1. **Check Current Branch**: Run `git branch --show-current` to verify you're on `main` or another appropriate base branch.
+2. **Pull Latest Changes**: Run `git pull origin main` to ensure you have the latest code.
+3. **Create Feature Branch**: Use descriptive naming following these patterns:
+   - `feat/[feature-name]` for new features (e.g., `feat/llm-dynamic-temperature`)
+   - `fix/[bug-description]` for bug fixes (e.g., `fix/websocket-timeout`)
+   - `refactor/[scope]` for refactoring (e.g., `refactor/ui-tool-card`)
+   - `docs/[topic]` for documentation updates (e.g., `docs/api-reference`)
+   - `test/[scope]` for test additions (e.g., `test/orchestrator-service`)
+4. **Verify Branch Creation**: Run `git branch --show-current` to confirm you're on the new branch.
+
+### Branch Naming Rules
+- Use lowercase with hyphens (kebab-case)
+- Be descriptive but concise (3-5 words max)
+- Include scope/context when helpful
+- Examples: `feat/config-hot-reload`, `fix/deepseek-streaming-timeout`, `refactor/aura-store-types`
+
+### Working on Branches
+- **Never work directly on `main`** unless explicitly instructed
+- Keep branches focused on a single task or feature
+- Commit frequently with clear conventional commit messages
+- Push your branch regularly: `git push -u origin [branch-name]`
+- Before merging, ensure all tests pass and code is formatted
+
+### Branch Lifecycle
+1. Create branch from `main`
+2. Implement changes following TDD workflow
+3. Commit with conventional commit messages
+4. Push branch to remote
+5. Create Pull Request when ready
+6. After merge, delete the feature branch
+
 ## Documentation-Driven Workflow
 - **Task Intake**: Identify the relevant entry in `docs/tasks/` and read it fully. Use `docs/tasks/Implementation/` when long-form implementation plans exist; otherwise create your own `IMPLEMENTATION_PLAN.md` at the project root.
 - **Context Gathering**: Pull architectural details from `docs/knowledge_base/` (e.g., `technical_references/command_system.md`) and protocol specifics from `docs/api_reference/`.
@@ -35,14 +70,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Cite the documentation you used inside `IMPLEMENTATION_PLAN.md`, work logs, and final summaries so reviewers can trace reasoning.
 
 ## Development Workflow
-1. **Backend**
+1. **Branch Creation (MANDATORY FIRST STEP)**
+   ```bash
+   git branch --show-current        # verify current branch
+   git pull origin main             # pull latest changes
+   git checkout -b [type]/[name]    # create feature branch
+   git branch --show-current        # confirm new branch
+   ```
+   **Never work directly on `main`** unless explicitly instructed.
+
+2. **Backend**
    ```bash
    python -m venv .venv
    source .venv/bin/activate
    pip install -r requirements.txt
    python -m nexus.main
    ```
-2. **Frontend**
+3. **Frontend**
    ```bash
    cd aura
    pnpm install
@@ -54,8 +98,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
    pnpm test:coverage
    ```
    _Note_: there is no `pnpm typecheck` script today; add one only with team approval.
-3. Use `scripts/shell/run.sh` to launch both stacks locally once dependencies are installed. `docker-compose.yml` builds `nexus-backend` and `aura-frontend` on the `nexus-net` bridge network.
-4. Always follow the RED → GREEN → REFACTOR cadence from the AI charter and maintain an `IMPLEMENTATION_PLAN.md` while a task is in flight.
+4. Use `scripts/shell/run.sh` to launch both stacks locally once dependencies are installed. `docker-compose.yml` builds `nexus-backend` and `aura-frontend` on the `nexus-net` bridge network.
+5. Always follow the RED → GREEN → REFACTOR cadence from the AI charter and maintain an `IMPLEMENTATION_PLAN.md` while a task is in flight.
 
 ## Configuration & Secrets
 - Copy `.env.example` → `.env` at the repo root. Provide `MONGO_URI`, `GEMINI_API_KEY`, `TAVILY_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY` (if catalog entries require it), and set `NEXUS_ENV` (`development` by default).

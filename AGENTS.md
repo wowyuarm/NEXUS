@@ -21,6 +21,41 @@ These rules apply to every AI assistant working on the YX NEXUS project. Treat t
 - **Testing**: Backend tests in `tests/nexus/{unit,integration,e2e}`, frontend Vitest suites colocated in `__tests__/` folders.
 - Helper tooling: `scripts/shell/run.sh`, `docker-compose.yml`.
 
+## Git & Branch Management (MANDATORY)
+**CRITICAL**: Before starting ANY task, you MUST create a dedicated feature branch. This project supports parallel development across multiple branches.
+
+### Branch Creation Protocol
+1. **Check Current Branch**: Run `git branch --show-current` to verify you're on `main` or another appropriate base branch.
+2. **Pull Latest Changes**: Run `git pull origin main` to ensure you have the latest code.
+3. **Create Feature Branch**: Use descriptive naming following these patterns:
+   - `feat/[feature-name]` for new features (e.g., `feat/llm-dynamic-temperature`)
+   - `fix/[bug-description]` for bug fixes (e.g., `fix/websocket-timeout`)
+   - `refactor/[scope]` for refactoring (e.g., `refactor/ui-tool-card`)
+   - `docs/[topic]` for documentation updates (e.g., `docs/api-reference`)
+   - `test/[scope]` for test additions (e.g., `test/orchestrator-service`)
+4. **Verify Branch Creation**: Run `git branch --show-current` to confirm you're on the new branch.
+
+### Branch Naming Rules
+- Use lowercase with hyphens (kebab-case)
+- Be descriptive but concise (3-5 words max)
+- Include scope/context when helpful
+- Examples: `feat/config-hot-reload`, `fix/deepseek-streaming-timeout`, `refactor/aura-store-types`
+
+### Working on Branches
+- **Never work directly on `main`** unless explicitly instructed
+- Keep branches focused on a single task or feature
+- Commit frequently with clear conventional commit messages
+- Push your branch regularly: `git push -u origin [branch-name]`
+- Before merging, ensure all tests pass and code is formatted
+
+### Branch Lifecycle
+1. Create branch from `main`
+2. Implement changes following TDD workflow
+3. Commit with conventional commit messages
+4. Push branch to remote
+5. Create Pull Request when ready
+6. After merge, delete the feature branch
+
 ## Documentation-Driven Workflow
 1. **Task Intake** – Read the matching `docs/tasks/*.md` file; create or update `IMPLEMENTATION_PLAN.md` (see AI charter) referencing that brief.
 2. **Context Gathering** – Pull architectural/protocol knowledge from `docs/knowledge_base/` and `docs/api_reference/`.

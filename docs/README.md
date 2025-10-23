@@ -12,10 +12,11 @@ The `docs/` directory is the knowledge nervous system for YX NEXUS. Every AI con
 - **`Future_Roadmap.md`** – Upcoming initiatives and deferred ideas. Check for conflicts or dependencies during planning.
 
 ## Workflow Integration
-1. **Task Kickoff**: Read the relevant `docs/tasks/*.md`, pull supporting context from `knowledge_base/` and `api_reference/`, and search `learn/` for similar issues.
-2. **Planning**: Draft or update `IMPLEMENTATION_PLAN.md`, citing every document consulted (path + key insight). Store long-form plans in `tasks/Implementation/` if work spans milestones.
-3. **Execution**: Follow process checklists from `developer_guides/`, apply design rules, and stick to the tests spelled out in `03_TESTING_STRATEGY.md`.
-4. **Delivery**: When handing off, link to the docs that informed your work and note any new knowledge captured in `learn/` or updates needed elsewhere.
+1. **Branch Creation (MANDATORY)**: Before starting any work, create a dedicated feature branch following the protocol in `developer_guides/02_CONTRIBUTING_GUIDE.md`. Never work directly on `main`. Use naming pattern `[type]/[descriptive-name]` (e.g., `feat/config-hot-reload`, `fix/websocket-timeout`).
+2. **Task Kickoff**: Read the relevant `docs/tasks/*.md`, pull supporting context from `knowledge_base/` and `api_reference/`, and search `learn/` for similar issues.
+3. **Planning**: Draft or update `IMPLEMENTATION_PLAN.md`, citing every document consulted (path + key insight). Store long-form plans in `tasks/Implementation/` if work spans milestones.
+4. **Execution**: Follow process checklists from `developer_guides/`, apply design rules, and stick to the tests spelled out in `03_TESTING_STRATEGY.md`.
+5. **Delivery**: When handing off, link to the docs that informed your work and note any new knowledge captured in `learn/` or updates needed elsewhere.
 
 ## Keeping Docs Alive (AI Responsibilities)
 - **Exploration**: During contextual scans, note mismatches between docs and code. Log gaps in your plan; propose doc updates alongside code changes.

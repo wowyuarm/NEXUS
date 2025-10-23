@@ -21,7 +21,38 @@ git clone <your-repository-url>
 cd NEXUS
 ```
 
-### Step 2: Configure Environment Variables
+### Step 2: Create a Feature Branch (MANDATORY)
+
+**IMPORTANT**: Before making any changes, create a dedicated feature branch. This project supports parallel development and **you should never work directly on `main`**.
+
+```bash
+# Check current branch (should be 'main')
+git branch --show-current
+
+# Pull latest changes
+git pull origin main
+
+# Create your feature branch
+git checkout -b [type]/[descriptive-name]
+# Examples:
+#   git checkout -b feat/my-new-feature
+#   git checkout -b fix/bug-description
+#   git checkout -b docs/update-readme
+
+# Verify you're on the new branch
+git branch --show-current
+```
+
+**Branch naming conventions**:
+- `feat/[name]` - for new features
+- `fix/[name]` - for bug fixes
+- `refactor/[name]` - for refactoring
+- `docs/[name]` - for documentation
+- `test/[name]` - for tests
+
+Use lowercase with hyphens (kebab-case), keep it concise (3-5 words max).
+
+### Step 3: Configure Environment Variables
 
 The project uses a `.env` file in the root directory to manage secret keys and environment-specific configurations.
 
@@ -39,7 +70,7 @@ The project uses a `.env` file in the root directory to manage secret keys and e
 
 The backend is a Python application. We will set up a dedicated virtual environment for it.
 
-### Step 1: Create and Activate Virtual Environment
+### Step 4: Create and Activate Virtual Environment
 
 From the project's root directory (`NEXUS/`):
 ```bash
@@ -53,7 +84,7 @@ source .venv/bin/activate
 # .venv\Scripts\activate
 ```
 
-### Step 2: Install Python Dependencies
+### Step 5: Install Python Dependencies
 
 With the virtual environment activated, install all required packages:
 ```bash
@@ -61,7 +92,7 @@ pip install -r requirements.txt
 ```
 This will install all application and testing dependencies.
 
-### Step 3: Run the Backend
+### Step 6: Run the Backend
 
 You can now start the NEXUS backend server:
 ```bash
@@ -73,7 +104,7 @@ If successful, you will see logs indicating that the services have been initiali
 
 The frontend is a React application built with Vite.
 
-### Step 1: Install Node.js Dependencies
+### Step 7: Install Node.js Dependencies
 
 Navigate to the `aura` directory and install the dependencies using `pnpm`:
 ```bash
@@ -81,7 +112,7 @@ cd aura
 pnpm install
 ```
 
-### Step 2: Configure Frontend Environment
+### Step 8: Configure Frontend Environment
 
 The AURA frontend reads its configuration from its own `.env` file.
 
@@ -91,7 +122,7 @@ The AURA frontend reads its configuration from its own `.env` file.
     ```
 2.  The default value `VITE_WS_URL=ws://localhost:8000/api/v1/ws` is typically correct for local development and does not need to be changed.
 
-### Step 3: Run the Frontend
+### Step 9: Run the Frontend
 
 Start the Vite development server:
 ```bash
