@@ -636,12 +636,17 @@ Link to commits, PRs, and related issues.
    - User reviews and approves or requests changes
 
 5. **Execute Implementation**
-   - Follow TDD workflow
-   - Commit frequently
+   - Follow TDD workflow (RED → GREEN → REFACTOR)
+   - Run tests and verify functionality
 
-6. **Append Completion Report**
+6. **Append Completion Report (MANDATORY BEFORE COMMIT)**
    - Add Part 3 with technical blog-style documentation
    - Include real debugging stories, reflections, and verification results
+   - **CRITICAL**: This must be completed BEFORE any commit
+
+7. **Wait for User Authorization**
+   - Present completion status to user
+   - **NEVER commit unless user explicitly requests it**
 
 ---
 

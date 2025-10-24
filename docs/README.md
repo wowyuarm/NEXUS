@@ -36,8 +36,9 @@ Choose the appropriate workflow based on task complexity:
    - **Part 2: Implementation Plan** – Architecture overview, phase-based decomposition (by technical dependencies), detailed design with function signatures, complete test case lists.
    - **Part 3: Completion Report** – (Added after execution) Technical blog-style documentation with implementation details, debugging processes, reflections.
 4. **Wait for Approval**: Present task file to user for review and approval.
-5. **Execution**: Follow TDD workflow (RED → GREEN → REFACTOR), commit frequently.
-6. **Append Completion Report**: Add Part 3 to the same task file with real debugging stories, technical decisions, test verification, and reflections.
+5. **Execution**: Follow TDD workflow (RED → GREEN → REFACTOR), run tests and verify functionality.
+6. **Append Completion Report (MANDATORY BEFORE COMMIT)**: Add Part 3 to the same task file with real debugging stories, technical decisions, test verification, and reflections. This must be completed BEFORE any commit.
+7. **Wait for User Authorization**: Present completion status to user. **NEVER commit unless user explicitly requests it**.
 
 ---
 

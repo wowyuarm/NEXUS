@@ -90,17 +90,22 @@ Choose the appropriate workflow based on task complexity:
    - Ensure formatting (`black`, Prettier) and lint tools (`flake8`, ESLint) pass.
    - Run the full relevant test scope (`pytest`, `pnpm test:run`, etc.).
 
-8. **Self-Audit & Commit**
+8. **Self-Audit**
    - Verify no unrelated files changed and no TODOs are left without tracking.
-   - Commit frequently with clear conventional commit messages.
+   - Run formatters and linters to ensure code quality.
 
-9. **Append Completion Report**
+9. **Append Completion Report (MANDATORY BEFORE COMMIT)**
    - Add Part 3 to the same task file with technical blog-style documentation:
      - Implementation overview and key decisions
      - Problems encountered and debugging processes (with failed attempts)
      - Test verification results (commands + outputs)
      - Reflections and improvement suggestions
-     - Links to relevant commits/PRs
+   - **CRITICAL**: This must be completed BEFORE any commit.
+
+10. **Wait for User Authorization to Commit**
+    - Present completion status to user.
+    - **NEVER commit unless user explicitly requests it**.
+    - When user requests commit, use clear conventional commit messages.
 
 ---
 

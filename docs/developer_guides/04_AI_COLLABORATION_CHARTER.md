@@ -63,15 +63,19 @@ The workflow varies based on task complexity. Choose the appropriate path:
 
 7.  **Refactor**: Clean up the code, improving names, boundaries, and structure, while ensuring all tests continue to pass.
 
-8.  **Self-Audit & Commit**: Run formatters and linters. Review your own code. Commit with a message explaining the "why."
+8.  **Self-Audit**: Run formatters and linters. Review your own code for cleanup opportunities.
 
-9.  **Append Completion Report**: Add Part 3 to the same task file:
+9.  **Append Completion Report (MANDATORY BEFORE COMMIT)**: Add Part 3 to the same task file:
     - Technical blog-style documentation
     - Implementation details with key decisions
-    - Problems encountered and debugging processes
-    - Test verification results
+    - Problems encountered and debugging processes (including failed attempts)
+    - Test verification results (commands + outputs)
     - Reflections and improvement suggestions
-    - Links to relevant commits/PRs
+    - **CRITICAL**: This must be completed BEFORE any commit.
+
+10. **Wait for User Authorization**: Present completion status to user. **NEVER commit unless user explicitly requests it**. When authorized, commit with a message explaining the "why."
+
+11. **Final Confirmation**: Re-read your implementation. Confirm adherence to architecture principles and completion of acceptance criteria.
 
 ---
 
@@ -142,6 +146,7 @@ A task is considered complete only when all of the following are true:
 -   [ ] All relevant tests have been written and are passing.
 -   [ ] The code adheres to all project conventions and architectural principles.
 -   [ ] No linter or formatter warnings remain.
+-   [ ] Part 3 (Completion Report) has been appended to the task file with technical blog-level detail **BEFORE commit**.
+-   [ ] User has explicitly authorized the commit (AI never commits without user request).
 -   [ ] The commit messages are clear and follow Conventional Commits format.
--   [ ] Part 3 (Completion Report) has been appended to the task file with technical blog-level detail.
 -   [ ] No untracked `TODO`s exist (if a `TODO` must remain, it must be linked to `docs/future/Future_Roadmap.md`).

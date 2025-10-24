@@ -98,12 +98,14 @@ multi_edit(
    - **Solution:** Use multi-step approach:
      - Step 1: `write_to_file` with Part 1 (Task Brief)
      - Step 2: `edit` to append Part 2 (Implementation Plan)
-     - Step 3: `edit` to append Part 3 (Completion Report) after execution
+     - Step 3: Leave Part 3 empty until after implementation
    - Never try to write entire task file in one operation
 4. **Approval:** Wait for user OK
 5. **TDD:** RED → GREEN → REFACTOR
-6. **Commit:** Frequently, conventional format
-7. **Report:** Add Part 3 with debugging details, failures, reflections
+6. **Implementation:** Make changes, run tests, verify functionality
+7. **Completion Report (MANDATORY BEFORE COMMIT):** Add Part 3 with debugging details, failures, reflections
+8. **Self-Review:** Audit your changes - cleanup code, verify architecture alignment, check test coverage
+9. **Wait for User:** Present completion status. **NEVER commit unless user explicitly requests it**
 
 ### Large (>15 files)
 Strategic plan in `docs/strategic_plans/` → decompose to medium tasks
