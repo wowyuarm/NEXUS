@@ -7,9 +7,12 @@ export { Button } from './Button';
 export { Timestamp } from './Timestamp';
 export { AutoResizeTextarea } from './AutoResizeTextarea';
 export { Textarea } from './Textarea';
+export { Input } from './Input';
+export { Select } from './Select';
+export { Slider } from './Slider';
 
 // 导出类型定义
 export type { AutoResizeTextareaRef } from './AutoResizeTextarea';
-
-// 未来的UI组件可以在这里添加
-// export { Input } from './Input';
+export type { InputProps } from './Input';
+export type { SelectOption, SelectProps } from './Select';
+export type { SliderProps } from './Slider';

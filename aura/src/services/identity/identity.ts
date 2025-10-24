@@ -139,6 +139,40 @@ export const IdentityService = {
   },
 
   /**
+   * Sign arbitrary data (for REST API requests)
+   * 
+   * @param data - String data to sign (should be pre-serialized if object)
+   * @returns Auth object containing publicKey and signature
+   */
+  async signData(data: string): Promise<CommandAuth> {
+    try {
+      // Get the stored private key
+      const privateKey = localStorage.getItem(STORAGE_KEY);
+      
+      if (!privateKey) {
+        throw new Error('No identity found. Cannot sign data without a private key.');
+      }
+
+      // Create wallet instance from private key
+      const wallet = new Wallet(privateKey);
+
+      // Hash the data using keccak256
+      const messageHash = keccak256(toUtf8Bytes(data));
+
+      // Sign the message hash directly using the signing key
+      const signature = wallet.signingKey.sign(messageHash);
+
+      return {
+        publicKey: wallet.address,
+        signature: signature.serialized
+      };
+    } catch (error) {
+      console.error('Failed to sign data:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Export mnemonic phrase for identity backup
    * Returns the 12 or 24 word mnemonic phrase.
    * 

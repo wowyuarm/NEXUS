@@ -42,7 +42,7 @@ class TestCommandServiceUnit:
         Test that get_all_command_definitions() includes all registered commands.
         
         After auto-discovery, the service should return definitions for:
-        ping, help, clear, identity, and theme commands.
+        ping, help, clear, identity, theme, config, prompt, and history commands.
         """
         result = command_service.get_all_command_definitions()
         command_names = [cmd["name"] for cmd in result]
@@ -53,9 +53,12 @@ class TestCommandServiceUnit:
         assert "clear" in command_names, "clear command should be discovered"
         assert "identity" in command_names, "identity command should be discovered"
         assert "theme" in command_names, "theme command should be discovered"
+        assert "config" in command_names, "config command should be discovered"
+        assert "prompt" in command_names, "prompt command should be discovered"
+        assert "history" in command_names, "history command should be discovered"
         
-        # Assert we have exactly 5 commands
-        assert len(result) == 5, f"Expected 5 commands, got {len(result)}"
+        # Assert we have exactly 8 commands
+        assert len(result) == 8, f"Expected 8 commands, got {len(result)}"
 
     def test_get_all_command_definitions_with_correct_metadata(self, command_service):
         """

@@ -162,19 +162,28 @@ class CommandService:
                 return
 
             command_name = cmd_definition["name"]
+            handler_type = cmd_definition.get("handler", "server")
 
-            # Find and validate the execute function
+            # REST commands don't require execute() function - they are handled by REST API
+            # All other command types (server/websocket/client) have execute() functions
+            if handler_type == "rest":
+                # Register definition only (no executor needed)
+                self._command_definitions[command_name] = cmd_definition
+                logger.info(f"Registered {handler_type} command: {command_name} from {module_name}")
+                return
+
+            # For server/websocket/client commands, execute function is required
             if hasattr(module, "execute"):
                 execute_function = getattr(module, "execute")
                 if callable(execute_function):
-                    # Register the command
+                    # Register both executor and definition
                     self._command_registry[command_name] = execute_function
                     self._command_definitions[command_name] = cmd_definition
                     logger.info(f"Registered command: {command_name} from {module_name}")
                 else:
                     logger.warning(f"Found execute function in {module_name} but it's not callable")
             else:
-                logger.warning(f"Execute function not found in {module_name}")
+                logger.warning(f"Execute function not found in {module_name} for {handler_type} command")
 
         except Exception as e:
             logger.error(f"Error processing command definition {cmd_def_name} in {module_name}: {e}")

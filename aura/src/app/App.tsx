@@ -3,6 +3,7 @@ import { useThemeManager } from "@/hooks/useThemeManager";
 import { Modal, Panel } from "@/components/common";
 import { useUIStore } from "@/stores/uiStore";
 import { IdentityPanel } from "@/features/command/components/IdentityPanel";
+import { ConfigPanel } from "@/features/command/components/ConfigPanel";
 
 function App() {
   useThemeManager();
@@ -20,8 +21,14 @@ function App() {
         </Panel>
       </Modal>
       
+      {/* Config Management Modal */}
+      <Modal isOpen={activeModal === 'config'} onClose={closeModal}>
+        <Panel title="运行时配置 (Runtime Configuration)" onClose={closeModal}>
+          <ConfigPanel />
+        </Panel>
+      </Modal>
+      
       {/* Future modals can be added here:
-          - Config panel: activeModal === 'config'
           - Prompt panel: activeModal === 'prompt'
       */}
     </>
