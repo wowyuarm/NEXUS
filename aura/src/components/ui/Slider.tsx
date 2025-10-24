@@ -1,11 +1,35 @@
 /**
  * Slider Component
  * 
- * Range slider for numeric values with grayscale styling
+ * Range slider for numeric values with grayscale styling.
+ * Features smooth transitions during drag using Framer Motion spring physics.
+ * 
+ * Usage Scenarios:
+ * - Temperature/top_p parameter adjustment (LLM configs)
+ * - Volume/opacity controls
+ * - Any numeric value with min/max range
+ * 
+ * Design:
+ * - Grayscale styling
+ * - Spring-based smooth transitions (not linear)
+ * - Visual feedback during drag (border emphasis, shadow)
+ * - Disabled state support
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const SPRING_TRANSITION = {
+  type: 'spring' as const,
+  stiffness: 300,
+  damping: 30,
+  mass: 0.5,
+};
 
 export interface SliderProps {
   /** Current value (array for compatibility with shadcn API) */
@@ -87,26 +111,28 @@ export const Slider: React.FC<SliderProps> = ({
     >
       {/* Track Background */}
       <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted/30">
-        {/* Track Fill */}
-        <div
-          className={cn(
-            'absolute h-full bg-foreground/20 transition-all duration-100',
-            isDragging && 'transition-none'
-          )}
-          style={{ width: `${percentage}%` }}
+        {/* Track Fill - Smooth spring animation */}
+        <motion.div
+          className="absolute h-full bg-foreground/20"
+          animate={{ width: `${percentage}%` }}
+          transition={SPRING_TRANSITION}
         />
       </div>
 
-      {/* Thumb */}
-      <div
+      {/* Thumb - Smooth spring animation */}
+      <motion.div
         className={cn(
           'absolute h-4 w-4 rounded-full border-2 border-foreground/30 bg-background',
-          'shadow-sm transition-all duration-100',
-          'hover:scale-110 hover:border-foreground/50',
-          isDragging && 'scale-110 border-foreground/50 shadow-md transition-none',
+          'shadow-sm',
+          'hover:border-foreground/50 hover:opacity-96',
+          isDragging && 'border-foreground/50 shadow-md',
           disabled && 'cursor-not-allowed opacity-50'
         )}
-        style={{ left: `${percentage}%`, transform: 'translateX(-50%)' }}
+        animate={{ 
+          left: `${percentage}%`,
+        }}
+        transition={SPRING_TRANSITION}
+        style={{ transform: 'translateX(-50%)' }}
       />
     </div>
   );

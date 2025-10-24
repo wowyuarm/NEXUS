@@ -6,13 +6,16 @@
  * 
  * Design Standards (matching IdentityPanel):
  * - Fixed height: 360px
+ * - Consistent padding: px-7 py-4
+ * - Section spacing: space-y-3 (compact layout)
+ * - Help button inline with first label for space efficiency
  * - Grayscale only (no color emphasis)
- * - Smooth animations with FRAMER.reveal
- * - Consistent spacing and padding
+ * - Smooth page transitions with FRAMER.reveal (350ms slide animation)
+ * - Footer integrated within fixed container
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, Check } from 'lucide-react';
+import { Loader2, Check, HelpCircle, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button, Select, Slider, Input } from '@/components/ui';
 import { useUIStore } from '@/stores/uiStore';
@@ -28,6 +31,7 @@ import type { Message } from '@/features/chat/types';
 // ============================================================================
 
 type LoadingState = 'idle' | 'loading' | 'success' | 'error';
+type PanelMode = 'main' | 'help';
 
 interface FieldOption {
   type: 'select' | 'slider' | 'number' | 'text';
@@ -42,6 +46,25 @@ interface FieldOption {
 // ============================================================================
 // Helper Functions
 // ============================================================================
+
+/**
+ * Format number for display based on step size
+ * 
+ * @param value - The number to format
+ * @param step - The step size (determines decimal places)
+ * @returns Formatted number string
+ */
+function formatNumberValue(value: number, step: number = 0.01): string {
+  if (Number.isInteger(value)) {
+    return value.toString();
+  }
+  
+  // Determine decimal places based on step
+  // step >= 0.1 → 1 decimal (e.g., temperature: 0.8)
+  // step < 0.1  → 2 decimals (e.g., top_p: 0.95)
+  const decimals = step >= 0.1 ? 1 : 2;
+  return value.toFixed(decimals);
+}
 
 /**
  * Canonicalize JSON for signing (matches backend format)
@@ -79,6 +102,7 @@ export const ConfigPanel: React.FC = () => {
   // State
   // ============================================================================
 
+  const [mode, setMode] = useState<PanelMode>('main');
   const [loadingState, setLoadingState] = useState<LoadingState>('loading');
   const [configData, setConfigData] = useState<ConfigResponse | null>(null);
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
@@ -111,7 +135,7 @@ export const ConfigPanel: React.FC = () => {
         setLoadingState('success');
       } catch (error) {
         console.error('Failed to load config:', error);
-        setErrorMessage(error instanceof Error ? error.message : '加载失败');
+        // Set error state only - don't use errorMessage toast for initial load failures
         setLoadingState('error');
       }
     };
@@ -180,10 +204,10 @@ export const ConfigPanel: React.FC = () => {
       // 7. Save to backend
       const result = await saveConfig(changes, auth);
 
-      // 4. Show success feedback
+      // 8. Show success feedback
       setSaveState('success');
 
-      // 5. Add SYSTEM message to chat
+      // 9. Add SYSTEM message to chat
       const systemMsg: Message = {
         id: uuidv4(),
         role: 'SYSTEM',
@@ -206,10 +230,10 @@ export const ConfigPanel: React.FC = () => {
         messages: [...state.messages, systemMsg],
       }));
 
-      // 6. Close modal after brief delay
+      // 10. Close modal after brief delay (Scene Change duration + buffer for user to see success)
       setTimeout(() => {
         closeModal();
-      }, 1000);
+      }, FRAMER.scene.duration * 1000 + 200);
     } catch (error) {
       console.error('Failed to save config:', error);
       setErrorMessage(error instanceof Error ? error.message : '保存失败');
@@ -262,9 +286,13 @@ export const ConfigPanel: React.FC = () => {
           <div key={fieldPath} className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                {fieldOption.label}
+                {fieldOption.label || key}
               </label>
-              <span className="text-sm font-mono text-foreground">{value as number}</span>
+              <span className="text-sm font-mono text-foreground">
+                {typeof value === 'number' 
+                  ? formatNumberValue(value, fieldOption.step ?? 0.01)
+                  : String(value ?? '')}
+              </span>
             </div>
             <Slider
               value={[value as number]}
@@ -287,7 +315,7 @@ export const ConfigPanel: React.FC = () => {
             </label>
             <Input
               type="number"
-              value={value as number}
+              value={(value as number) ?? ''}
               onChange={(e) => handleChange(Number(e.target.value))}
               min={fieldOption.min}
               max={fieldOption.max}
@@ -321,36 +349,166 @@ export const ConfigPanel: React.FC = () => {
 
   const renderLoading = () => (
     <div className="flex items-center justify-center h-full">
-      <div className="flex items-center gap-2 text-muted-foreground">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={FRAMER.transition}
+        className="flex items-center gap-2 text-muted-foreground"
+      >
         <Loader2 size={20} className="animate-spin" />
-        <span className="text-sm">加载中...</span>
-      </div>
+        <span className="text-sm">正在加载配置...</span>
+      </motion.div>
     </div>
   );
 
   const renderError = () => (
     <div className="flex items-center justify-center h-full">
-      <div className="px-4 py-3 bg-foreground/[0.02] rounded-lg border border-border/40">
-        <p className="text-sm text-foreground/70 text-center">
-          加载失败。请稍后重试。
-        </p>
-      </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={FRAMER.transition}
+        className="space-y-4 text-center"
+      >
+        <div className="px-4 py-3 bg-foreground/[0.02] rounded-lg border border-border/40">
+          <p className="text-sm text-foreground/70">
+            无法加载配置。请检查网络连接。
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.location.reload()}
+        >
+          重试
+        </Button>
+      </motion.div>
     </div>
   );
 
-  const renderForm = () => {
+  const renderMainMode = () => {
     if (!configData) return null;
 
     const configFields = configData.editable_fields.filter((f) =>
       f.startsWith('config.')
     );
 
+    // Separate model field from other fields
+    const modelFieldPath = 'config.model';
+    const hasModelField = configFields.includes(modelFieldPath);
+    const otherFields = configFields.filter((f) => f !== modelFieldPath);
+
     return (
-      <div className="space-y-4">
-        {configFields.map((fieldPath) => renderField(fieldPath))}
+      <div className="space-y-3">
+        {/* Model Selection with Help Button */}
+        {hasModelField && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                MODEL
+              </label>
+              <button
+                onClick={() => setMode('help')}
+                className="text-muted-foreground hover:text-foreground transition-colors duration-150"
+                aria-label="配置说明"
+              >
+                <HelpCircle size={16} />
+              </button>
+            </div>
+            <Select
+              value={(formValues.model as string) || ''}
+              onValueChange={(newValue) => setFormValues((prev) => ({ ...prev, model: newValue }))}
+              options={((configData.field_options[modelFieldPath] as FieldOption)?.options || []).map((opt) => ({
+                value: opt,
+                label: opt,
+              }))}
+              placeholder="Select model..."
+            />
+          </div>
+        )}
+
+        {/* Other Config Fields */}
+        <div className="space-y-3">
+          {otherFields.map((fieldPath) => renderField(fieldPath))}
+        </div>
       </div>
     );
   };
+
+  const renderHelpMode = () => (
+    <div className="space-y-3.5">
+      {/* Navigation */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => setMode('main')}
+          className="text-muted-foreground hover:text-foreground transition-colors duration-150"
+          aria-label="返回"
+        >
+          <ArrowLeft size={18} />
+        </button>
+        <h3 className="text-base font-medium text-foreground">配置说明</h3>
+        <div className="w-[18px]" /> {/* Spacer for centering */}
+      </div>
+
+      {/* Help content uses larger spacing (space-y-5) for better readability of documentation sections */}
+      <div className="space-y-5">
+        {/* Model */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-bold text-foreground uppercase tracking-wide">
+            模型选择 (Model)
+          </h4>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            选择 AI 对话使用的<span className="font-medium text-foreground">语言模型</span>。
+            不同模型在速度、成本和能力上有所差异。
+          </p>
+        </div>
+
+        {/* Temperature */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-bold text-foreground uppercase tracking-wide">
+            温度 (Temperature)
+          </h4>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            控制 AI 回复的<span className="font-medium text-foreground">创造性</span>。
+            较低值（0.0-0.5）输出更稳定、事实性更强；
+            较高值（0.8-2.0）输出更多样、更有创意。推荐值：0.7-1.0。
+          </p>
+        </div>
+
+        {/* Max Tokens */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-bold text-foreground uppercase tracking-wide">
+            最大令牌数 (Max Tokens)
+          </h4>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            单次回复的<span className="font-medium text-foreground">最大长度</span>（以 token 计）。
+            1 token ≈ 0.75 个英文单词或 0.5 个中文字。
+            过高会增加成本和延迟，过低可能导致回复被截断。
+          </p>
+        </div>
+
+        {/* History Context Size */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-bold text-foreground uppercase tracking-wide">
+            短期记忆 (History Context Size)
+          </h4>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            控制对话历史的<span className="font-medium text-foreground">长度</span>。
+            值越大，AI 能记住越长的对话历史，但会增加成本和延迟。
+          </p>
+        </div>
+
+        {/* Best Practice */}
+        <div className="px-4 py-3 bg-muted/20 rounded-lg border border-border/30">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            ✓ 默认配置适用于大多数场景<br/>
+            ✓ 编程/技术问题：温度 0.3-0.5<br/>
+            ✓ 创意写作：温度 0.8-1.2<br/>
+            ✓ 修改后需点击"保存"生效
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 
   // ============================================================================
   // Main Render
@@ -358,69 +516,77 @@ export const ConfigPanel: React.FC = () => {
 
   return (
     <div className="w-full">
-      {/* Fixed height container */}
-      <div className="relative overflow-hidden h-[360px] flex flex-col">
+      {/* Fixed height container - prevents layout shifts */}
+      <div className="relative overflow-hidden h-[360px]">
         <AnimatePresence mode="wait">
           <motion.div
-            key={loadingState}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            key={mode}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
             transition={FRAMER.reveal}
-            className="flex-1 overflow-y-auto px-7 py-4"
+            className="absolute inset-0 flex flex-col"
           >
-            {loadingState === 'loading' && renderLoading()}
-            {loadingState === 'error' && renderError()}
-            {loadingState === 'success' && renderForm()}
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Footer with Save button */}
-        {loadingState === 'success' && (
-          <div className="px-7 py-4 border-t border-border shrink-0">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs text-muted-foreground">
-                {hasChanges ? '有未保存的更改' : '无更改'}
-              </div>
-              <div className="flex items-center gap-2">
-                {saveState === 'success' && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex items-center gap-1 text-sm text-foreground/70"
-                  >
-                    <Check size={16} />
-                    <span>已保存</span>
-                  </motion.div>
-                )}
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={!hasChanges || saveState === 'loading'}
-                  icon={saveState === 'loading' && <Loader2 size={16} className="animate-spin" />}
-                >
-                  {saveState === 'loading' ? '保存中...' : '保存'}
-                </Button>
-              </div>
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto px-7 py-4">
+              {loadingState === 'loading' && renderLoading()}
+              {loadingState === 'error' && renderError()}
+              {loadingState === 'success' && mode === 'main' && renderMainMode()}
+              {loadingState === 'success' && mode === 'help' && renderHelpMode()}
             </div>
-          </div>
-        )}
 
-        {/* Error Toast */}
-        <AnimatePresence>
-          {errorMessage && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={FRAMER.transition}
-              className="absolute bottom-4 left-7 right-7 px-4 py-2.5 bg-foreground/5 rounded-lg border border-border/40"
-            >
-              <p className="text-sm text-foreground/70 text-center">{errorMessage}</p>
-            </motion.div>
-          )}
+            {/* Footer with Save button - Fixed at bottom (only in main mode) */}
+            {loadingState === 'success' && mode === 'main' && (
+              <div className="px-7 py-4 border-t border-border shrink-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs text-muted-foreground">
+                    {hasChanges ? '有未保存的更改' : '无更改'}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {saveState === 'success' && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={FRAMER.transition}
+                        className="flex items-center gap-1 text-sm text-foreground/70"
+                      >
+                        <Check size={16} />
+                        <span>已保存</span>
+                      </motion.div>
+                    )}
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleSave}
+                      disabled={!hasChanges || saveState === 'loading'}
+                      icon={saveState === 'loading' && <Loader2 size={16} className="animate-spin" />}
+                    >
+                      {saveState === 'loading' ? '保存中...' : '保存'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error Toast - Floating at bottom */}
+            <AnimatePresence>
+              {errorMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{
+                    duration: FRAMER.reveal.duration,
+                    ease: FRAMER.reveal.ease,
+                  }}
+                  className="mx-7 mb-4 px-4 py-2.5 bg-foreground/5 rounded-lg border border-border/40"
+                >
+                  <p className="text-sm text-foreground/70 text-center">{errorMessage}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         </AnimatePresence>
       </div>
     </div>

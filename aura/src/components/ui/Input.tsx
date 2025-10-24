@@ -1,7 +1,25 @@
 /**
  * Input Component
  * 
- * Basic text/number input field with consistent styling
+ * Single-line text/number input field with consistent styling.
+ * Designed for short, predictable input scenarios.
+ * 
+ * Usage Scenarios:
+ * - Form fields (name, email, password)
+ * - Search boxes
+ * - Number inputs (max_tokens, port numbers)
+ * - Short text configuration (API keys, URLs)
+ * 
+ * When NOT to use:
+ * - Multi-line text → Use Textarea instead
+ * - Chat/comment input → Use AutoResizeTextarea instead
+ * - Long text with variable length → Use Textarea or AutoResizeTextarea
+ * 
+ * Design:
+ * - Fixed height (h-10)
+ * - Grayscale styling with subtle hover/focus states
+ * - Supports all native HTML input attributes
+ * - Fully accessible with forwardRef support
  */
 
 import { forwardRef } from 'react';

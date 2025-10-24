@@ -6,8 +6,8 @@
  * 1. **Layout Standard**
  *    - Fixed height: 360px (unified for all modes)
  *    - Consistent padding: px-7 py-4
- *    - Section spacing: space-y-3.5
- *    - Centered titles for better visual hierarchy
+ *    - Section spacing: space-y-3 (compact layout)
+ *    - Help button inline with first label for space efficiency
  *
  * 2. **State Machine**
  *    - Clear mode separation: main | import | export | reset | help
@@ -144,7 +144,7 @@ export const IdentityPanel: React.FC = () => {
             await websocketManager.reconnect();
             
             setActionState("success");
-            setTimeout(() => closeModal(), 1000);
+            setTimeout(() => closeModal(), 800);
         } catch (error) {
             console.error("Failed to create identity:", error);
             setErrorMessage("创建失败，请重试");
@@ -189,7 +189,7 @@ export const IdentityPanel: React.FC = () => {
                 closeModal();
                 setMnemonicInput("");
                 setMode("main");
-            }, 1000);
+            }, 800);
         } catch (error) {
             console.error("Failed to import identity:", error);
             setErrorMessage(error instanceof Error ? error.message : "导入失败");
@@ -228,18 +228,6 @@ export const IdentityPanel: React.FC = () => {
     }, [exportedMnemonic]);
 
     const handleResetIdentity = async () => {
-        // 二次确认
-        const confirmed = window.confirm(
-            "⚠️ 最后确认\n\n" +
-            "此操作将永久删除本地密钥。\n" +
-            "如果您没有备份助记词，将无法恢复此身份。\n\n" +
-            "确定要继续吗？"
-        );
-
-        if (!confirmed) {
-            return;
-        }
-
         setActionState("loading");
 
         try {
@@ -295,24 +283,27 @@ export const IdentityPanel: React.FC = () => {
     // ============================================================================
 
     const renderVisitorMain = () => (
-        <div className="space-y-3.5">
-            {/* Help Button - Top Right */}
-            <div className="flex justify-end -mb-0.5">
-                <button
-                    onClick={() => setMode("help")}
-                    className="text-muted-foreground hover:text-foreground transition-colors duration-150"
-                    aria-label="身份系统说明"
-                >
-                    <HelpCircle size={18} />
-                </button>
-            </div>
-
-            {/* Guidance */}
-            <div className="px-4 py-2.5 bg-muted/20 rounded-xl border border-border/30">
-                <p className="text-sm text-muted-foreground leading-relaxed text-center">
-                    您当前为<span className="font-medium text-foreground">访客身份</span>，
-                    无法使用全部服务。创建或导入身份后，您将获得完整的服务能力。
-                </p>
+        <div className="space-y-3">
+            {/* Guidance with Help Button */}
+            <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        访客模式
+                    </label>
+                    <button
+                        onClick={() => setMode("help")}
+                        className="text-muted-foreground hover:text-foreground transition-colors duration-150"
+                        aria-label="身份系统说明"
+                    >
+                        <HelpCircle size={16} />
+                    </button>
+                </div>
+                <div className="px-4 py-2.5 bg-muted/20 rounded-xl border border-border/30">
+                    <p className="text-sm text-muted-foreground leading-relaxed text-center">
+                        您当前为<span className="font-medium text-foreground">访客身份</span>，
+                        无法使用全部服务。创建或导入身份后，您将获得完整的服务能力。
+                    </p>
+                </div>
             </div>
 
             {/* Actions */}
@@ -354,7 +345,7 @@ export const IdentityPanel: React.FC = () => {
                 >
                     <ArrowLeft size={18} />
                 </button>
-                <h3 className="text-sm font-medium text-foreground">导入身份</h3>
+                <h3 className="text-base font-medium text-foreground">导入身份</h3>
                 <div className="w-[18px]" /> {/* Spacer for centering */}
             </div>
 
@@ -384,25 +375,23 @@ export const IdentityPanel: React.FC = () => {
     );
 
     const renderMemberMain = () => (
-        <div className="space-y-3.5">
-            {/* Help Button - Top Right */}
-            <div className="flex justify-end -mb-0.5">
-                <button
-                    onClick={() => setMode("help")}
-                    className="text-muted-foreground hover:text-foreground transition-colors duration-150"
-                    aria-label="身份系统说明"
-                >
-                    <HelpCircle size={18} />
-                </button>
-            </div>
-
-            {/* Public Key Display */}
+        <div className="space-y-3">
+            {/* Public Key Display with Help Button */}
             <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide text-center block">
-                    存在地址
-                </label>
-                <div className="px-4 py-2.5 bg-muted/10 rounded-lg border border-border/20">
-                    <code className="text-xs text-foreground/90 font-mono block text-center break-all leading-relaxed">
+                <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                        存在地址
+                    </label>
+                    <button
+                        onClick={() => setMode("help")}
+                        className="text-muted-foreground hover:text-foreground transition-colors duration-150"
+                        aria-label="身份系统说明"
+                    >
+                        <HelpCircle size={16} />
+                    </button>
+                </div>
+                <div className="px-4 py-2 bg-muted/10 rounded-lg border border-border/20">
+                    <code className="text-sm text-foreground/90 font-mono block text-center break-all leading-relaxed">
                         {publicKey || "加载中..."}
                     </code>
                 </div>
@@ -414,8 +403,9 @@ export const IdentityPanel: React.FC = () => {
                     variant="outline"
                     icon={<Download size={18} />}
                     onClick={() => {
+                        // First switch mode, then export in the next render cycle
                         setMode("export");
-                        handleExportMnemonic();
+                        setTimeout(() => handleExportMnemonic(), 0);
                     }}
                     className="flex-1"
                 >
@@ -458,7 +448,7 @@ export const IdentityPanel: React.FC = () => {
                 >
                     <ArrowLeft size={18} />
                 </button>
-                <h3 className="text-sm font-medium text-foreground">助记词</h3>
+                <h3 className="text-base font-medium text-foreground">助记词</h3>
                 <Button
                     variant="ghost"
                     size="sm"
@@ -515,32 +505,48 @@ export const IdentityPanel: React.FC = () => {
                 >
                     <ArrowLeft size={18} />
                 </button>
-                <h3 className="text-sm font-medium text-foreground">清除当前身份</h3>
+                <h3 className="text-base font-medium text-foreground">重置确认</h3>
                 <div className="w-[18px]" /> {/* Spacer for centering */}
             </div>
 
             <div className="space-y-4">
-                {/* Warning - Grayscale only, use opacity and background */}
-                <div className="px-4 py-3 bg-foreground/[0.02] rounded-lg border border-border/40">
-                    <p className="text-sm text-foreground/70 leading-relaxed text-center">
-                        此操作将删除本地存储的密钥。如果您没有备份助记词，将
-                        <span className="font-semibold text-foreground">永久丢失</span>
-                        此身份。
-                    </p>
+                {/* Warning - Two-step confirmation without native dialog */}
+                <div className="space-y-3">
+                    <div className="px-4 py-3 bg-foreground/[0.02] rounded-lg border border-border/40">
+                        <p className="text-sm text-foreground/70 leading-relaxed text-center">
+                            此操作将删除本地存储的密钥。如果您没有备份助记词，将
+                            <span className="font-semibold text-foreground">永久丢失</span>
+                            此身份。
+                        </p>
+                    </div>
+
+                    <div className="px-4 py-2.5 bg-muted/20 rounded-lg border border-border/30">
+                        <p className="text-xs text-muted-foreground leading-relaxed text-center">
+                            ⚠️ 此操作不可逆。请确保您已备份助记词。
+                        </p>
+                    </div>
                 </div>
 
-                <Button
-                    variant="outline"
-                    icon={actionState === "loading" && (
-                        <Loader2 size={18} className="animate-spin" />
-                    )}
-                    onClick={handleResetIdentity}
-                    disabled={actionState === "loading"}
-                    fullWidth
-                    className="border-foreground/20 hover:bg-foreground/[0.03] hover:border-foreground/30"
-                >
-                    {actionState === "loading" ? "清除中..." : "确认清除"}
-                </Button>
+                <div className="flex gap-2.5">
+                    <Button
+                        variant="outline"
+                        onClick={navigateBack}
+                        className="flex-1"
+                    >
+                        取消
+                    </Button>
+                    <Button
+                        variant="outline"
+                        icon={actionState === "loading" && (
+                            <Loader2 size={18} className="animate-spin" />
+                        )}
+                        onClick={handleResetIdentity}
+                        disabled={actionState === "loading"}
+                        className="flex-1 border-foreground/20 hover:bg-foreground/[0.03] hover:border-foreground/30"
+                    >
+                        {actionState === "loading" ? "清除中..." : "确认清除"}
+                    </Button>
+                </div>
             </div>
         </div>
     );
@@ -556,14 +562,15 @@ export const IdentityPanel: React.FC = () => {
                 >
                     <ArrowLeft size={18} />
                 </button>
-                <h3 className="text-sm font-medium text-foreground">关于身份系统</h3>
+                <h3 className="text-base font-medium text-foreground">关于身份系统</h3>
                 <div className="w-[18px]" /> {/* Spacer for centering */}
             </div>
 
+            {/* Help content uses larger spacing (space-y-5) for better readability of documentation sections */}
             <div className="space-y-5">
                 {/* 核心概念 */}
                 <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                    <h4 className="text-sm font-bold text-foreground uppercase tracking-wide">
                         不同于传统账号
                     </h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
@@ -574,7 +581,7 @@ export const IdentityPanel: React.FC = () => {
 
                 {/* 公钥与私钥 */}
                 <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                    <h4 className="text-sm font-bold text-foreground uppercase tracking-wide">
                         公钥 & 私钥
                     </h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
@@ -585,7 +592,7 @@ export const IdentityPanel: React.FC = () => {
 
                 {/* 助记词 */}
                 <div className="space-y-2">
-                    <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                    <h4 className="text-sm font-bold text-foreground uppercase tracking-wide">
                         助记词
                     </h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
@@ -658,4 +665,3 @@ export const IdentityPanel: React.FC = () => {
         </div>
     );
 };
-

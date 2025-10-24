@@ -7,6 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ConfigPanel } from '../ConfigPanel.tsx';
 
 // ============================================================================
@@ -121,7 +122,7 @@ describe('ConfigPanel', () => {
     it('should show loading state on mount', () => {
       render(<ConfigPanel />);
       
-      expect(screen.getByText(/加载中/i) || screen.getByLabelText(/loading/i)).toBeInTheDocument();
+      expect(screen.getByText(/正在加载配置|加载中/i) || screen.getByLabelText(/loading/i)).toBeInTheDocument();
     });
 
     it('should fetch config from API', async () => {
@@ -150,8 +151,11 @@ describe('ConfigPanel', () => {
       render(<ConfigPanel />);
       
       await waitFor(() => {
-        expect(screen.getByText(/加载失败|Network error|Error/i)).toBeInTheDocument();
+        expect(screen.getByText(/无法加载配置|Network error|Error/i)).toBeInTheDocument();
       }, { timeout: 2000 });
+      
+      // Should show retry button
+      expect(screen.getByText(/重试/i)).toBeInTheDocument();
     });
   });
 
@@ -289,6 +293,170 @@ describe('ConfigPanel', () => {
 
       // Trigger save (implementation dependent)
       // Should display error message
+    });
+  });
+
+  describe('Mode Switching & Help Page', () => {
+    it('should display help button with MODEL label on same line', async () => {
+      render(<ConfigPanel />);
+      
+      await waitFor(() => {
+        const helpButton = screen.getByLabelText(/配置说明/i);
+        expect(helpButton).toBeInTheDocument();
+        
+        // Help button should be near MODEL label (inline layout)
+        expect(screen.getByText(/MODEL/i)).toBeInTheDocument();
+      }, { timeout: 2000 });
+    });
+
+    it('should switch to help mode when help button is clicked', async () => {
+      const user = userEvent.setup();
+      render(<ConfigPanel />);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/MODEL/i)).toBeInTheDocument();
+      }, { timeout: 2000 });
+
+      const helpButton = screen.getByLabelText(/配置说明/i);
+      await user.click(helpButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/配置说明/i)).toBeInTheDocument(); // Title
+        expect(screen.getByText(/模型选择/i)).toBeInTheDocument(); // Section
+      }, { timeout: 2000 });
+    });
+
+    it('should display all help sections', async () => {
+      const user = userEvent.setup();
+      render(<ConfigPanel />);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/MODEL/i)).toBeInTheDocument();
+      }, { timeout: 2000 });
+
+      const helpButton = screen.getByLabelText(/配置说明/i);
+      await user.click(helpButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/模型选择.*Model/i)).toBeInTheDocument();
+        expect(screen.getByText(/温度.*Temperature/i)).toBeInTheDocument();
+        expect(screen.getByText(/最大令牌数.*Max Tokens/i)).toBeInTheDocument();
+        expect(screen.getByText(/短期记忆.*History Context Size/i)).toBeInTheDocument();
+      }, { timeout: 2000 });
+    });
+
+    it('should navigate back from help mode', async () => {
+      const user = userEvent.setup();
+      render(<ConfigPanel />);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/MODEL/i)).toBeInTheDocument();
+      }, { timeout: 2000 });
+
+      // Go to help mode
+      const helpButton = screen.getByLabelText(/配置说明/i);
+      await user.click(helpButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/配置说明/i)).toBeInTheDocument();
+      }, { timeout: 2000 });
+
+      // Go back
+      const backButton = screen.getByLabelText(/返回/i);
+      await user.click(backButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/MODEL/i)).toBeInTheDocument();
+      }, { timeout: 2000 });
+    });
+
+    it('should not show save button in help mode', async () => {
+      const user = userEvent.setup();
+      render(<ConfigPanel />);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/MODEL/i)).toBeInTheDocument();
+      }, { timeout: 2000 });
+
+      const helpButton = screen.getByLabelText(/配置说明/i);
+      await user.click(helpButton);
+
+      // Wait for help mode to fully render
+      await waitFor(() => {
+        expect(screen.getByText(/配置说明/i)).toBeInTheDocument();
+      }, { timeout: 2000 });
+
+      // Save button should not be in DOM
+      const saveButton = screen.queryByRole('button', { name: /保存/i });
+      expect(saveButton).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Number Formatting', () => {
+    it('should format float numbers to 1 decimal place on slider', async () => {
+      render(<ConfigPanel />);
+      
+      await waitFor(() => {
+        // Temperature slider should show as "0.8" not "0.8000000000002"
+        const tempDisplay = screen.getByText('0.8');
+        expect(tempDisplay).toBeInTheDocument();
+        expect(tempDisplay.textContent).toBe('0.8');
+      }, { timeout: 2000 });
+    });
+
+    it('should display integers without decimal point in number input', async () => {
+      render(<ConfigPanel />);
+      
+      await waitFor(() => {
+        // Max tokens input should have value "4096" not "4096.0"
+        const maxTokensInput = screen.getByRole('spinbutton', { name: '' });
+        expect(maxTokensInput).toHaveValue(4096);
+      }, { timeout: 2000 });
+    });
+  });
+
+  describe('Typography & Layout Standards', () => {
+    it('should use text-xs for MODEL label (consistent with other field labels)', async () => {
+      render(<ConfigPanel />);
+      
+      await waitFor(() => {
+        const modelLabel = screen.getByText(/MODEL/i);
+        expect(modelLabel.className).toMatch(/text-xs/);
+      }, { timeout: 2000 });
+    });
+
+    it('should use text-base for help page title', async () => {
+      const user = userEvent.setup();
+      render(<ConfigPanel />);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/MODEL/i)).toBeInTheDocument();
+      }, { timeout: 2000 });
+
+      const helpButton = screen.getByLabelText(/配置说明/i);
+      await user.click(helpButton);
+
+      await waitFor(() => {
+        const title = screen.getByText(/配置说明/i);
+        expect(title.className).toMatch(/text-base/);
+      }, { timeout: 2000 });
+    });
+
+    it('should use font-bold for help section headings', async () => {
+      const user = userEvent.setup();
+      render(<ConfigPanel />);
+      
+      await waitFor(() => {
+        expect(screen.getByText(/MODEL/i)).toBeInTheDocument();
+      }, { timeout: 2000 });
+
+      const helpButton = screen.getByLabelText(/配置说明/i);
+      await user.click(helpButton);
+
+      await waitFor(() => {
+        const sectionHeading = screen.getByText(/模型选择.*Model/i);
+        expect(sectionHeading.className).toMatch(/font-bold/);
+      }, { timeout: 2000 });
     });
   });
 });

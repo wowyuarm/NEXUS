@@ -93,9 +93,16 @@ export const Select: React.FC<SelectProps> = ({
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.15 }}
+            animate={{ 
+              opacity: 1, 
+              y: 0,
+              transition: { duration: 0.3, ease: 'easeOut' }
+            }}
+            exit={{ 
+              opacity: 0, 
+              y: -10,
+              transition: { duration: 0.2, ease: 'easeOut' }
+            }}
             className={cn(
               'absolute z-50 mt-1 w-full overflow-hidden rounded-lg',
               'border border-border bg-card/95 backdrop-blur-xl shadow-lg'

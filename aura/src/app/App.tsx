@@ -23,7 +23,7 @@ function App() {
       
       {/* Config Management Modal */}
       <Modal isOpen={activeModal === 'config'} onClose={closeModal}>
-        <Panel title="运行时配置 (Runtime Configuration)" onClose={closeModal}>
+        <Panel title="系统配置 (System Configuration)" onClose={closeModal}>
           <ConfigPanel />
         </Panel>
       </Modal>

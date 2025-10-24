@@ -1,16 +1,32 @@
 /**
- * Textarea Component - Unified Text Input Foundation
+ * Textarea Component - Multi-line Text Input
  * 
- * A silent, comfortable textarea that follows AURA's design principles:
- * - No visual focus rings (Anti-Ring Doctrine)
- * - Subtle hover feedback (4% opacity change)
- * - Consistent 400ms timing
- * - Grayscale moderation
+ * Fixed-height multi-line text input for predictable layouts.
+ * Designed for scenarios where content length is known or constrained.
+ * 
+ * Usage Scenarios:
+ * - Mnemonic phrase input (12/24 words, fixed 4 rows)
+ * - Comment boxes with character limits
+ * - Description fields in forms
+ * - Bio/profile text (fixed visible area)
+ * - Any multi-line input where height should NOT auto-expand
+ * 
+ * When NOT to use:
+ * - Single-line input → Use Input instead
+ * - Chat/dynamic input → Use AutoResizeTextarea instead
+ * - Input that needs to grow with content → Use AutoResizeTextarea instead
  * 
  * Design Philosophy:
  * - Silent: No jarring focus rings or aggressive borders
  * - Comfortable: Smooth, predictable state transitions
  * - Intuitive: Familiar textarea behavior with refined aesthetics
+ * - Predictable: Fixed height prevents layout shifts
+ * 
+ * Features:
+ * - Two variants: 'default' (bordered) and 'transparent' (borderless)
+ * - Configurable minimum rows (default: 3)
+ * - Grayscale styling with subtle hover/focus states
+ * - Follows AURA's Anti-Ring Doctrine (no visual focus rings)
  * 
  * @see .cursor/rules/frontend-design-principles.mdc
  */
@@ -89,4 +105,3 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 );
 
 Textarea.displayName = 'Textarea';
-
