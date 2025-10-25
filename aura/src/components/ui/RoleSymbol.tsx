@@ -26,9 +26,13 @@ export const RoleSymbol: React.FC<RoleSymbolProps> = ({ role, isThinking = false
     <motion.div
       initial={false}
       className={cn(
-        'flex items-center justify-center w-8 h-8 self-start mt-[2px]',
-        'text-secondary-foreground text-[18px] leading-none font-mono select-none',
-        'flex-shrink-0' // 防止收缩
+        'flex items-center justify-center',
+        // Mobile: 32x32px, 18px font (larger for vertical layout, no horizontal space constraint)
+        'w-8 h-8 text-[18px]',
+        // Desktop (≥768px): 40x40px, 22px font (prominent but not overwhelming)
+        'md:w-10 md:h-10 md:text-[22px]',
+        'text-secondary-foreground leading-none font-mono select-none',
+        'flex-shrink-0' // Prevent shrinking
       )}
       animate={shouldPulse ? { opacity: [0.4, 1, 0.4] } : { opacity: 1 }}
       transition={

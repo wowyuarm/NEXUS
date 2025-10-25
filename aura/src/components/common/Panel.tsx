@@ -18,6 +18,7 @@
  */
 
 import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui';
 
 interface PanelProps {
@@ -52,7 +53,13 @@ export const Panel: React.FC<PanelProps> = ({ title, onClose, children, footer }
   return (
     <div className="bg-card/75 backdrop-blur-xl border border-border shadow-lg shadow-black/20 rounded-2xl max-w-2xl w-full flex flex-col max-h-[80vh]">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
+      <div className={cn(
+        "border-b border-border flex items-center justify-between shrink-0",
+        // Mobile: px-4 py-3
+        "px-4 py-3",
+        // Desktop: restore px-6 py-4
+        "md:px-6 md:py-4"
+      )}>
         <h2 className="text-lg font-medium text-foreground">{title}</h2>
         {onClose && (
           <Button
@@ -67,13 +74,25 @@ export const Panel: React.FC<PanelProps> = ({ title, onClose, children, footer }
       </div>
 
       {/* Content area - scrollable */}
-      <div className="px-6 py-4 overflow-y-auto flex-1">
+      <div className={cn(
+        "overflow-y-auto flex-1",
+        // Mobile: px-4 py-3
+        "px-4 py-3",
+        // Desktop: restore px-6 py-4
+        "md:px-6 md:py-4"
+      )}>
         {children}
       </div>
 
       {/* Optional footer */}
       {footer && (
-        <div className="px-6 py-4 border-t border-border shrink-0">
+        <div className={cn(
+          "border-t border-border shrink-0",
+          // Mobile: px-4 py-3
+          "px-4 py-3",
+          // Desktop: restore px-6 py-4
+          "md:px-6 md:py-4"
+        )}>
           {footer}
         </div>
       )}

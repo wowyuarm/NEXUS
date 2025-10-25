@@ -401,4 +401,74 @@ This document defines **what** and **why**. For the **how**, see:
 
 ---
 
+## Mobile-First Responsive Design
+
+### The Principle of Adaptive Comfort
+
+**"The interface adapts to the device, not the user to the interface."**
+
+AURA's responsive design follows a **progressive enhancement** strategy: mobile-first defaults with desktop refinements. This ensures optimal experience across all devices while maintaining our core design philosophy.
+
+**Core Guidelines:**
+
+- **Space Efficiency**: Mobile devices prioritize content over decoration
+  - Default styles target mobile (<640px) with compact spacing
+  - Desktop styles (`md:` prefix, ≥768px) restore comfortable spacing
+  - Content width on mobile: ≥80% (vs ~70% without optimization)
+
+- **Touch Targets**: Minimum 40×40px on mobile (44×44px preferred)
+  - Follows iOS Human Interface Guidelines (44pt) and Material Design (48dp)
+  - Desktop allows compact UI (32px acceptable with mouse precision)
+  - Icon buttons automatically scale: mobile 40-44px, desktop 32-40px
+
+- **Font Legibility**: Minimum 14px body text on mobile
+  - Prevents browser auto-zoom (triggered at <16px)
+  - Labels/hints: 12px acceptable
+  - Desktop preserves original design (including smaller text where appropriate)
+
+- **Animation Consistency**: Same cognitive rhythm across all devices
+  - FRAMER.reveal (350ms), FRAMER.scene (450ms) work universally
+  - No performance degradation (tested ≥30fps on mobile)
+  - Exit animations remain 30-40% faster than entrances
+
+**Implementation:**
+
+- Use Tailwind responsive prefixes (`md:` for ≥768px)
+- Default styles = mobile baseline (no prefix)
+- Desktop styles = prefixed overrides
+- Primary transition point: `md:` (768px) for mobile-to-desktop
+
+**Space Recovery Strategy:**
+
+| Component | Mobile Optimization | Space Recovered |
+|-----------|---------------------|-----------------|
+| RoleSymbol | 32px → 24px | 8px horizontal |
+| Message spacing | gap-2 → gap-1, ml-6 → ml-3 | 16px horizontal |
+| Container padding | px-4 → px-3 | 8px horizontal |
+| **Total (Phase 1)** | | **32px (+10% content width)** |
+| Modal + Panel | p-6 → p-3, px-6 → px-4 | 40px horizontal |
+| **Total (Phase 2)** | | **+11% content width** |
+
+**Testing Requirements:**
+
+- iPhone SE (375px): Content width ≥80%, touch targets ≥40px
+- iPad Mini (768px): Desktop layout active, matches laptop exactly
+- Desktop (1920px): **Unchanged from before** (regression test)
+
+**Design Integrity:**
+
+Responsive modifications preserve all core principles:
+- **Silence**: No jarring layout shifts, smooth size transitions
+- **Comfort**: Users never feel cramped (80%+ content width maintained)
+- **Intuition**: Behavior matches device expectations (compact mobile, comfortable desktop)
+- **Rhythm**: Animation timing unchanged, universal cognitive cadence
+
+See `docs/rules/responsive_design_system.md` for complete specifications and implementation patterns.
+
+---
+
+**Remember**: This is a living philosophy, not a rigid rulebook. The principles should guide, not constrain, creative solutions.
+
+---
+
 *This document represents the soul of AURA's design. While technical implementations may change, these core principles should remain constant: silent, comfortable, intuitive, and rhythmic—an interface that moves like human thought itself.*

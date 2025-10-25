@@ -403,10 +403,12 @@ describe('ChatMessage', () => {
       );
 
       expect(screen.getByTestId('markdown-content')).toBeInTheDocument();
-      expect(screen.getByTestId('timestamp')).toBeInTheDocument();
       
-      // Should not have the full row wrapper classes
-      expect(container.firstChild).not.toHaveClass('group', 'relative', 'py-6', 'flex', 'items-baseline', 'gap-2');
+      // In contentOnly variant, timestamp is not rendered (it's part of Row 1 which is only in normal variant)
+      expect(screen.queryByTestId('timestamp')).not.toBeInTheDocument();
+      
+      // Should not have the full row wrapper classes (updated for vertical layout)
+      expect(container.firstChild).not.toHaveClass('group', 'relative', 'py-6', 'flex', 'flex-col');
     });
   });
 

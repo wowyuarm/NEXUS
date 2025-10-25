@@ -84,7 +84,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         // Focus feedback - slightly more emphasis but still subtle
         'focus:border-foreground/30',
         // Error state
-        error && 'border-red-500/50 focus:border-red-500/70',
+        error && 'border-foreground/40 focus:border-foreground/50',
       ),
       transparent: cn(
         // Transparent variant for embedded contexts (like ChatInput)

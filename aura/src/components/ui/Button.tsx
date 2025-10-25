@@ -103,11 +103,23 @@ export const Button: React.FC<ButtonProps> = ({
   // icon variant: always circular, always iconOnly
   // command variant: fixed padding, no border radius
   const sizeStyles = {
-    sm: variant === 'icon' ? 'w-8 h-8 rounded-full' : 
-        variant === 'command' ? 'px-4 py-2.5 text-sm' :
+    sm: variant === 'icon' 
+        ? cn(
+            // Mobile: w-10 h-10 (40px, approaching minimum standard)
+            'w-10 h-10 rounded-full',
+            // Desktop: restore w-8 h-8 (32px, acceptable for desktop)
+            'md:w-8 md:h-8'
+          )
+        : variant === 'command' ? 'px-4 py-2.5 text-sm' :
         (iconOnly ? 'p-1.5 rounded-lg' : 'px-2.5 py-1.5 text-sm rounded-lg'),
-    md: variant === 'icon' ? 'w-10 h-10 rounded-full' : 
-        variant === 'command' ? 'px-4 py-3 text-base' :
+    md: variant === 'icon' 
+        ? cn(
+            // Mobile: w-11 h-11 (44px, meets standard)
+            'w-11 h-11 rounded-full',
+            // Desktop: restore w-10 h-10
+            'md:w-10 md:h-10'
+          )
+        : variant === 'command' ? 'px-4 py-3 text-base' :
         (iconOnly ? 'p-2 rounded-xl' : 'px-3 py-2 text-base rounded-xl'),
     lg: variant === 'icon' ? 'w-12 h-12 rounded-full' : 
         variant === 'command' ? 'px-4 py-3.5 text-lg' :

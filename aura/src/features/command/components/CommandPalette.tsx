@@ -102,9 +102,21 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   onMouseEnter={() => onSelectIndex(index)}
                 >
                   {/* Structured two-column layout */}
-                  <div className="flex items-baseline gap-4">
+                  <div className={cn(
+                    "flex items-baseline",
+                    // Mobile: gap-2 (reduced spacing)
+                    "gap-2",
+                    // Desktop: restore gap-4
+                    "md:gap-4"
+                  )}>
                     {/* Left column: Command name - fixed min width, font-mono */}
-                    <div className="min-w-[8rem] flex-shrink-0">
+                    <div className={cn(
+                      "flex-shrink-0",
+                      // Mobile: min-w-[6rem] (reduced command name width)
+                      "min-w-[6rem]",
+                      // Desktop: restore min-w-[8rem]
+                      "md:min-w-[8rem]"
+                    )}>
                       <span className="font-mono text-sm text-foreground">
                         /{command.name}
                       </span>
@@ -112,7 +124,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     
                     {/* Right column: Command description - fills remaining space */}
                     <div className="flex-1 min-w-0">
-                      <span className="text-sm text-secondary-foreground">
+                      <span className={cn(
+                        "text-secondary-foreground",
+                        // Mobile: text-xs (smaller description font)
+                        "text-xs",
+                        // Desktop: restore text-sm
+                        "md:text-sm"
+                      )}>
                         {command.description}
                       </span>
                     </div>

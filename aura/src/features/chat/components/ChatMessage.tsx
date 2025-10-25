@@ -16,8 +16,10 @@
  * - DRY principle applied with extracted helper functions
  */
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Copy, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { Timestamp } from '@/components/ui/Timestamp';
 import { RoleSymbol } from '@/components/ui/RoleSymbol';
@@ -25,7 +27,7 @@ import { ToolCallCard } from './ToolCallCard';
 import { useTypewriter } from '../hooks/useTypewriter';
 import type { Message, SystemMessageContent } from '../types';
 import type { RunStatus } from '../store/chatStore';
-import { FRAMER } from '@/lib/motion';
+import { FRAMER, TAILWIND_TRANSITION } from '@/lib/motion';
 
 
 interface ChatMessageProps {
@@ -67,6 +69,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     targetContent: stringContent,
     isStreamingMessage: isStreaming && !shouldUseStaticRendering,
   });
+
+  // Copy button state (must be declared before any conditional returns)
+  const [copied, setCopied] = useState(false);
+  // Mobile active state (for touch devices)
+  const [mobileActive, setMobileActive] = useState(false);
 
   // Decide the content we should render right now
 
@@ -267,26 +274,34 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     return null;
   }
 
+  const handleCopy = async () => {
+    try {
+      // Extract text content - handle both string and SystemMessageContent types
+      const textContent = typeof message.content === 'string' 
+        ? message.content 
+        : (message.content as SystemMessageContent).command || '';
+      
+      await navigator.clipboard.writeText(textContent);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const handleMobileToggle = () => {
+    setMobileActive(!mobileActive);
+  };
+
   const ContentArea = (
     <motion.div
-      className="flex-1 min-w-0 relative ml-6"
+      className="w-full"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={FRAMER.reveal}
     >
-      {/* Timestamp - hover to show, top right */}
-      <div className="absolute top-0 right-0">
-        <Timestamp
-          date={new Date(message.timestamp)}
-          format="smart"
-          showOnHover={true}
-        />
-      </div>
-
-      {/* Message content - dynamic rendering based on state */}
-      <div className="pr-16"> {/* Right margin for timestamp */}
-        {renderContent()}
-      </div>
+      {/* Message content - full width */}
+      {renderContent()}
     </motion.div>
   );
 
@@ -296,16 +311,79 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
 
   return (
     <div
-      className="group relative py-6 flex items-baseline gap-2"
+      className={cn(
+        "group relative flex flex-col",
+        // Vertical spacing: Mobile py-4, Desktop py-6
+        "py-4",
+        "md:py-6"
+      )}
       data-message-id={message.id}
     >
-      {/* Left: Role symbol stays static without entrance animation */}
-      <RoleSymbol
-        role={message.role}
-        isThinking={false} // Never show thinking animation here
-        status={message.role === 'SYSTEM' ? message.metadata?.status : undefined}
-      />
-      {ContentArea}
+      {/* Row 1: Role Symbol + Timestamp + Copy Button */}
+      <div className="flex items-center justify-between w-full mb-2 -ml-2.5">
+        <div className="flex items-center gap-2">
+          <RoleSymbol
+            role={message.role}
+            isThinking={false}
+            status={message.role === 'SYSTEM' ? message.metadata?.status : undefined}
+          />
+          <Timestamp
+            date={new Date(message.timestamp)}
+            format="compact"
+            showOnHover={false}
+            className={cn(
+              "text-sm text-secondary-foreground",
+              "opacity-0 group-hover:opacity-100",
+              mobileActive && "opacity-100",
+              TAILWIND_TRANSITION
+            )}
+          />
+        </div>
+        
+        {/* Copy button - show on hover with icon transition */}
+        <button
+          onClick={handleCopy}
+          className={cn(
+            "p-1.5 text-secondary-foreground/60 rounded",
+            "opacity-0 group-hover:opacity-100",
+            mobileActive && "opacity-100",
+            TAILWIND_TRANSITION,
+            "hover:text-secondary-foreground hover:bg-muted/50",
+            "outline-none focus:outline-none focus-visible:outline-none active:outline-none",
+            "ring-0 focus:ring-0 focus-visible:ring-0 active:ring-0",
+            "appearance-none"
+          )}
+          aria-label={copied ? "Copied" : "Copy message"}
+        >
+          <div className="relative h-4 w-4">
+            <Copy
+              size={16}
+              className={cn(
+                "absolute",
+                TAILWIND_TRANSITION,
+                copied
+                  ? "opacity-0 scale-50 rotate-90"
+                  : "opacity-100 scale-100 rotate-0"
+              )}
+            />
+            <Check
+              size={16}
+              className={cn(
+                "absolute",
+                TAILWIND_TRANSITION,
+                copied
+                  ? "opacity-100 scale-100 rotate-0"
+                  : "opacity-0 scale-50 -rotate-90"
+              )}
+            />
+          </div>
+        </button>
+      </div>
+
+      {/* Row 2: Full-width content - click to toggle mobile active state */}
+      <div onClick={handleMobileToggle} className="cursor-pointer md:cursor-default">
+        {ContentArea}
+      </div>
     </div>
   );
 };

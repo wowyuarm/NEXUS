@@ -6,9 +6,9 @@ import { TAILWIND_TRANSITION } from '@/lib/motion';
 
 interface TimestampProps {
   date: Date;
-  format?: 'time' | 'date' | 'datetime' | 'smart';
+  format?: 'time' | 'date' | 'datetime' | 'smart' | 'compact';
   className?: string;
-  showOnHover?: boolean; // 是否只在悬停时显示
+  showOnHover?: boolean; // Whether to show only on hover
 }
 
 export const Timestamp: React.FC<TimestampProps> = ({
@@ -22,7 +22,7 @@ export const Timestamp: React.FC<TimestampProps> = ({
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     const diffInDays = Math.floor(diffInSeconds / 86400);
 
-    // 今天的消息显示时间
+    // Today: show time only
     if (diffInDays === 0) {
       return date.toLocaleTimeString('zh-CN', {
         hour: '2-digit',
@@ -31,12 +31,12 @@ export const Timestamp: React.FC<TimestampProps> = ({
       });
     }
 
-    // 1-6天前显示"X天前"
+    // 1-6 days ago: show "X days ago"
     if (diffInDays <= 6) {
       return `${diffInDays}天前`;
     }
 
-    // 7天以上显示月日
+    // 7+ days: show month-day
     if (diffInDays <= 365) {
       return date.toLocaleDateString('zh-CN', {
         month: 'short',
@@ -44,12 +44,40 @@ export const Timestamp: React.FC<TimestampProps> = ({
       });
     }
 
-    // 超过一年显示年月日
+    // Over a year: show year-month-day
     return date.toLocaleDateString('zh-CN', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  const getCompactTime = (date: Date) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffInDays = Math.floor((today.getTime() - messageDate.getTime()) / 86400000);
+
+    const timeStr = date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+
+    // Today: show time only (e.g., "10:23")
+    if (diffInDays === 0) {
+      return timeStr;
+    }
+
+    // Yesterday: show "昨天 10:23"
+    if (diffInDays === 1) {
+      return `昨天 ${timeStr}`;
+    }
+
+    // Earlier: show "MM-DD HH:mm" (e.g., "10-23 22:14")
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${month}-${day} ${timeStr}`;
   };
 
   const formatTime = (date: Date, format: string) => {
@@ -66,6 +94,8 @@ export const Timestamp: React.FC<TimestampProps> = ({
         return date.toLocaleString('zh-CN');
       case 'smart':
         return getSmartTime(date);
+      case 'compact':
+        return getCompactTime(date);
       default:
         return getSmartTime(date);
     }

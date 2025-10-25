@@ -166,7 +166,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             disabled={disabled}
             maxHeightMultiplier={2}
             minRows={3}
-            className="px-4 pr-6"
+            className={cn(
+              // Mobile: px-3 pr-5 (reduced padding)
+              "px-3 pr-5",
+              // Desktop: restore px-4 pr-6
+              "md:px-4 md:pr-6"
+            )}
           />
           <Button
             type="submit"

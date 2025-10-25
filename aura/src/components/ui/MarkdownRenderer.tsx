@@ -426,7 +426,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
 // 无序列表组件 - 简化逻辑，依赖CSS处理嵌套
 ul: ({ children }) => (
-  <ul className="my-4 pl-0 list-none">
+  <ul className="my-2 pl-2 md:pl-3 list-none">
     {children}
   </ul>
 ),
@@ -437,7 +437,7 @@ ol: ((props: { children?: React.ReactNode; start?: number; [key: string]: unknow
   let counter = start || 1;
 
   return (
-    <ol className="my-4 pl-0 list-none">
+    <ol className="my-2 pl-2 md:pl-3 list-none">
       {React.Children.map(children, (child, index) => {
         if (React.isValidElement(child)) {
           return React.cloneElement(child as React.ReactElement<{ [key: string]: unknown }>, {
@@ -460,7 +460,7 @@ li: ((allProps: { children?: React.ReactNode; [key: string]: unknown }) => {
 
   return (
     <li className="flex text-foreground leading-relaxed">
-      <span className="flex-shrink-0 text-secondary-foreground/70 select-none mr-2.5 flex items-center h-7">
+      <span className="flex-shrink-0 text-secondary-foreground/70 select-none mr-3 flex items-center h-7">
         {isOrdered ? (
           <span className="text-sm font-medium min-w-[1.2rem] text-right inline-block">
             {listNumber}.

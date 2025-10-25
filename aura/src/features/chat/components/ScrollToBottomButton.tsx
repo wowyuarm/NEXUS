@@ -14,12 +14,15 @@ interface ScrollToBottomButtonProps {
   onClick: () => void;
   /** 自定义类名 */
   className?: string;
+  /** 按钮位置：视口固定或输入框上方 */
+  placement?: 'viewport' | 'above-input';
 }
 
 export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
   show,
   onClick,
-  className
+  className,
+  placement = 'viewport'
 }) => {
   return (
     <AnimatePresence>
@@ -37,9 +40,9 @@ export const ScrollToBottomButton: React.FC<ScrollToBottomButtonProps> = ({
             transition: { duration: MOTION_EXIT.transition, ease: MOTION_EXIT.ease }
           }}
           className={cn(
-            // 定位样式
-            // bottom-[6.5rem] 约等于输入框容器的高度 (p-6 + 输入框高度)
-            'fixed bottom-[6.5rem] right-6 z-10',
+            placement === 'viewport'
+              ? 'fixed bottom-[6.5rem] right-6 z-10'
+              : 'absolute bottom-full right-0 mb-2 z-10',
             className
           )}
         >

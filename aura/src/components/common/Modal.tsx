@@ -20,6 +20,7 @@
 
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import { FRAMER, MOTION_EXIT } from '@/lib/motion';
 
 interface ModalProps {
@@ -93,7 +94,13 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
           />
 
           {/* Modal container */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
+          <div className={cn(
+            "fixed inset-0 z-50 flex items-center justify-center pointer-events-none",
+            // Mobile: p-3 (reduced outer margin)
+            "p-3",
+            // Desktop: restore p-6
+            "md:p-6"
+          )}>
             {/* Content wrapper with scale + fade animation */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}

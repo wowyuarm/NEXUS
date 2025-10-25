@@ -17,6 +17,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Loader2, Check, HelpCircle, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import { Button, Select, Slider, Input } from '@/components/ui';
 import { useUIStore } from '@/stores/uiStore';
 import { fetchConfig, saveConfig, type ConfigResponse } from '@/features/command/api';
@@ -528,7 +529,13 @@ export const ConfigPanel: React.FC = () => {
             className="absolute inset-0 flex flex-col"
           >
             {/* Scrollable Content Area */}
-            <div className="flex-1 overflow-y-auto px-7 py-4">
+            <div className={cn(
+              "flex-1 overflow-y-auto",
+              // Mobile: px-4 py-3 (reduced inner padding)
+              "px-4 py-3",
+              // Desktop: restore px-7 py-4
+              "md:px-7 md:py-4"
+            )}>
               {loadingState === 'loading' && renderLoading()}
               {loadingState === 'error' && renderError()}
               {loadingState === 'success' && mode === 'main' && renderMainMode()}
@@ -568,7 +575,6 @@ export const ConfigPanel: React.FC = () => {
                 </div>
               </div>
             )}
-
             {/* Error Toast - Floating at bottom */}
             <AnimatePresence>
               {errorMessage && (

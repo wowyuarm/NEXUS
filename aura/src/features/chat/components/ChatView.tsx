@@ -15,6 +15,7 @@
 
 import React, { useMemo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import type { Message } from '../types';
 import type { RunStatus } from '../store/chatStore';
 import { ChatMessage } from './ChatMessage';
@@ -142,8 +143,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
           ref={scrollContainerRef}
         >
           <div className="flex justify-center">
-            {/* 消息流渲染 - 集成原LogStream逻辑 */}
-            <div className="w-full max-w-3xl mx-auto px-4">
+            {/* Message stream rendering - integrated LogStream logic */}
+            <div className={cn(
+              "w-full max-w-3xl mx-auto",
+              // Mobile: px-3 (reduced horizontal padding)
+              "px-3",
+              // Desktop: restore px-4
+              "md:px-4"
+            )}>
               {messages.map((message, index) => (
                 <ChatMessage
                   key={message.id}
@@ -160,7 +167,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={FRAMER.reveal}
-                  className="py-6 flex items-start gap-2"
+                  className="py-6 flex items-center w-full -ml-2.5"
                 >
                   <RoleSymbol role="AI" isThinking={true} />
                   <div className="flex-1 min-w-0 ml-6" />
@@ -211,6 +218,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
               onSetSelectedCommandIndex={onSetSelectedCommandIndex}
               onExecuteCommand={onExecuteCommand}
             />
+            <ScrollToBottomButton
+              show={showScrollButton && hasStarted}
+              onClick={onScrollToBottom}
+              placement="above-input"
+              className="md:hidden"
+            />
           </div>
         </motion.div>
 
@@ -218,6 +231,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <ScrollToBottomButton
           show={showScrollButton && hasStarted}
           onClick={onScrollToBottom}
+          className="hidden md:block"
         />
       </div>
     </div>
