@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "cd aura && pnpm install && pnpm build",
+  "buildCommand": "cd aura && npm install && npm run build",
   "outputDirectory": "aura/dist",
-  "installCommand": "cd aura && pnpm install",
+  "installCommand": "cd aura && npm install",
   "framework": "vite",
   "rewrites": [
     {
