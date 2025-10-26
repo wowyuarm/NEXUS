@@ -40,3 +40,4 @@ dist/
 # 临时文档
 docs/future
 docs/backup
+.vercel

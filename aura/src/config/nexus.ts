@@ -7,39 +7,46 @@ export interface NexusConfig {
 	apiUrl: string;
 }
 
-// Default configuration
-const defaultConfig: NexusConfig = {
-	env: 'development',
-	wsUrl: 'ws://localhost:8000/api/v1/ws',
-	apiUrl: 'http://localhost:8000/api/v1'
-};
-
 // Read configuration from Vite environment variables
 export const getNexusConfig = (): NexusConfig => {
 	// Vite exposes only VITE_* and a few meta flags; rely on them
 	const env: 'development' | 'production' = import.meta.env.PROD ? 'production' : 'development';
 	
-	// Prefer explicitly provided VITE_* variables if present
+	// Read explicit backend URLs (required for Vercel deployment)
 	let wsUrl = import.meta.env.VITE_AURA_WS_URL as string | undefined;
 	let apiUrl = import.meta.env.VITE_AURA_API_URL as string | undefined;
 	
-	// For production, if not provided, use relative paths (served behind reverse proxy)
-	if (env === 'production' && !wsUrl) {
-		wsUrl = '/api/v1/ws';
+	if (env === 'production') {
+		// Production: Require explicit URLs (no reverse proxy)
+		if (!wsUrl || !apiUrl) {
+			console.error(
+				'❌ PRODUCTION BUILD ERROR: Missing backend URLs!\n' +
+				'Set in Vercel Dashboard > Settings > Environment Variables:\n' +
+				'  VITE_AURA_WS_URL=wss://nexus-backend-xxx.onrender.com/api/v1/ws\n' +
+				'  VITE_AURA_API_URL=https://nexus-backend-xxx.onrender.com/api/v1\n' +
+				'\nGet backend URL from Render Dashboard after deployment.'
+			);
+			// Provide fallback to allow build to complete (will fail at runtime with clear error)
+			wsUrl = wsUrl || 'wss://BACKEND_URL_NOT_CONFIGURED/api/v1/ws';
+			apiUrl = apiUrl || 'https://BACKEND_URL_NOT_CONFIGURED/api/v1';
+		}
+	} else {
+		// Development: Use localhost or explicit override
+		const devBase = import.meta.env.VITE_NEXUS_BASE_URL as string | undefined || 'http://localhost:8000';
+		wsUrl = wsUrl || `${devBase.replace('http', 'ws')}/api/v1/ws`;
+		apiUrl = apiUrl || `${devBase}/api/v1`;
 	}
-	if (env === 'production' && !apiUrl) {
-		apiUrl = '/api/v1';
-	}
-	
-	// Fallback to development defaults if still not set
-	wsUrl = wsUrl || defaultConfig.wsUrl;
-	apiUrl = apiUrl || defaultConfig.apiUrl;
 
 	const config: NexusConfig = {
 		env,
-		wsUrl,
-		apiUrl
+		wsUrl: wsUrl!,
+		apiUrl: apiUrl!
 	};
+
+	// Runtime validation warning
+	if (config.wsUrl.includes('NOT_CONFIGURED') || config.apiUrl.includes('NOT_CONFIGURED')) {
+		console.warn('⚠️ Backend URLs not configured. WebSocket connection will fail.');
+	}
 
 	console.log('NEXUS Configuration:', config);
 	return config;

@@ -1,6 +1,6 @@
 # render.yaml
-# Blueprint for deploying the NEXUS project on Render.com
-# This configuration defines two services: NEXUS backend and AURA frontend
+# Blueprint for deploying the NEXUS backend on Render.com
+# Frontend (AURA) is now deployed on Vercel - see docs/developer_guides/05_DEPLOYMENT_GUIDE.md
 
 services:
   #--------------------------------
@@ -12,7 +12,7 @@ services:
     repo: https://github.com/wowyuarm/NEXUS
     dockerfilePath: ./nexus/Dockerfile
     plan: free
-    region: oregon  # Choose your preferred region
+    region: singapore
       
     # Environment variables
     envVars:
@@ -42,7 +42,10 @@ services:
         sync: false
         
       - key: ALLOWED_ORIGINS
-        value: "https://aura-frontend-egej.onrender.com,https://app.yxnexus.com"
+        value: "http://localhost:5173,http://127.0.0.1:5173"
+        # Production: Add your Vercel domain in Render Dashboard
+        # Example: https://your-app.vercel.app
+        # Also supports custom domains: https://app.yxnexus.com
 
       # Service configuration
       - key: NEXUS_ENV
@@ -50,53 +53,23 @@ services:
       - key: LOG_LEVEL
         value: "INFO"
         
-  #--------------------------------
-  # AURA Frontend Service
-  #--------------------------------
-  - name: aura-frontend
-    type: web
-    env: docker
-    repo: https://github.com/wowyuarm/NEXUS
-    dockerfilePath: ./Dockerfile
-    rootDir: aura
-    plan: free
-    region: oregon  # Should match backend region
-      
-    # Environment variables
-    envVars:
-      # Build configuration
-      - key: VITE_AURA_ENV
-        value: "production"
-      # App name
-      - key: VITE_APP_NAME
-        value: "AURA"
-      # Runtime backend origin for nginx reverse proxy
-      # Frontend uses window.location.origin for API/WS, nginx proxies to this backend
-      - key: BACKEND_ORIGIN
-        value: "https://nexus-backend-tp8m.onrender.com"
-    
-    # Reverse proxy configuration removed; handled by nginx in container
+  # Frontend (AURA) is deployed on Vercel
+  # See docs/developer_guides/05_DEPLOYMENT_GUIDE.md for Vercel deployment instructions
         
 #--------------------------------
-# Render-specific Configuration
+# Deployment Instructions
 #--------------------------------
 
-# Render will automatically set:
-# - ${nexus-backend.url} - Internal URL for backend service
-# - ${aura-frontend.url} - Internal URL for frontend service
-
-# For production deployment, you need to:
-# 1. Set these environment variables in Render Dashboard > Environment > Secrets:
+# Backend (Render):
+# 1. Set environment variables in Render Dashboard > Environment > Secrets:
 #    - GEMINI_API_KEY
 #    - OPENROUTER_API_KEY  
 #    - DEEPSEEK_API_KEY
 #    - MONGO_URI
 #    - TAVILY_API_KEY
+#    - ALLOWED_ORIGINS (add your Vercel domain)
 #
-# 2. Run the configuration seeding script after deployment:
-#    python scripts/seed_config.py --env production
+# 2. Ensure MongoDB Atlas allows Render IP ranges
 #
-# 3. Ensure MongoDB Atlas allows connections from Render's IP ranges
-#
-# Note: The frontend now uses environment-aware WebSocket URLs and reverse proxy,
-# so no manual URL configuration is needed.
+# Frontend (Vercel):
+# See docs/developer_guides/05_DEPLOYMENT_GUIDE.md for complete instructions

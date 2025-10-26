@@ -17,3 +17,6 @@ Following these guides is the first step for any new developer joining the proje
 
 4.  **[04 AI Collaboration Charter](./04_AI_COLLABORATION_CHARTER.md)**
     *   **[CRITICAL READ]** The foundational operating system and behavioral constitution for any AI Agent collaborating on this project. It defines the mandatory processes, quality gates, and interaction protocols for all AI-driven development.
+
+5.  **[05 Deployment Guide](./05_DEPLOYMENT_GUIDE.md)**
+    *   Production deployment instructions for the hybrid Vercel + Render architecture. Covers frontend deployment to Vercel CDN and backend optimization on Render with keepalive mechanisms.
