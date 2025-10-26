@@ -1,4 +1,8 @@
-name: Manual Deploy to Render
+name: Manual Deploy
+
+# Manual deployment workflow for NEXUS
+# Backend: Render (FastAPI)
+# Frontend: Vercel (React + Vite)
 
 on:
   workflow_dispatch:
@@ -15,21 +19,55 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to Render
+    name: Deploy Services
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Trigger Backend Deploy
+    - name: Deploy Backend to Render
       if: github.event.inputs.target == 'all' || github.event.inputs.target == 'backend'
       run: |
-        echo "Triggering backend deployment..."
-        curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}"
+        echo "🚀 Triggering backend deployment to Render..."
+        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK_BACKEND }}")
+        HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+        
+        if [ "$HTTP_CODE" -eq 200 ] || [ "$HTTP_CODE" -eq 201 ]; then
+          echo "✅ Backend deployment triggered successfully"
+        else
+          echo "❌ Backend deployment failed with HTTP $HTTP_CODE"
+          exit 1
+        fi
 
-    - name: Trigger Frontend Deploy
+    - name: Deploy Frontend to Vercel
       if: github.event.inputs.target == 'all' || github.event.inputs.target == 'frontend'
       run: |
-        echo "Triggering frontend deployment..."
-        curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_FRONTEND }}"
+        echo "🚀 Triggering frontend deployment to Vercel..."
+        RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}")
+        HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+        
+        if [ "$HTTP_CODE" -eq 200 ] || [ "$HTTP_CODE" -eq 201 ]; then
+          echo "✅ Frontend deployment triggered successfully"
+        else
+          echo "❌ Frontend deployment failed with HTTP $HTTP_CODE"
+          exit 1
+        fi
+
+    - name: Summary
+      if: always()
+      run: |
+        echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ github.event.inputs.target }}" == "all" ]; then
+          echo "- **Backend (Render)**: Check [Render Dashboard](https://dashboard.render.com)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend (Vercel)**: Check [Vercel Dashboard](https://vercel.com/dashboard)" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ github.event.inputs.target }}" == "backend" ]; then
+          echo "- **Backend (Render)**: Check [Render Dashboard](https://dashboard.render.com)" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ github.event.inputs.target }}" == "frontend" ]; then
+          echo "- **Frontend (Vercel)**: Check [Vercel Dashboard](https://vercel.com/dashboard)" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "⏱️ Deployment typically takes 3-5 minutes." >> $GITHUB_STEP_SUMMARY

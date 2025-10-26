@@ -335,6 +335,57 @@ Check deployment status:
 
 ---
 
+## Optional: Manual Deployment via GitHub Actions
+
+### Purpose
+
+Manually trigger deployments to Render and/or Vercel from GitHub Actions UI, without pushing code.
+
+**Use cases:**
+- Redeploy after environment variable changes
+- Force rebuild without code changes
+- Deploy from a specific commit
+- Test deployment pipeline
+
+### Setup (One-time)
+
+**Required Secrets:**
+
+1. **RENDER_DEPLOY_HOOK_BACKEND**
+   - Go to [Render Dashboard](https://dashboard.render.com) > `nexus-backend` > Settings > Deploy Hook
+   - Copy webhook URL
+   - GitHub repo > Settings > Secrets and variables > Actions > New secret
+   - Name: `RENDER_DEPLOY_HOOK_BACKEND`, Value: webhook URL
+
+2. **VERCEL_DEPLOY_HOOK**
+   - Go to [Vercel Dashboard](https://vercel.com/dashboard) > Your project > Settings > Git > Deploy Hooks
+   - Create hook for `main` branch
+   - Copy webhook URL
+   - GitHub repo > Settings > Secrets and variables > Actions > New secret
+   - Name: `VERCEL_DEPLOY_HOOK`, Value: webhook URL
+
+**Detailed instructions:** See `.github/workflows/README.md`
+
+### Usage
+
+1. Go to GitHub repo > **Actions** tab
+2. Select **"Manual Deploy"** workflow (left sidebar)
+3. Click **"Run workflow"** button
+4. Choose deployment target:
+   - `all` - Deploy both backend and frontend
+   - `backend` - Deploy only backend (Render)
+   - `frontend` - Deploy only frontend (Vercel)
+5. Click **"Run workflow"**
+
+**Deployment time:** 3-5 minutes
+
+**Check status:**
+- GitHub Actions: View workflow run logs
+- Render: Dashboard > `nexus-backend` > Events
+- Vercel: Dashboard > Your project > Deployments
+
+---
+
 ## Troubleshooting
 
 ### Build Errors
