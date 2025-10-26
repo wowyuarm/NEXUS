@@ -270,7 +270,12 @@ Now that you have your Vercel domain, update backend CORS:
 4. Add your Vercel domain to the comma-separated list:
 
 ```
-https://aura-frontend-egej.onrender.com,https://app.yxnexus.com,https://yx-nexus.vercel.app,http://localhost:5173,http://127.0.0.1:5173
+https://yx-nexus.vercel.app,http://localhost:5173,http://127.0.0.1:5173
+```
+
+If you have a custom domain, add it too:
+```
+https://yx-nexus.vercel.app,https://app.yxnexus.com,http://localhost:5173,http://127.0.0.1:5173
 ```
 
 5. Click "Save Changes"

@@ -18,6 +18,7 @@ import { useChatStore } from '@/features/chat/store/chatStore';
 import { useCommandStore } from './store/commandStore';
 import type { Message } from '@/features/chat/types';
 import { useUIStore } from '@/stores/uiStore';
+import { getNexusConfig } from '@/config/nexus';
 import type { ModalType } from '@/stores/uiStore';
 import { useThemeStore, type ThemePreference } from '@/stores/themeStore';
 
@@ -237,7 +238,7 @@ async function executeRestCommand(
 
   try {
     const { endpoint, method, headers = {} } = command.restOptions;
-    const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const baseURL = getNexusConfig().apiUrl;
 
     const response = await fetch(`${baseURL}${endpoint}`, {
       method,

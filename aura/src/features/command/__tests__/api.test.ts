@@ -2,6 +2,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fetchCommands, fetchCommand, CommandAPIError } from '../api';
 import type { Command } from '../command.types';
 
+// Mock getNexusConfig
+vi.mock('@/config/nexus', () => ({
+  getNexusConfig: vi.fn(() => ({
+    env: 'development',
+    wsUrl: 'ws://localhost:8000/api/v1/ws',
+    apiUrl: 'http://localhost:8000/api/v1'
+  }))
+}));
+
 // Mock global fetch
 global.fetch = vi.fn();
 
@@ -56,7 +65,8 @@ describe('Command API', () => {
       
       expect(result).toEqual(mockCommands);
       expect(result).toHaveLength(4);
-      const expectedUrl = `${window.location.origin}/api/v1/commands`;
+      // API URL comes from getNexusConfig mock
+      const expectedUrl = 'http://localhost:8000/api/v1/commands';
       expect(global.fetch).toHaveBeenCalledWith(
         expectedUrl,
         expect.objectContaining({

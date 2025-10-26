@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => {
       port: 5173, // Fixed port for consistency
       proxy: {
         // Development proxy: forward /api and /ws to backend
-        // Production: nginx handles reverse proxy, no need for Vite proxy
+        // Production (Vercel): Direct HTTPS/WSS connections, no proxy needed
         '/api': {
           target: env.VITE_NEXUS_BASE_URL || 'http://localhost:8000',
           changeOrigin: true,

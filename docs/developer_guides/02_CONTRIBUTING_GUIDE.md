@@ -149,7 +149,8 @@ Choose the appropriate workflow based on task complexity:
 - Backend run: `python -m nexus.main` (or `scripts/shell/run.sh` to launch backend + frontend together).
 - Frontend setup: `cd aura && pnpm install`.
 - Frontend dev: `pnpm dev`; build: `pnpm build`; lint: `pnpm lint`; tests: `pnpm test`, `pnpm test:run`, `pnpm test:coverage`.
-- Containers: `docker-compose up --build` provisions `nexus-backend` and `aura-frontend` on `nexus-net`.
+- Backend container (optional): `docker-compose up --build` provisions `nexus-backend` on `nexus-net`.
+  - Note: Frontend is deployed on Vercel in production, no Docker container needed for frontend.
 
 ## Collaboration & Communication
 - Respect the retry policy: after three failed attempts, prepare the escalation report described in the AI charter.
