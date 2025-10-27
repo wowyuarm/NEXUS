@@ -1,0 +1,22 @@
+{
+  "name": "nexus-keepalive-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers cron job to keep NEXUS backend warm",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail",
+    "test": "wrangler dev --test-scheduled",
+    "login": "wrangler login"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "cron",
+    "keepalive"
+  ],
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

@@ -1,0 +1,39 @@
+# Cloudflare Workers Configuration
+# Documentation: https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "nexus-keepalive"
+main = "keepalive.js"
+# Use recent date to get latest API features and bug fixes
+# See: https://developers.cloudflare.com/workers/configuration/compatibility-dates/
+compatibility_date = "2025-10-01"
+
+# Cron Triggers - Runs every 10 minutes
+# Syntax: minute hour day month day-of-week
+# */10 * * * * = Every 10 minutes
+[triggers]
+crons = ["*/10 * * * *"]
+
+# Environment variables
+[env.production]
+vars = { BACKEND_URL = "https://nexus-backend-tp8m.onrender.com/api/v1/health" }
+
+# Optional: Enable analytics logging
+# vars = { 
+#   BACKEND_URL = "https://nexus-backend-tp8m.onrender.com/api/v1/health",
+#   ANALYTICS_ENABLED = "true"
+# }
+
+# Optional: Cloudflare KV for analytics storage (free tier)
+# [[kv_namespaces]]
+# binding = "KEEPALIVE_KV"
+# id = "your-kv-namespace-id"
+
+# Deployment settings
+[build]
+command = ""
+
+# Worker limits (free tier)
+# - 100,000 requests/day
+# - 10ms CPU time per request
+# - 128MB memory
+# - No egress fees
