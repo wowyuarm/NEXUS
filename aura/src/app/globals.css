@@ -70,6 +70,17 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  /* Text selection styling - grayscale moderation philosophy */
+  ::selection {
+    background: hsl(var(--foreground) / 0.15); /* Light mode: subtle dark gray highlight */
+    color: inherit; /* Maintain text color for readability */
+  }
+
+  .dark ::selection {
+    background: hsl(var(--foreground) / 0.25); /* Dark mode: slightly stronger light gray highlight */
+    color: inherit;
+  }
 }
 
 @layer utilities {

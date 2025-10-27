@@ -63,12 +63,10 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
 
   return (
     <div className={cn(
-      'group relative rounded-xl overflow-hidden my-4', // 添加外边距
+      'relative rounded-xl overflow-hidden my-4',
       'bg-card/75 backdrop-blur-xl',
       'border border-border',
-      'shadow-lg shadow-black/20',
-      TAILWIND_TRANSITION,
-      'hover:border-foreground/20 hover:shadow-xl hover:shadow-black/30',
+      'shadow-md shadow-black/10',
       className
     )}>
       {/* 头部信息栏 */}
@@ -90,8 +88,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
           <button
             onClick={handleCopy}
             className={cn(
-              'p-1.5 text-secondary-foreground/60 rounded',
-              'opacity-0 group-hover:opacity-100',
+              'p-1.5 text-secondary-foreground/70 rounded',
               TAILWIND_TRANSITION,
               'hover:text-secondary-foreground hover:bg-muted/50',
               // Fully suppress any focus/active rings
@@ -135,8 +132,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
             onClick={handleCopy}
             className={cn(
               'absolute top-3 right-3 z-10 p-1.5 rounded',
-              'text-secondary-foreground/60 bg-card/50 backdrop-blur-sm',
-              'opacity-0 group-hover:opacity-100',
+              'text-secondary-foreground/70 bg-card/50 backdrop-blur-sm',
               TAILWIND_TRANSITION,
               'hover:text-secondary-foreground hover:bg-muted/50',
               // Fully suppress any focus/active rings

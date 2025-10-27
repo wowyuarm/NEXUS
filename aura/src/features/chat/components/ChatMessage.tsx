@@ -72,8 +72,6 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
 
   // Copy button state (must be declared before any conditional returns)
   const [copied, setCopied] = useState(false);
-  // Mobile active state (for touch devices)
-  const [mobileActive, setMobileActive] = useState(false);
 
   // Decide the content we should render right now
 
@@ -289,9 +287,6 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
     }
   };
 
-  const handleMobileToggle = () => {
-    setMobileActive(!mobileActive);
-  };
 
   const ContentArea = (
     <motion.div
@@ -300,7 +295,6 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={FRAMER.reveal}
     >
-      {/* Message content - full width */}
       {renderContent()}
     </motion.div>
   );
@@ -312,49 +306,54 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   return (
     <div
       className={cn(
-        "group relative flex flex-col",
+        "relative flex flex-col",
         // Vertical spacing: Mobile py-4, Desktop py-6
         "py-4",
         "md:py-6"
       )}
       data-message-id={message.id}
     >
-      {/* Row 1: Role Symbol + Timestamp + Copy Button */}
-      <div className="flex items-center justify-between w-full mb-2 -ml-2.5">
-        <div className="flex items-center gap-2">
-          <RoleSymbol
-            role={message.role}
-            isThinking={false}
-            status={message.role === 'SYSTEM' ? message.metadata?.status : undefined}
-          />
-          <Timestamp
-            date={new Date(message.timestamp)}
-            format="compact"
-            showOnHover={false}
+      {/* Row 1: Role Symbol (left-aligned) */}
+      <div className="flex items-start w-full mb-2 -ml-2.5">
+        <RoleSymbol
+          role={message.role}
+          isThinking={false}
+          status={message.role === 'SYSTEM' ? message.metadata?.status : undefined}
+        />
+      </div>
+
+      {/* Row 2: Message content */}
+      <div className="w-full">
+        {ContentArea}
+      </div>
+
+      {/* Row 3: Timestamp + Copy Button (hidden for SYSTEM messages) */}
+      {message.role !== 'SYSTEM' && (
+        <div className="flex items-center justify-between w-full mt-1.5 -ml-9">
+          {/* Timestamp - vertically aligned with RoleSymbol center */}
+          <div className="flex items-center pl-[38px]">
+            <Timestamp
+              date={new Date(message.timestamp)}
+              format="compact"
+              showOnHover={false}
+              className="text-sm text-secondary-foreground/70"
+            />
+          </div>
+          
+          {/* Copy button - aligned with content right edge */}
+          <button
+            onClick={handleCopy}
             className={cn(
-              "text-sm text-secondary-foreground",
-              "opacity-0 group-hover:opacity-100",
-              mobileActive && "opacity-100",
-              TAILWIND_TRANSITION
+              "p-1.5 text-secondary-foreground/60 rounded",
+              "ml-auto mr-[-38px]",
+              TAILWIND_TRANSITION,
+              "hover:text-secondary-foreground hover:bg-muted/50",
+              "outline-none focus:outline-none focus-visible:outline-none active:outline-none",
+              "ring-0 focus:ring-0 focus-visible:ring-0 active:ring-0",
+              "appearance-none"
             )}
-          />
-        </div>
-        
-        {/* Copy button - show on hover with icon transition */}
-        <button
-          onClick={handleCopy}
-          className={cn(
-            "p-1.5 text-secondary-foreground/60 rounded",
-            "opacity-0 group-hover:opacity-100",
-            mobileActive && "opacity-100",
-            TAILWIND_TRANSITION,
-            "hover:text-secondary-foreground hover:bg-muted/50",
-            "outline-none focus:outline-none focus-visible:outline-none active:outline-none",
-            "ring-0 focus:ring-0 focus-visible:ring-0 active:ring-0",
-            "appearance-none"
-          )}
-          aria-label={copied ? "Copied" : "Copy message"}
-        >
+            aria-label={copied ? "Copied" : "Copy message"}
+          >
           <div className="relative h-4 w-4">
             <Copy
               size={16}
@@ -378,12 +377,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             />
           </div>
         </button>
-      </div>
-
-      {/* Row 2: Full-width content - click to toggle mobile active state */}
-      <div onClick={handleMobileToggle} className="cursor-pointer md:cursor-default">
-        {ContentArea}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

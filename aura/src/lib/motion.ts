@@ -140,17 +140,17 @@ export const MOTION_SPECIAL = {
 export const MOTION_AI = {
   /** 
    * Typewriter effect configuration
-   * Characters appear with natural variation (10-25ms range)
+   * Delays set to 0 for instant text rendering (no streaming delay)
    */
   typewriter: {
     /** Minimum delay between characters (ms) */
-    minSpeed: 10,
+    minSpeed: 0,
     /** Maximum delay between characters (ms) */
-    maxSpeed: 25,
-    /** Average speed target (~17ms, close to old 15ms) */
-    averageSpeed: 17,
+    maxSpeed: 0,
+    /** Average speed target */
+    averageSpeed: 0,
     /** Startup delay before first character (ms) */
-    startupDelay: { min: 50, max: 100 },
+    startupDelay: { min: 0, max: 0 },
   },
 } as const;
 

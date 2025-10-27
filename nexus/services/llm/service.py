@@ -44,8 +44,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_MAX_TOKENS = 4096
 DEFAULT_TIMEOUT = 30
-STREAMING_CHUNK_DELAY = 0.05  # 50ms delay between chunks for realistic streaming
-TOOL_EVENT_ORDERING_DELAY = 0.1  # 100ms delay to ensure proper event ordering
+STREAMING_CHUNK_DELAY = 0  # No delay for instant streaming
+TOOL_EVENT_ORDERING_DELAY = 0  # No delay for instant event ordering
 
 
 class LLMService:
