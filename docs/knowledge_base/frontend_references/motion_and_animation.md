@@ -260,9 +260,12 @@ export const FRAMER = {
   breathe: { duration: 2, ease: 'easeInOut', repeat: Infinity },
 };
 
-// Tailwind class generators
-export const getTailwindTransition = (layer: 'micro' | 'transition' | 'reveal' | 'scene') => {
-  // Returns appropriate duration-* class
+// Pre-built Tailwind classes
+export const TAILWIND = {
+  micro: 'transition-all duration-150 ease-out',
+  transition: 'transition-all duration-250 ease-in-out',
+  reveal: 'transition-all duration-350 ease-out',
+  scene: 'transition-all duration-450 ease-out',
 };
 
 // AI-specific helpers
@@ -570,33 +573,24 @@ it('applies correct transition timing', () => {
 
 ### From Old System (0.4s Unified)
 
-**Step 1**: Update imports
+**All deprecated constants have been removed from `lib/motion.ts`**. Use the cognitive rhythm layers:
+
 ```typescript
-// Before
-import { MOTION_CONFIG, FRAMER_TRANSITION } from '@/lib/motion';
+// Import the new system
+import { FRAMER, TAILWIND, MOTION_EXIT } from '@/lib/motion';
 
-// After
-import { FRAMER, MOTION_EXIT } from '@/lib/motion';
-```
-
-**Step 2**: Map old usage to appropriate layers
-```typescript
-// Before (all 0.4s)
-transition={FRAMER_TRANSITION}  // 400ms
-
-// After (layer-specific)
+// Framer Motion - use layer-specific timings
 transition={FRAMER.micro}      // 150ms for hover
+transition={FRAMER.transition} // 250ms for state changes  
 transition={FRAMER.reveal}     // 350ms for content
 transition={FRAMER.scene}      // 450ms for modals
-```
 
-**Step 3**: Add asymmetric exits
-```typescript
-// Before
-exit={{ opacity: 0 }}
-transition={FRAMER_TRANSITION}
+// Tailwind CSS - use pre-built classes
+className={TAILWIND.micro}     // hover/tap effects
+className={TAILWIND.transition} // loading states
+className={TAILWIND.reveal}    // content expansion
 
-// After
+// Asymmetric exits
 exit={{ 
   opacity: 0,
   transition: { duration: MOTION_EXIT.reveal, ease: MOTION_EXIT.ease }

@@ -1,5 +1,5 @@
 /**
- * Motion System 2.0 - Cognitive Rhythm Architecture
+ * Motion System - Cognitive Rhythm Architecture
  * 
  * This file defines the rhythmic animation system for AURA, built on cognitive psychology
  * principles rather than arbitrary timing constants.
@@ -270,32 +270,6 @@ export const getTypewriterStartupDelay = (): number => {
 };
 
 // ============================================================================
-// Backwards Compatibility (Deprecated)
+// End of Motion System
 // ============================================================================
-
-/**
- * @deprecated Use FRAMER.reveal instead
- * Legacy constant for migration period
- */
-export const FRAMER_TRANSITION = FRAMER.reveal;
-
-/**
- * @deprecated Use getTailwindTransition() or TAILWIND constants instead
- * Legacy constant for migration period
- */
-export const TAILWIND_TRANSITION = TAILWIND.reveal;
-
-/**
- * @deprecated Use specific MOTION_* constants instead
- * Legacy constant for migration period
- */
-export const MOTION_CONFIG = {
-  duration: MOTION_REVEAL.duration,
-  ease: MOTION_REVEAL.ease,
-} as const;
-
-/**
- * @deprecated Use MOTION_SPECIAL instead
- * Legacy constant for migration period
- */
-export const MOTION_EXCEPTIONS = MOTION_SPECIAL;
+// All deprecated constants have been removed. Use the cognitive rhythm layers above.

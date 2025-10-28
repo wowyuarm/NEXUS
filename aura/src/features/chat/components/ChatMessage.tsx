@@ -27,7 +27,7 @@ import { ToolCallCard } from './ToolCallCard';
 import { useTypewriter } from '../hooks/useTypewriter';
 import type { Message, SystemMessageContent } from '../types';
 import type { RunStatus } from '../store/chatStore';
-import { FRAMER, TAILWIND_TRANSITION } from '@/lib/motion';
+import { FRAMER, TAILWIND } from '@/lib/motion';
 
 
 interface ChatMessageProps {
@@ -346,7 +346,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             className={cn(
               "p-1.5 text-secondary-foreground/60 rounded",
               "ml-auto mr-[-38px]",
-              TAILWIND_TRANSITION,
+              TAILWIND.micro,
               "hover:text-secondary-foreground hover:bg-muted/50",
               "outline-none focus:outline-none focus-visible:outline-none active:outline-none",
               "ring-0 focus:ring-0 focus-visible:ring-0 active:ring-0",
@@ -359,7 +359,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               size={16}
               className={cn(
                 "absolute",
-                TAILWIND_TRANSITION,
+                TAILWIND.transition,
                 copied
                   ? "opacity-0 scale-50 rotate-90"
                   : "opacity-100 scale-100 rotate-0"
@@ -369,7 +369,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               size={16}
               className={cn(
                 "absolute",
-                TAILWIND_TRANSITION,
+                TAILWIND.transition,
                 copied
                   ? "opacity-100 scale-100 rotate-0"
                   : "opacity-0 scale-50 -rotate-90"

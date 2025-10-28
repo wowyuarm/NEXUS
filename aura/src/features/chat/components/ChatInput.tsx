@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Button, AutoResizeTextarea, type AutoResizeTextareaRef } from '@/components/ui';
 import { useChatStore } from '@/features/chat/store/chatStore';
 import type { Command } from '@/features/command/command.types';
-import { TAILWIND_TRANSITION } from '@/lib/motion';
+import { TAILWIND } from '@/lib/motion';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
@@ -152,8 +152,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         <div className={cn(
           'relative rounded-2xl border border-border shadow-lg shadow-black/20',
           'bg-card/75 backdrop-blur-xl',
-          TAILWIND_TRANSITION,
-          'hover:border-foreground/20'
+          TAILWIND.micro,
+          'hover:border-border-hover'
         )}>
           <AutoResizeTextarea
             ref={textareaRef}

@@ -33,7 +33,7 @@
 
 import { forwardRef, type ComponentProps } from 'react';
 import { cn } from '@/lib/utils';
-import { TAILWIND_TRANSITION } from '@/lib/motion';
+import { TAILWIND } from '@/lib/motion';
 
 export interface TextareaProps extends Omit<ComponentProps<'textarea'>, 'rows'> {
   /**
@@ -70,8 +70,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       'text-foreground placeholder:text-secondary-foreground',
       // Silent focus - no ring, no outline
       'outline-none focus:ring-0',
-      // Unified timing
-      TAILWIND_TRANSITION,
+      // Unified timing - micro-feedback for interactive elements
+      TAILWIND.micro,
     );
 
     const variantStyles = {
@@ -79,8 +79,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         // Standard textarea appearance
         'px-3 py-2 rounded-lg',
         'bg-background border border-border',
-        // Hover feedback - subtle border emphasis (4% opacity principle)
-        'hover:border-foreground/20',
+        // Hover feedback - subtle border emphasis using theme-aware color
+        'hover:border-border-hover',
         // Focus feedback - slightly more emphasis but still subtle
         'focus:border-foreground/30',
         // Error state

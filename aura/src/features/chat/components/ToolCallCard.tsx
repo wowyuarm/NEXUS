@@ -109,7 +109,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
 
         // Interactive: 150ms micro-feedback for hover
         'cursor-pointer transition-colors duration-150 ease-out',
-        'hover:border-foreground/20'
+        'hover:border-border-hover'
       )}
       onClick={() => {
         // 在展开/收起时临时抑制自动滚动，避免与展开引起的高度变化叠加触发

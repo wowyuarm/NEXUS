@@ -77,7 +77,7 @@ export const Button: React.FC<ButtonProps> = ({
     ],
     outline: [
       'bg-transparent text-foreground border border-border',
-      'hover:bg-white/[.02] hover:border-foreground/20',
+      'hover:bg-white/[.02] hover:border-border-hover',
       'disabled:text-muted-foreground/50 disabled:border-border/50'
     ],
     icon: [

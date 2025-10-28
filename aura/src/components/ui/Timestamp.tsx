@@ -2,7 +2,7 @@
 // 智能时间显示组件 - 支持相对时间和悬停显示
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { TAILWIND_TRANSITION } from '@/lib/motion';
+import { TAILWIND } from '@/lib/motion';
 
 interface TimestampProps {
   date: Date;
@@ -119,7 +119,7 @@ export const Timestamp: React.FC<TimestampProps> = ({
       title={getFullDateTime(date)}
       className={cn(
         'text-xs text-secondary-foreground/60 select-none',
-        TAILWIND_TRANSITION,
+        TAILWIND.micro,
         showOnHover && 'opacity-0 group-hover:opacity-100',
         className
       )}

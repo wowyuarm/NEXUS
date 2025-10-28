@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TAILWIND_TRANSITION } from '@/lib/motion';
+import { TAILWIND } from '@/lib/motion';
 
 // ===== 内部组件定义 =====
 
@@ -63,10 +63,13 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
 
   return (
     <div className={cn(
-      'relative rounded-xl overflow-hidden my-4',
+      'group relative rounded-xl overflow-hidden my-4',
       'bg-card/75 backdrop-blur-xl',
       'border border-border',
       'shadow-md shadow-black/10',
+      // Interactive: 150ms micro-feedback for hover (consistent with input & tool cards)
+      TAILWIND.micro,
+      'hover:border-border-hover',
       className
     )}>
       {/* 头部信息栏 */}
@@ -89,7 +92,9 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
             onClick={handleCopy}
             className={cn(
               'p-1.5 text-secondary-foreground/70 rounded',
-              TAILWIND_TRANSITION,
+              TAILWIND.micro,
+              // Hover时显示：默认隐藏，group-hover时出现
+              'opacity-0 group-hover:opacity-100',
               'hover:text-secondary-foreground hover:bg-muted/50',
               // Fully suppress any focus/active rings
               'outline-none focus:outline-none focus-visible:outline-none active:outline-none',
@@ -103,7 +108,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
                 size={14}
                 className={cn(
                   'absolute',
-                  TAILWIND_TRANSITION,
+                  TAILWIND.transition,
                   copied
                     ? 'opacity-0 scale-50 rotate-90'
                     : 'opacity-100 scale-100 rotate-0'
@@ -113,7 +118,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
                 size={14}
                 className={cn(
                   'absolute',
-                  TAILWIND_TRANSITION,
+                  TAILWIND.transition,
                   copied
                     ? 'opacity-100 scale-100 rotate-0'
                     : 'opacity-0 scale-50 -rotate-90'
@@ -133,7 +138,9 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
             className={cn(
               'absolute top-3 right-3 z-10 p-1.5 rounded',
               'text-secondary-foreground/70 bg-card/50 backdrop-blur-sm',
-              TAILWIND_TRANSITION,
+              TAILWIND.micro,
+              // Hover时显示：默认隐藏，group-hover时出现
+              'opacity-0 group-hover:opacity-100',
               'hover:text-secondary-foreground hover:bg-muted/50',
               // Fully suppress any focus/active rings
               'outline-none focus:outline-none focus-visible:outline-none active:outline-none',
@@ -147,7 +154,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
                 size={14}
                 className={cn(
                   'absolute',
-                  TAILWIND_TRANSITION,
+                  TAILWIND.transition,
                   copied
                     ? 'opacity-0 scale-50 rotate-90'
                     : 'opacity-100 scale-100 rotate-0'
@@ -157,7 +164,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
                 size={14}
                 className={cn(
                   'absolute',
-                  TAILWIND_TRANSITION,
+                  TAILWIND.transition,
                   copied
                     ? 'opacity-100 scale-100 rotate-0'
                     : 'opacity-0 scale-50 -rotate-90'
@@ -267,7 +274,7 @@ const TableRow: React.FC<TableRowProps> = ({ children, className }) => (
   <tr className={cn(
     'border-b border-border/20 last:border-b-0',
     'hover:bg-muted/20',
-    TAILWIND_TRANSITION, // 修复：更明显的悬停效果
+    TAILWIND.micro, // Hover effect: 150ms micro-feedback
     className
   )}>
     {children}
@@ -479,7 +486,7 @@ li: ((allProps: { children?: React.ReactNode; [key: string]: unknown }) => {
               href={href}
               className={cn(
                 'text-foreground underline decoration-secondary-foreground/30 decoration-1 underline-offset-2',
-                TAILWIND_TRANSITION,
+                TAILWIND.micro,
                 'hover:text-primary hover:decoration-secondary-foreground/50',
                 'focus:outline-none focus:ring-1 focus:ring-secondary-foreground/20 focus:rounded-sm'
               )}
