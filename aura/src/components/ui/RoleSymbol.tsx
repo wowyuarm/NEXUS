@@ -1,5 +1,5 @@
 // src/components/ui/RoleSymbol.tsx
-// 角色符号组件 - 使用纯文本几何符号表示不同角色
+// Role symbol component - uses plain text geometric symbols to represent different roles
 import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -10,7 +10,7 @@ interface RoleSymbolProps {
   status?: 'pending' | 'completed';
 }
 
-// 角色符号映射 - 独立一列显示，尺寸增大
+// Role symbol mapping - displayed in separate column with increased size
 export const RoleSymbol: React.FC<RoleSymbolProps> = ({ role, isThinking = false, status }) => {
   const symbols = {
     HUMAN: '▲',

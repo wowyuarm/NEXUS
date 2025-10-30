@@ -1,5 +1,5 @@
 // src/components/ui/Timestamp.tsx
-// 智能时间显示组件 - 支持相对时间和悬停显示
+// Smart timestamp component - supports relative time and hover display
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { TAILWIND } from '@/lib/motion';
@@ -69,7 +69,7 @@ export const Timestamp: React.FC<TimestampProps> = ({
       return timeStr;
     }
 
-    // Yesterday: show "昨天 10:23"
+    // Yesterday: show "Yesterday 10:23"
     if (diffInDays === 1) {
       return `昨天 ${timeStr}`;
     }

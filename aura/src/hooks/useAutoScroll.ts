@@ -1,47 +1,47 @@
 // src/hooks/useAutoScroll.ts
-// 通用自动滚动管理Hook - 处理滚动容器的智能滚动逻辑
+// Universal auto-scroll management Hook - handles smart scrolling logic for scroll containers
 import { useRef, useCallback, useState, useEffect } from 'react';
 
-// 常量定义
-const SMOOTH_SCROLL_DURATION = 800; // 平滑滚动持续时间（毫秒）
-const SCROLL_THROTTLE_DELAY = 16; // 滚动节流延迟（约60fps）
-const HEIGHT_CHECK_INTERVAL = 50; // 高度检查间隔（毫秒）
+// Constant definitions
+const SMOOTH_SCROLL_DURATION = 800; // Smooth scroll duration (milliseconds)
+const SCROLL_THROTTLE_DELAY = 16; // Scroll throttle delay (approx. 60fps)
+const HEIGHT_CHECK_INTERVAL = 50; // Height check interval (milliseconds)
 
 interface UseAutoScrollOptions {
   /**
-   * 判断是否接近底部的阈值（像素）
-   * 当距离底部小于此值时，认为用户在底部
+   * Threshold for determining if near bottom (pixels)
+   * When distance from bottom is less than this value, user is considered at bottom
    */
   threshold?: number;
 }
 
 interface UseAutoScrollReturn {
-  /** 滚动容器的ref */
+  /** Ref for the scroll container */
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
-  /** 是否显示滚动到底部按钮 */
+  /** Whether to show scroll to bottom button */
   showScrollButton: boolean;
-  /** 滚动到底部的函数 */
+  /** Function to scroll to bottom */
   scrollToBottom: (behavior?: ScrollBehavior) => void;
-  /** 暂时抑制自动滚动（用于展开卡片等会导致高度瞬时变化的交互） */
+  /** Temporarily suppress auto-scroll (for interactions that cause instantaneous height changes like expanding cards) */
   suppressAutoScroll: (durationMs?: number) => void;
 }
 
 
 /**
- * useAutoScroll Hook - 智能滚动行为管理
+ * useAutoScroll Hook - Smart scroll behavior management
  *
- * 核心逻辑：
- * 1. 引入isAutoScrollingEnabled状态来跟踪是否应启用自动跟随
- * 2. 场景A: 用户发送消息时，立即滚动到底部
- * 3. 场景B: AI流式输出且用户在底部时，自动跟随新内容
- * 4. 场景C: AI流式输出但用户已向上滚动时，不自动滚动
- * 5. 场景D: 用户从上方返回底部时，重新启用自动跟随
+ * Core logic:
+ * 1. Introduce isAutoScrollingEnabled state to track whether auto-follow should be enabled
+ * 2. Scenario A: When user sends message, immediately scroll to bottom
+ * 3. Scenario B: When AI streams output and user is at bottom, auto-follow new content
+ * 4. Scenario C: When AI streams output but user has scrolled up, do not auto-scroll
+ * 5. Scenario D: When user returns to bottom from above, re-enable auto-follow
  *
- * @param dependencies 依赖项数组，当内容更新时触发检查
- * @param options 配置选项
+ * @param dependencies Array of dependencies that triggers check when content updates
+ * @param options Configuration options
  */
 export const useAutoScroll = (
-  dependencies: unknown[] = [], // 依赖项数组，当内容更新时触发检查
+  dependencies: unknown[] = [], // Dependency array, triggers check when content updates
   options: UseAutoScrollOptions = {}
 ): UseAutoScrollReturn => {
   const { threshold = 50 } = options;
@@ -49,19 +49,19 @@ export const useAutoScroll = (
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
-  // 关键状态：使用ref来避免不必要的重渲染
+  // Key state: use ref to avoid unnecessary re-renders
   const isAutoScrollingEnabled = useRef(true);
   const lastScrollHeight = useRef(0);
-  const isSmoothScrolling = useRef(false); // 跟踪是否有平滑滚动正在进行
+  const isSmoothScrolling = useRef(false); // Track if smooth scrolling is in progress
   const smoothScrollTimeout = useRef<NodeJS.Timeout | null>(null);
-  const heightCheckInterval = useRef<NodeJS.Timeout | null>(null); // 高度检查定时器
-  const suppressUntil = useRef<number>(0); // 抑制自动滚动的截止时间戳（ms）
+  const heightCheckInterval = useRef<NodeJS.Timeout | null>(null); // Height check timer
+  const suppressUntil = useRef<number>(0); // Suppression end timestamp for auto-scroll (ms)
 
   const isSuppressed = () => Date.now() < suppressUntil.current;
 
   const suppressAutoScroll = useCallback((durationMs: number = 400) => {
     suppressUntil.current = Date.now() + durationMs;
-    // 在抑制期间，避免任何自动滚动
+    // Avoid any auto-scroll during suppression period
     isAutoScrollingEnabled.current = false;
   }, []);
 
@@ -69,26 +69,26 @@ export const useAutoScroll = (
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    // 如果是平滑滚动，设置标记并清除之前的超时
+    // If smooth scrolling, set flag and clear previous timeout
     if (behavior === 'smooth') {
       isSmoothScrolling.current = true;
       if (smoothScrollTimeout.current) {
         clearTimeout(smoothScrollTimeout.current);
       }
-      // 设置超时来重置平滑滚动标记
+      // Set timeout to reset smooth scrolling flag
       smoothScrollTimeout.current = setTimeout(() => {
         isSmoothScrolling.current = false;
       }, SMOOTH_SCROLL_DURATION);
     }
 
-    // 使用 requestAnimationFrame 确保在下一次绘制前滚动
+    // Use requestAnimationFrame to ensure scrolling before next paint
     requestAnimationFrame(() => {
       container.scrollTo({ top: container.scrollHeight, behavior });
-      // 更新 lastScrollHeight 以避免滚动中断
+      // Update lastScrollHeight to avoid scroll interruption
       lastScrollHeight.current = container.scrollHeight;
     });
 
-    // 如果是用户主动点击滚动到底部，则重新启用自动滚动
+    // If user manually clicks scroll to bottom, re-enable auto-scroll
     if (behavior === 'smooth') {
       isAutoScrollingEnabled.current = true;
     }
@@ -102,11 +102,11 @@ export const useAutoScroll = (
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
     const isAtBottom = distanceFromBottom < threshold;
 
-    // 更新自动滚动状态和按钮显示
+    // Update auto-scroll state and button display
     isAutoScrollingEnabled.current = isAtBottom;
     setShowScrollButton(!isAtBottom);
 
-    // 更新记录的滚动高度
+    // Update recorded scroll height
     lastScrollHeight.current = scrollHeight;
   }, [threshold]);
 
@@ -114,14 +114,14 @@ export const useAutoScroll = (
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    // 当内容更新时（由依赖项数组触发）
+    // When content updates (triggered by dependency items array)
     if (isAutoScrollingEnabled.current && !isSuppressed()) {
-      // 如果有平滑滚动正在进行，跳过这次自动滚动
+      // If smooth scrolling is in progress, skip this auto-scroll
       if (isSmoothScrolling.current) {
         return;
       }
 
-      // 使用节流，避免过于频繁的滚动
+      // Use throttling to avoid overly frequent scrolling
       setTimeout(() => {
         if (isAutoScrollingEnabled.current && !isSmoothScrolling.current && !isSuppressed()) {
           scrollToBottom('auto');
@@ -129,7 +129,7 @@ export const useAutoScroll = (
       }, SCROLL_THROTTLE_DELAY);
     }
 
-    // 显示/隐藏按钮的逻辑
+    // Show/hide button logic
     const { scrollTop, scrollHeight, clientHeight } = container;
     setShowScrollButton(scrollHeight - scrollTop - clientHeight > threshold);
 
@@ -142,18 +142,18 @@ export const useAutoScroll = (
     return () => container.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
-  // 高度变化检测 - 用于捕获打字机效果导致的内容变化
+  // Height change detection - used to capture content changes caused by typewriter effect
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    // 启动高度检查定时器
+    // Start height check timer
     heightCheckInterval.current = setInterval(() => {
       const currentHeight = container.scrollHeight;
 
-      // 如果高度增加且用户在底部，自动滚动
+      // If height increases and user is at bottom, auto-scroll
       if (currentHeight > lastScrollHeight.current && isAutoScrollingEnabled.current && !isSuppressed()) {
-        // 在非平滑滚动期间，立即对齐到底部；即使是大幅跳变（例如插入工具卡片），也不要延迟
+        // During non-smooth scrolling, immediately align to bottom; even for large jumps (e.g., inserting tool cards), don't delay
         if (!isSmoothScrolling.current) {
           requestAnimationFrame(() => scrollToBottom('auto'));
         }
@@ -169,7 +169,7 @@ export const useAutoScroll = (
     };
   }, [scrollToBottom]);
 
-  // 清理超时和定时器
+  // Clean up timeouts and timers
   useEffect(() => {
     return () => {
       if (smoothScrollTimeout.current) {

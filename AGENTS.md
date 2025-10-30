@@ -1,184 +1,176 @@
-# Repository Guidelines for Windsurf/Cascade
+# AGENTS.md
 
-Mandatory guidelines for Windsurf/Cascade AI working on NEXUS. These rules complement `AGENTS.md` with Windsurf-specific capabilities.
+This file provides guidance to AI agents when working with code in this repository. Treat every instruction as binding policy, not optional advice.
 
 ## Before You Start
+- `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md` – mandatory planning, retry, and communication protocol.
+- `tests/README.md` – TDD workflow and testing pyramid expectations.
+- `docs/rules/frontend_design_principles.md` – required for any UI, motion, or styling work.
+- `docs/developer_guides/02_CONTRIBUTING_GUIDE.md` and `docs/developer_guides/03_TESTING_STRATEGY.md` – workflow and test patterns.
+- `docs/tasks/` – Three-part task files (Task Brief → Implementation Plan → Completion Report) for single-conversation work. See `tasks/README.md` for detailed format specifications.
+- `docs/strategic_plans/` – Strategic planning documents for large-scale initiatives requiring multiple conversations or exceeding context limits.
+- `docs/knowledge_base/` and `docs/api_reference/` – architectural, protocol, and reference material to cite during planning.
+- `docs/learn/` – past incident reports and lessons; scan for similar issues when debugging.
+- `docs/Future_Roadmap.md` – upcoming initiatives that may affect scope or design decisions.
+- For unfamiliar domains, inspect at least three related implementations or tests before writing new code. Reference the material you consult in task files or status updates.
 
-**MANDATORY READING:**
-- `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md` – planning and retry protocol
-- `tests/README.md` – TDD workflow
-- `docs/rules/frontend_design_principles.md` – UI/UX requirements
-- `docs/tasks/README.md` – Three-part task file format
-- `docs/knowledge_base/`, `docs/api_reference/`, `docs/learn/`, `docs/future/Future_Roadmap.md`
-- Inspect ≥3 related implementations before writing new code
+## Architecture Overview
+- **Backend (NEXUS)** – FastAPI event-driven service orchestrating `NexusBus`, `ConfigService`, `DatabaseService`, `PersistenceService`, `IdentityService`, `CommandService`, `ContextService`, `ToolExecutorService`, `LLMService`, and `OrchestratorService`, plus REST/WebSocket interfaces (`nexus/main.py`).
+- **Frontend (AURA)** – React 19 + TypeScript + Vite client using Zustand state, Tailwind CSS (grayscale-only tokens), and Framer Motion.
+- **Tool System** – Functions and metadata in `nexus/tools/definition/` auto-discovered by `ToolRegistry.discover_and_register('nexus.tools.definition')`.
 
-## Architecture
-- **Backend (NEXUS)** – FastAPI + event bus + services (Config, Database, Persistence, Identity, Command, Context, ToolExecutor, LLM, Orchestrator)
-- **Frontend (AURA)** – React 19 + TypeScript + Vite + Zustand + Tailwind (grayscale-only) + Framer Motion
-- **Tools** – Auto-discovered from `nexus/tools/definition/`
+## Repository Layout
+- `nexus/core/` – Bus, topics, shared models.
+- `nexus/services/` – Service implementations; keep responsibilities bounded by existing modules or propose new folders.
+- `nexus/interfaces/` – `rest.py` and `websocket.py` IO surfaces.
+- `nexus/prompts/` – Prompt layer templates exposed to clients.
+- `aura/src/` – Feature-first frontend tree (`app/`, `components/`, `features/`, `hooks/`, `services/`, `stores/`, `lib/`, `test/setup.ts`).
+- **Testing** – Backend suites live in `tests/nexus/{unit,integration,e2e}` with fixtures in `tests/conftest.py`; frontend Vitest suites sit alongside code under `__tests__/` directories (e.g., `aura/src/features/chat/components/__tests__/`).
+- Tooling helpers: `scripts/shell/run.sh` (local bootstrap) and `docker-compose.yml` (container orchestration).
 
-## Windsurf-Specific Tool Usage (CRITICAL)
+## Git & Branch Management (MANDATORY)
+**CRITICAL**: After the exploration phase (read-only), you MUST create a dedicated feature branch before any modifications. This project supports parallel development across multiple branches.
 
-### 1. Fast Context Agent - YOUR PRIMARY TOOL
+### Branch Creation Protocol
+1. **Complete Exploration First**: Read docs, scan code, identify dependencies – NO branch creation or modifications yet.
+2. **Check Current Branch**: Run `git branch --show-current` to verify current branch.
+3. **Pull Latest Changes** (if no uncommitted changes): Run `git pull origin main` to ensure you have the latest code.
+4. **Create Feature Branch**: Use descriptive naming following these patterns:
+   - `feat/[feature-name]` for new features (e.g., `feat/llm-dynamic-temperature`)
+   - `fix/[bug-description]` for bug fixes (e.g., `fix/websocket-timeout`)
+   - `refactor/[scope]` for refactoring (e.g., `refactor/ui-tool-card`)
+   - `docs/[topic]` for documentation updates (e.g., `docs/api-reference`)
+   - `test/[scope]` for test additions (e.g., `test/orchestrator-service`)
+5. **Verify Branch Creation**: Run `git branch --show-current` to confirm you're on the new branch.
 
-**MANDATORY:** For unfamiliar code, use `find_code_context` FIRST before reading files.
+### Branch Naming Rules
+- Use lowercase with hyphens (kebab-case)
+- Be descriptive but concise (3-5 words max)
+- Include scope/context when helpful
+- Examples: `feat/config-hot-reload`, `fix/deepseek-streaming-timeout`, `refactor/aura-store-types`
 
-**Usage:**
-```python
-find_code_context(
-    search_folder_absolute_uri="/home/wowyuarm/projects/NEXUS/nexus/services",
-    search_term="How configuration is loaded from database"
-)
-# Then read specific files from results
-```
+### Working on Branches
+- **Never work directly on `main`** unless explicitly instructed
+- Keep branches focused on a single task or feature
+- Commit frequently with clear conventional commit messages
+- Push your branch regularly: `git push -u origin [branch-name]`
+- Before merging, ensure all tests pass and code is formatted
 
-**When:**
-- New features/debugging/understanding existing code
-- Finding logic locations, tests, dependencies
-- Before architectural changes
+### Branch Lifecycle
+1. Create branch from `main`
+2. Implement changes following TDD workflow
+3. Commit with conventional commit messages
+4. Push branch to remote
+5. Create Pull Request when ready
+6. After merge, delete the feature branch
 
-**Why:** Semantic search > text matching. Discovers relationships grep misses.
+## Documentation-Driven Workflow
 
-### 2. Systematic Verification
+### For Single-Conversation Tasks
+1. **Exploration Phase (Read-Only)**: Read foundational docs, scan related code (≥3 files), identify dependencies and risks. No modifications yet.
+2. **Create Branch**: After exploration, create feature branch following the protocol above.
+3. **Create Task File**: Create `docs/tasks/YY-MMDD_name.md` with three parts:
+   - **CRITICAL**: Before creating any task file, MUST read `docs/tasks/README.md` to understand the required three-part format and guidelines.
+   - **Part 1: Task Brief** – Background, objectives, deliverables, pragmatic risk assessment, real technical dependencies, references, acceptance criteria.
+   - **Part 2: Implementation Plan** – Architecture overview, phase-based decomposition (by technical dependencies), detailed design with function signatures, complete test case lists.
+   - **Part 3: Completion Report** – (Leave empty until execution completes)
+4. **Wait for Approval**: Present task file to user for review and approval.
+5. **Execute Implementation**: Follow TDD workflow (RED → GREEN → REFACTOR), commit frequently.
+6. **Append Completion Report**: Add Part 3 with technical blog-style documentation: implementation details, debugging processes (including failed attempts), test verification, reflections, and links to commits/PRs.
 
-**MANDATORY:** When changing names/paths/references, verify ENTIRE codebase.
+### For Large-Scale Initiatives
+If a task requires multiple conversations or exceeds context limits (>15 files), create a strategic plan in `docs/strategic_plans/` that decomposes into multiple sub-tasks, each with its own task file in `docs/tasks/`.
 
-```python
-grep_search(
-    SearchPath="/home/wowyuarm/projects/NEXUS",
-    Query="pattern",
-    Includes=["*.py", "*.ts", "*.md"]
-)
-```
+### Context Gathering
+- Pull architectural details from `docs/knowledge_base/` and protocol specifics from `docs/api_reference/`.
+- Search `docs/learn/` for similar incidents to avoid repeating past issues.
+- Confirm your design does not conflict with items in `docs/Future_Roadmap.md`.
+- **Best Practice**: Always read README files in relevant directories before creating or modifying documentation.
+- Cite every document consulted in your task file.
 
-**Rule:** Find one issue → assume it exists elsewhere → search systematically.
+## Development Workflow
+1. **Exploration Phase (MANDATORY FIRST STEP - Read-Only)**
+   - Read required documentation
+   - Scan at least 3 related code files
+   - Identify dependencies and risks
+   - NO code changes or branch creation yet
 
-### 3. Batch Editing
+2. **Branch Creation (MANDATORY SECOND STEP)**
+   ```bash
+   git branch --show-current        # verify current branch
+   git pull origin main             # pull latest (if no uncommitted changes)
+   git checkout -b [type]/[name]    # create feature branch
+   git branch --show-current        # confirm new branch
+   ```
+   **Never work directly on `main`** unless explicitly instructed.
 
-**MANDATORY:** Multiple changes in one file → use `multi_edit` (atomic operation).
+3. **Backend**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   python -m nexus.main
+   ```
+4. **Frontend**
+   ```bash
+   cd aura
+   pnpm install
+   pnpm dev
+   pnpm build      # production bundle
+   pnpm lint       # ESLint
+   pnpm test       # Vitest watch
+   pnpm test:run   # Vitest CI
+   pnpm test:coverage
+   ```
+   _Note_: there is no `pnpm typecheck` script today; add one only with team approval.
+5. Use `scripts/shell/run.sh` to launch both stacks locally once dependencies are installed. `docker-compose.yml` builds `nexus-backend` and `aura-frontend` on the `nexus-net` bridge network.
+6. Always follow the RED → GREEN → REFACTOR cadence from the AI charter and maintain a three-part task file in `docs/tasks/` while a task is in flight.
 
-```python
-multi_edit(
-    file_path="/path/to/file",
-    edits=[
-        {"old_string": "old1", "new_string": "new1"},
-        {"old_string": "old2", "new_string": "new2"}
-    ]
-)
-```
+## Configuration & Secrets
+- Copy `.env.example` → `.env` at the repo root. Provide `MONGO_URI`, `GEMINI_API_KEY`, `TAVILY_API_KEY`, `OPENROUTER_API_KEY`, `DEEPSEEK_API_KEY` (if catalog entries require it), and set `NEXUS_ENV` (`development` by default).
+- Backend honors `HOST`, `PORT`, and `ALLOWED_ORIGINS` for deployment-time overrides (`nexus/main.py`).
+- Frontend expects `aura/.env` with `VITE_WS_URL` (defaults to `ws://localhost:8000/api/v1/ws`).
+- System defaults (LLM catalog, editable fields, prompts) live in Mongo's `configurations` collection; see `config.example.yml` before altering runtime config.
+- Never commit secrets or production configuration overrides.
 
-### 4. Command Execution
+## Testing Expectations
+- TDD is mandatory. Write the failing test first, implement the minimal fix, then refactor.
+- Backend: run `pytest`, or scope with `pytest tests/nexus/unit`, `pytest tests/nexus/integration`, etc. Prefer asserting bus publications and service outputs over internal state. Use `pytest.mark.asyncio` for async routines.
+- Frontend: run `pnpm test` (watch) or `pnpm test:run` (CI). Tests use Vitest + Testing Library; keep fixtures colocated with the feature. Limit snapshots to stable UI fragments.
+- Maintain reusable fixtures in `tests/conftest.py` and shared helpers per feature.
+- All suites must pass before delivering work; never skip tests or use `--no-verify`.
 
-**Safe auto-run:** `git status`, `grep`, `ls`, `wc`, `pytest --collect-only`  
-**Need approval:** `git commit`, `pytest`, `pip install`, writes
+## Coding Style & Quality
+- Python: format with `black` (line length 88) and lint with `flake8`.
+- TypeScript/React: rely on Prettier defaults and the ESLint config in `aura/eslint.config.js`.
+- Enforce grayscale-only styling, motion timing, and interaction rules from `docs/rules/frontend_design_principles.md`.
+- Keep modules ≤ 600 lines as mandated in the AI charter; refactor when approaching limits.
+- Provide explicit typing for services, hooks, and complex data structures.
 
-## Git & Branch Management
+## Tooling & Integration Contracts
+- When introducing new WebSocket events, update `nexus/core/topics.py`, the orchestrator publisher, `aura/src/services/websocket/protocol.ts`, and the associated Zustand store (`aura/src/features/chat/store/auraStore.ts`).
+- New tools require a synchronous function and metadata constant in `nexus/tools/definition/*.py`; discovery is automatic on startup.
+- Reference `scripts/shell/run.sh` for local bootstrapping and ensure new tooling respects existing ANSI logging/output conventions.
 
-**Simple Changes (≤3 files, docs only):** Direct commit to `main`  
-**Medium/Large Tasks:** Feature branch required
+## Process & Collaboration
+- Task files must be three-part (Task Brief → Implementation Plan → Completion Report) and created in `docs/tasks/YY-MMDD_name.md`.
+- Respect the retry limit in the AI charter: stop after three failed attempts and escalate with the required report.
+- Interrogate user requests against security, architecture, and process priorities. When guidance conflicts, cite the charter and propose safer alternatives.
+- Use Conventional Commits (`feat:`, `fix:`, `refactor(ui):`), English only, no AI signatures. Explain the "why" within commit bodies when not obvious.
+- Surface risks, technical debt, and smells proactively; request prioritization before refactoring unrelated areas.
+- Completion reports (Part 3) must be technical blog-style: document real debugging processes including failed attempts, technical decisions, and reflections.
 
-**Branch Protocol:**
-1. Explore first (Fast Context + docs) – NO branch creation yet
-2. `git branch --show-current`
-3. `git checkout -b [type]/[name]` (feat/fix/refactor/docs/test, kebab-case)
-4. Verify: `git branch --show-current`
+## Security & Operations
+- Protect WebSocket endpoints during demos (use password-protected tunnels such as `ngrok`).
+- Verify Mongo indexes after migrations and avoid seeding production data (`scripts/seed_config.py` is for disposable environments only).
+- Logging defaults to INFO (`nexus/main.py`); adjust via config when necessary, not through ad-hoc code changes.
 
-## Workflow
-
-### Simple (≤3 files, docs)
-1. Fast Context/grep to verify scope
-2. Make changes, verify comprehensively
-3. Commit (Conventional Commits)
-
-### Medium (Branch + Task File, ≤15 files)
-1. **Exploration (Read-Only):** Fast Context → read ≥3 files → check docs/learn/ → check Future_Roadmap.md
-2. **Branch:** Create feature branch
-3. **Task File:** Read `docs/tasks/README.md` → create `YY-MMDD_name.md` (3 parts: Brief, Plan, Report)
-   - **CRITICAL:** Task files often exceed 8000 token write limit
-   - **Solution:** Use multi-step approach:
-     - Step 1: `write_to_file` with Part 1 (Task Brief)
-     - Step 2: `edit` to append Part 2 (Implementation Plan)
-     - Step 3: Leave Part 3 empty until after implementation
-   - Never try to write entire task file in one operation
-4. **Approval:** Wait for user OK
-5. **TDD:** RED → GREEN → REFACTOR
-6. **Implementation:** Make changes, run tests, verify functionality
-7. **Completion Report (MANDATORY BEFORE COMMIT):** Add Part 3 with debugging details, failures, reflections
-8. **Self-Review:** Audit your changes - cleanup code, verify architecture alignment, check test coverage
-9. **Wait for User:** Present completion status. **NEVER commit unless user explicitly requests it**
-
-### Large (>15 files)
-Strategic plan in `docs/strategic_plans/` → decompose to medium tasks
-
-## Key Requirements
-
-**Configuration:**
-- `.env.example` → `.env` (MONGO_URI, API keys, NEXUS_ENV)
-- Frontend: `VITE_AURA_WS_URL`, `VITE_AURA_API_URL`
-- Never commit secrets
-
-**Testing:**
-- TDD mandatory: failing test → minimal code → refactor
-- Backend: `source .venv/bin/activate && pytest tests/nexus/unit`
-- Frontend: `pnpm test:run`
-- Never skip tests or use `--no-verify`
-
-**Process:**
-- Task files: `docs/tasks/YY-MMDD_name.md` (3 parts)
-- Retry limit: 3 attempts → escalate
-- Conventional Commits: `feat:`, `fix:`, `refactor(scope):`
-- Document failures in completion reports
-
-**Communication:**
-- Terse, direct, results-first
-- Structured reporting with ✅ markers
-- Proactive problem-solving
-
-**Windsurf Advantages:**
-- ~200K token context → compare large files, understand complex architectures
-- Multi-file pattern detection → codebase-wide refactoring
-- Parallel tool execution → batch operations
-
-## Critical Rules
-
-**ALWAYS:**
-1. ✅ Fast Context first for unfamiliar code
-2. ✅ Verify across entire codebase (grep)
-3. ✅ Read required docs before starting
-4. ✅ Follow TDD (RED → GREEN → REFACTOR)
-5. ✅ Match workflow to task complexity
-6. ✅ Use multi_edit for batch changes
-7. ✅ Run verification after changes
-8. ✅ Commit frequently
-
-**NEVER:**
-1. ❌ Skip Fast Context for exploration
-2. ❌ Fix one instance without searching all
-3. ❌ Guess paths/names – verify
-4. ❌ Skip "Before You Start" docs
-5. ❌ Over-engineer simple fixes
-6. ❌ Commit secrets
-7. ❌ Skip tests or use `--no-verify`
-8. ❌ Work on `main` for medium/large tasks
-
-## Tool Decision Tree
-
-```
-Task?
-  ├─ Explore? → find_code_context → read_file → grep
-  ├─ Change?
-  │   ├─ Single file? → multi_edit
-  │   └─ Multiple? → edit
-  ├─ Verify? → grep (codebase) → run_command
-  └─ Feature? → find_code_context → docs → task file
-```
-
-## References
-- `AGENTS.md`, `CLAUDE.md` – AI guidelines
-- `docs/developer_guides/`, `docs/tasks/`, `docs/knowledge_base/`, `docs/api_reference/`
-- `docs/learn/` – Past incidents
-- `docs/future/Future_Roadmap.md`
-
----
-
-**Your strengths:** Fast Context exploration, systematic codebase verification, 200K context window. Use them every session.
+## Reference Materials
+- `AGENTS.md` – mirrors this policy for other agents.
+- `docs/developer_guides/01_SETUP_AND_RUN.md`, `02_CONTRIBUTING_GUIDE.md`, `03_TESTING_STRATEGY.md`, `04_AI_COLLABORATION_CHARTER.md` – canonical process documentation.
+- `docs/rules/frontend_design_principles.md` – non-negotiable UI/UX philosophy.
+- `docs/tasks/` – Three-part task files for single-conversation work. See `tasks/README.md` for format specifications.
+- `docs/strategic_plans/` – Strategic planning documents for large-scale initiatives.
+- `docs/learn/` – lessons learned repository for prior incidents and fixes.
+- `docs/knowledge_base/` & `docs/api_reference/` – architectural and protocol references.
+- `docs/Future_Roadmap.md` – upcoming initiatives to consider during planning.

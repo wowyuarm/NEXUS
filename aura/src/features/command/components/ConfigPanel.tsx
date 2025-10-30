@@ -197,7 +197,7 @@ export const ConfigPanel: React.FC = () => {
       // 5. Sign the payload (not the command string!)
       const auth = await IdentityService.signData(payloadString);
 
-      // 6. Verify auth publicKey matches identity (防止时序问题)
+      // 6. Verify auth publicKey matches identity (prevent timing issues)
       if (auth.publicKey.toLowerCase() !== identity.publicKey.toLowerCase()) {
         throw new Error('Identity mismatch during signing');
       }

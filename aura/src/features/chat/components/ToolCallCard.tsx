@@ -112,7 +112,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ toolCall, suppressAu
         'hover:border-border-hover'
       )}
       onClick={() => {
-        // 在展开/收起时临时抑制自动滚动，避免与展开引起的高度变化叠加触发
+        // Temporarily suppress auto-scroll during expand/collapse to avoidstacked triggering with height changes caused by expansion
         suppressAutoScroll?.(EXPAND_SUPPRESS_MS);
         setIsExpanded(!isExpanded);
       }}

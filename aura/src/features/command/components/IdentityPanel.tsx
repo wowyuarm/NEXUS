@@ -47,11 +47,11 @@ import { VisitorMain, ImportMode as ImportView, MemberMain, ExportMode as Export
 // ============================================================================
 
 type PanelMode =
-    | "main" // 主界面
-    | "import" // 导入身份
-    | "export" // 导出助记词
-    | "reset" // 重置确认
-    | "help"; // 帮助说明
+    | "main" // Main screen
+    | "import" // Import identity
+    | "export" // Export mnemonic phrase
+    | "reset" // Reset confirmation
+    | "help"; // Help instructions
 
 type ActionState = "idle" | "loading" | "success" | "error";
 
@@ -192,7 +192,7 @@ export const IdentityPanel: React.FC = () => {
             const mnemonic = IdentityService.exportMnemonic();
             setExportedMnemonic(mnemonic);
             setShowMnemonic(true);
-            setIsCopied(false); // 重置复制状态
+            setIsCopied(false); // Reset copy state
             setActionState("success");
         } catch (error) {
             console.error("Failed to export mnemonic:", error);

@@ -1,5 +1,5 @@
 // src/components/common/index.ts
-// 统一导出所有通用组件
+// Unified export of all common components
 
 export { ErrorBoundary } from './ErrorBoundary';
 export { StatusIndicator } from './StatusIndicator';
@@ -8,7 +8,7 @@ export { ScrollArea } from './ScrollArea';
 export { Modal } from './Modal';
 export { Panel } from './Panel';
 
-// 未来可能添加的通用组件：
+// Common components that may be added in the future:
 // export { Toast } from './Toast';
 // export { Tooltip } from './Tooltip';
 // export { Portal } from './Portal';

@@ -4,52 +4,52 @@
 
 @layer base {
   :root {
-    /* 亮色主题：柔和灰阶，保证静默与舒适 */
-    --background: 0 0% 96%;         /* #f5f5f5 - 基础背景 */
-    --foreground: 0 0% 18%;         /* #2e2e2e - 主文本 */
+    /* Light theme: Soft gray scale, ensuring silence and comfort */
+    --background: 0 0% 96%;         /* #f5f5f5 - Base background */
+    --foreground: 0 0% 18%;         /* #2e2e2e - Main text */
 
-    --card: 0 0% 100%;              /* #ffffff - 内容容器 */
-    --card-foreground: 0 0% 18%;    /* #2e2e2e - 卡片文本 */
+    --card: 0 0% 100%;              /* #ffffff - Content container */
+    --card-foreground: 0 0% 18%;    /* #2e2e2e - Card text */
 
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 16%;
 
-    --primary: 0 0% 12%;            /* #1f1f1f - 主要交互按钮 */
-    --primary-foreground: 0 0% 98%; /* #fafafa - 按钮文字 */
+    --primary: 0 0% 12%;            /* #1f1f1f - Primary interactive button */
+    --primary-foreground: 0 0% 98%; /* #fafafa - Button text */
 
-    --secondary: 0 0% 90%;          /* #e6e6e6 - 次级背景 */
-    --secondary-foreground: 0 0% 40%;/* #666666 - 次要文本 */
+    --secondary: 0 0% 90%;          /* #e6e6e6 - Secondary background */
+    --secondary-foreground: 0 0% 40%;/* #666666 - Secondary text */
 
-    --muted: 0 0% 88%;              /* #e1e1e1 - 静音区域 */
-    --muted-foreground: 0 0% 45%;   /* #737373 - 静音文本 */
+    --muted: 0 0% 88%;              /* #e1e1e1 - Muted area */
+    --muted-foreground: 0 0% 45%;   /* #737373 - Muted text */
 
-    --accent: 0 0% 86%;             /* #dadada - Hover/强调 */
-    --accent-foreground: 0 0% 20%;  /* #333333 - 强调文本 */
+    --accent: 0 0% 86%;             /* #dadada - Hover/accent */
+    --accent-foreground: 0 0% 20%;  /* #333333 - Accent text */
 
-    --border: 0 0% 82%;             /* #d2d2d2 - 边框 */
-    --border-hover: 0 0% 78%;       /* Hover边框 - 微妙变深（4%差异，符合静默原则） */
+    --border: 0 0% 82%;             /* #d2d2d2 - Border */
+    --border-hover: 0 0% 78%;       /* Hover border - Slightly darker (4% difference, matches silence principle) */
     --input: 0 0% 82%;
-    --ring: 0 0% 18%;               /* 焦点环 */
+    --ring: 0 0% 18%;               /* Focus ring */
 
     --radius: 0.75rem;
   }
 
   .dark {
-    /* 暗色主题：灰度中庸调色板 */
-    --background: 0 0% 10%;         /* #1a1a1a - 核心背景 */
-    --foreground: 0 0% 75%;         /* #bfbfbf - 主文本 */
+    /* Dark theme: Grayscale moderation palette */
+    --background: 0 0% 10%;         /* #1a1a1a - Core background */
+    --foreground: 0 0% 75%;         /* #bfbfbf - Main text */
 
-    --card: 0 0% 12%;               /* #1f1f1f - 内容区/输入框背景 */
-    --card-foreground: 0 0% 85%;    /* #d9d9d9 - 卡片内主要文本 */
+    --card: 0 0% 12%;               /* #1f1f1f - Content area/input background */
+    --card-foreground: 0 0% 85%;    /* #d9d9d9 - Main text in card */
 
     --popover: 0 0% 8%;
     --popover-foreground: 0 0% 85%;
 
-    --primary: 0 0% 90%;            /* #e6e6e6 - 主要交互元素 */
+    --primary: 0 0% 90%;            /* #e6e6e6 - Primary interactive element */
     --primary-foreground: 0 0% 10%;
 
-    --secondary: 0 0% 14%;          /* #242424 - 用于次级背景/悬停 */
-    --secondary-foreground: 0 0% 60%; /* #999999 - 次要/静音文本 */
+    --secondary: 0 0% 14%;          /* #242424 - Secondary background/hover */
+    --secondary-foreground: 0 0% 60%; /* #999999 - Secondary/muted text */
 
     --muted: 0 0% 14%;
     --muted-foreground: 0 0% 60%;
@@ -57,10 +57,10 @@
     --accent: 0 0% 14%;
     --accent-foreground: 0 0% 90%;
 
-    --border: 0 0% 18%;             /* #2e2e2e - 边框 */
-    --border-hover: 0 0% 22%;       /* Hover边框 - 微妙变亮（4%差异，符合静默原则） */
+    --border: 0 0% 18%;             /* #2e2e2e - Border */
+    --border-hover: 0 0% 22%;       /* Hover border - Slightly brighter (4% difference, matches silence principle) */
     --input: 0 0% 18%;
-    --ring: 0 0% 90%;               /* 焦点环 */
+    --ring: 0 0% 90%;               /* Focus ring */
 
     --radius: 0.75rem;
   }
@@ -86,46 +86,46 @@
 }
 
 @layer utilities {
-  /* 精细化、统一的Prose样式 - 遵循灰度中庸设计哲学 */
+  /* Precise, unified Prose style - Following grayscale moderation design philosophy */
   .prose {
     @apply text-foreground max-w-none;
     line-height: 1.75;
   }
 
-  /* 基础间距 - 排除列表，让自定义组件控制 */
+  /* Base spacing - Exclude lists, let custom components control */
   .prose p, .prose blockquote, .prose pre {
     @apply my-4;
   }
   .prose :first-child { @apply mt-0; }
   .prose :last-child { @apply mb-0; }
 
-  /* 行内代码样式 - 与组件保持一致 */
+  /* Inline code style - Consistent with components */
   .prose code:not(pre code) {
     @apply inline px-1.5 py-0.5 text-base font-mono bg-muted/40 text-foreground rounded-sm break-words;
   }
 
-  /* 列表样式 - 使用CSS处理嵌套 */
+  /* List style - Use CSS to handle nesting */
   .prose ul, .prose ol {
     @apply list-none pl-0;
   }
 
-  /* 嵌套列表特殊样式 */
+  /* Special nested list style */
   .prose ul ul, .prose ol ol, .prose ul ol, .prose ol ul {
     @apply mb-0 pl-4;
   }
 
-  /* 统一且紧凑的列表间距 */
+  /* Uniform and compact list spacing */
   .prose ul,
   .prose ol,
   .prose li {
-    @apply m-0 p-0 list-inside; /* 彻底重置 */
+    @apply m-0 p-0 list-inside;
   }
 
   .prose li {
-    @apply pl-5 md:pl-6; /* 统一缩进，桌面端稍大 */
+    @apply pl-5 md:pl-6;
   }
 
-  /* 为所有列表项（同级、父子）应用统一的紧凑间距 */
+  /* Apply uniform compact spacing to all list items (same level, parent-child) */
   .prose li + li,
   .prose li > ul,
   .prose li > ol {
@@ -137,7 +137,7 @@
   }
 
 
-  /* 链接样式 */
+  /* Link style */
   .prose a {
     @apply text-foreground underline decoration-secondary-foreground/30 decoration-1 underline-offset-2;
     @apply transition-all duration-150 ease-out;
@@ -146,7 +146,7 @@
     @apply text-primary decoration-secondary-foreground/50;
   }
 
-  /* 强调文本 */
+  /* Emphasized text */
   .prose strong {
     @apply font-semibold text-foreground;
   }
@@ -155,10 +155,10 @@
     @apply italic text-foreground;
   }
 
-  /* 滚动条样式 */
+  /* Scrollbar style */
   ::-webkit-scrollbar {
-    width: 8px;  /* 竖向滚动条宽度 */
-    height: 8px; /* 横向滚动条高度 */
+    width: 8px;  /* Vertical scrollbar width */
+    height: 8px; /* Horizontal scrollbar height */
   }
   ::-webkit-scrollbar-track {
     background: transparent;

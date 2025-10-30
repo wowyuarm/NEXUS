@@ -1,5 +1,5 @@
 // src/components/ui/index.ts
-// 统一导出所有UI组件，便于使用
+// Unified export of all UI components for ease of use
 
 export { MarkdownRenderer } from './MarkdownRenderer';
 export { RoleSymbol } from './RoleSymbol';
@@ -11,7 +11,7 @@ export { Input } from './Input';
 export { Select } from './Select';
 export { Slider } from './Slider';
 
-// 导出类型定义
+// Export type definitions
 export type { AutoResizeTextareaRef } from './AutoResizeTextarea';
 export type { InputProps } from './Input';
 export type { SelectOption, SelectProps } from './Select';

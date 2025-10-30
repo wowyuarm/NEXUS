@@ -36,10 +36,10 @@ export interface Message {
     commandResult?: Record<string, unknown>;
     [key: string]: unknown;
   };
-  // 兼容store中的字段
+  // Compatible with fields in the store
   isStreaming?: boolean;
-  // 工具调用信息 - 支持在同一消息内包含多个工具调用
+  // Tool call information - supports multiple tool calls within the same message
   toolCalls?: ToolCall[];
-  // 当工具卡片需要插入到文本中间时，记录首次工具启动时的文本分割位置
+  // When tool cards need to be inserted in the middle of text, records the text split position when the first tool starts
   toolInsertIndex?: number;
 }

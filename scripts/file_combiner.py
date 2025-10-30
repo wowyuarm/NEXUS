@@ -1,51 +1,48 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-文件拼接工具
-递归读取指定文件夹中的文件，按目录结构组织并拼接
+File combiner tool
+Recursively read files from a specified folder, organize them by directory structure, and concatenate them.
 
-忽略规则与可选参数说明（请务必阅读）:
-1) 默认会忽略以下常见无关目录（遍历与拼接均生效）：
-   注意：tests 目录现在会被处理，如需忽略请使用 --ignore-dir tests
+Ignore rules and optional parameters (please read carefully):
+1) By default, the following common irrelevant directories will be ignored (both traversal and concatenation take effect):
+   Note: The tests directory is now processed, if you need to ignore it, use --ignore-dir tests
    .git, .svn, .hg, __pycache__, .pytest_cache, .mypy_cache,
    logs, log, node_modules, dist, build, .next, .turbo, coverage,
-   .cache, .parcel-cache
+   .cache, .parcel-cache, .venv
 
-   默认会忽略以下常见无关文件与扩展名：
-   .gitignore, .gitattributes, .gitmodules, .DS_Store，以及后缀：.log, .pyc, .pyo, .pyd
-
-2) 你可以追加忽略某个目录（按“目录名”全局忽略，任意层级匹配）：
+2) You can add ignore a directory (ignore by "directory name" globally, match any level):
    --ignore-dir DIRNAME
-   可重复多次，例如：--ignore-dir vendors --ignore-dir tmp
+   Can be repeated multiple times, for example: --ignore-dir vendors --ignore-dir tmp
 
-3) 你可以忽略某个“具体路径”的目录（仅忽略该路径及其子项）：
+3) You can ignore a directory by "specific path" (only ignore the path and its sub-items):
    --ignore-path /abs/or/relative/path/to/dir
-   可重复多次，例如：
+   Can be repeated multiple times, for example:
    python3 file_combiner.py --ignore-path ./vendors/mcp <folder_path>
 
-4) 你可以忽略特定文件模式（支持通配符）：
+4) You can ignore specific file patterns (supports wildcards):
    --ignore-file-pattern PATTERN
-   可重复多次，例如：--ignore-file-pattern "README*" --ignore-file-pattern "*.bak"
+   Can be repeated multiple times, for example: --ignore-file-pattern "README*" --ignore-file-pattern "*.bak"
 
-5) 智能忽略规则：
-   - 自动忽略markdown文件名（不含扩展名）超过8个字符的文件
-   - 可通过 --no-auto-ignore-long-md 禁用此功能
+5) Smart ignore rules:
+   - Automatically ignore markdown file names (without extension) that are more than 8 characters
+   - Can be disabled by --no-auto-ignore-long-md
 
-6) 文件树显示控制：
-   -t / --tree 只显示文件树；默认不显示被忽略项
-   --show-ignored 与 -t 配合时，文件树中显示并标注 [忽略]
+6) File tree display control:
+   -t / --tree only display file tree; default does not display ignored items
+   --show-ignored when combined with -t, the file tree displays and labels [ignored]
 
-主要用法示例：
+    Main usage examples:
 
-- 拼接某个文件夹：python3 file_combiner.py <folder_path>
-- 只查看文件结构：python3 file_combiner.py -t <folder_path>
-- 指定输出文件名：python3 file_combiner.py -o output.txt <folder_path>
-- 显示被忽略的文件：python3 file_combiner.py --show-ignored <folder_path>
-- 追加忽略目录名：python3 file_combiner.py --ignore-dir vendors <folder_path>
-- 忽略具体路径：python3 file_combiner.py --ignore-path ./vendors/mcp <folder_path>
-- 忽略README文件：python3 file_combiner.py --ignore-file-pattern "README*" <folder_path>
-- 禁用长markdown文件名自动忽略：python3 file_combiner.py --no-auto-ignore-long-md <folder_path>
-"""
+    - Concatenate a folder: python3 file_combiner.py <folder_path>
+    - Only view the file structure: python3 file_combiner.py -t <folder_path>
+    - Specify output file name: python3 file_combiner.py -o output.txt <folder_path>
+    - Display ignored files: python3 file_combiner.py --show-ignored <folder_path>
+    - Add ignore directory name: python3 file_combiner.py --ignore-dir vendors <folder_path>
+    - Ignore specific path: python3 file_combiner.py --ignore-path ./vendors/mcp <folder_path>
+    - Ignore README file: python3 file_combiner.py --ignore-file-pattern "README*" <folder_path>
+    - Disable automatic long markdown file name ignore: python3 file_combiner.py --no-auto-ignore-long-md <folder_path>
+    """
 
 import os
 import sys
@@ -56,7 +53,7 @@ from typing import Iterable, Set, List
 
 
 def get_file_content(file_path):
-    """读取文件内容"""
+    """Read file content"""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             return f.read()
@@ -65,7 +62,7 @@ def get_file_content(file_path):
             with open(file_path, 'r', encoding='gbk') as f:
                 return f.read()
         except:
-            return f"[无法读取文件: {file_path}]"
+            return f"[Cannot read file: {file_path}]"
 
 
 def _default_ignore_sets():
@@ -96,7 +93,7 @@ def _should_ignore(item: Path, root: Path, user_ignore_dirs: Set[str], user_igno
     IGNORE_DIRS, IGNORE_FILES, IGNORE_SUFFIXES = _default_ignore_sets()
     user_ignore_patterns = user_ignore_patterns or []
 
-    # 命中用户提供的“具体路径”忽略（item 位于某 ignore-path 下）
+    # Hit user-provided specific path ignore (item is under some ignore-path)
     abs_item = item.resolve()
     for ig in user_ignore_paths:
         try:
@@ -105,27 +102,27 @@ def _should_ignore(item: Path, root: Path, user_ignore_dirs: Set[str], user_igno
         except Exception:
             pass
 
-    # 命中“目录名”忽略（默认或用户追加），任意层级
+    # Hit "directory name" ignore (default or user-added), any level
     all_dir_names = {p.name for p in [abs_item] + list(abs_item.parents)}
     if any(name in IGNORE_DIRS or name in user_ignore_dirs for name in all_dir_names):
         return True
 
-    # 文件级别忽略
+    # File-level ignore
     if item.is_file():
-        # 默认忽略文件
+        # Default ignored files
         if item.name in IGNORE_FILES:
             return True
         if item.suffix.lower() in IGNORE_SUFFIXES:
             return True
 
-        # 用户自定义文件模式忽略
+        # User-defined file pattern ignore
         for pattern in user_ignore_patterns:
             if fnmatch.fnmatch(item.name, pattern):
                 return True
 
-        # 自动忽略长markdown文件名
+        # Auto-ignore long markdown filenames
         if auto_ignore_long_md and item.suffix.lower() == '.md':
-            # 获取不含扩展名的文件名
+            # Get filename without extension
             name_without_ext = item.stem
             if len(name_without_ext) > 8:
                 return True
@@ -135,7 +132,7 @@ def _should_ignore(item: Path, root: Path, user_ignore_dirs: Set[str], user_igno
 
 def get_file_tree(folder_path, indent="", is_last=True, show_ignored=False, user_ignore_dirs=None,
                  user_ignore_paths=None, user_ignore_patterns=None, auto_ignore_long_md=True):
-    """生成文件树结构"""
+    """Generate file tree structure"""
     folder_path = Path(folder_path)
     root_abs = folder_path.resolve()
     tree_lines = []
@@ -147,7 +144,7 @@ def get_file_tree(folder_path, indent="", is_last=True, show_ignored=False, user
     user_ignore_paths = _normalize_paths(user_ignore_paths or [])
     user_ignore_patterns = user_ignore_patterns or []
 
-    # 获取所有文件和文件夹，按名称排序
+    # Get all files and folders, sorted by name
     items = sorted(folder_path.iterdir(), key=lambda x: (x.is_file(), x.name.lower()))
 
     for i, item in enumerate(items):
@@ -159,7 +156,7 @@ def get_file_tree(folder_path, indent="", is_last=True, show_ignored=False, user
         if should_ignore and not show_ignored:
             continue
 
-        # 确定连接符
+        # Determine connector
         if is_last:
             connector = "└── "
             next_indent = indent + "    "
@@ -167,7 +164,7 @@ def get_file_tree(folder_path, indent="", is_last=True, show_ignored=False, user
             connector = "├── "
             next_indent = indent + "│   "
 
-        # 添加文件/文件夹图标
+        # Add file/folder icons
         if item.is_file():
             suffix = item.suffix.lower()
             if suffix == '.py':
@@ -191,13 +188,13 @@ def get_file_tree(folder_path, indent="", is_last=True, show_ignored=False, user
         else:
             icon = "📁"
 
-        # 添加忽略标记
-        ignore_mark = " [忽略]" if should_ignore else ""
+        # Add ignore mark
+        ignore_mark = " [ignored]" if should_ignore else ""
 
         tree_lines.append(f"{indent}{connector}{icon} {item.name}{ignore_mark}")
 
         if item.is_dir():
-            # 递归处理子文件夹
+            # Recursively process sub-folders
             sub_tree = get_file_tree(item, next_indent, is_last_item, show_ignored, user_ignore_dirs,
                                    user_ignore_paths, user_ignore_patterns, auto_ignore_long_md)
             tree_lines.extend(sub_tree)
@@ -207,95 +204,95 @@ def get_file_tree(folder_path, indent="", is_last=True, show_ignored=False, user
 
 def combine_files_recursive(folder_path, output_file, indent="", user_ignore_dirs=None,
                           user_ignore_paths=None, user_ignore_patterns=None, auto_ignore_long_md=True):
-    """递归读取文件夹内容并写入输出文件"""
+    """Recursively read folder content and write to output file"""
     folder_path = Path(folder_path)
 
     if not folder_path.exists():
-        print(f"错误: 文件夹 '{folder_path}' 不存在")
+        print(f"Error: folder '{folder_path}' does not exist")
         return
 
     user_ignore_dirs = set(user_ignore_dirs or [])
     user_ignore_paths = _normalize_paths(user_ignore_paths or [])
     user_ignore_patterns = user_ignore_patterns or []
 
-    # 获取所有文件和文件夹，按名称排序
+    # Get all files and folders, sorted by name
     items = sorted(folder_path.iterdir(), key=lambda x: (x.is_file(), x.name.lower()))
 
     for item in items:
-        # 统一忽略判断
+        # Unified ignore judgment
         if _should_ignore(item, folder_path.resolve(), user_ignore_dirs, user_ignore_paths,
                          user_ignore_patterns, auto_ignore_long_md):
             if item.is_dir():
-                print(f"忽略文件夹: {item}")
+                print(f"Ignoring folder: {item} [ignored]")
             else:
-                print(f"忽略文件: {item}")
+                print(f"Ignoring file: {item} [ignored]")
             continue
 
         if item.is_file():
-            # 只处理常见代码和文档文件
+            # Only process common code and documentation files
             if item.suffix.lower() in ['.py', '.md', '.js', '.ts', '.tsx', '.css', '.html', '.json']:
-                print(f"处理文件: {item}")
+                print(f"Processing file: {item}")
 
-                # 写入文件名分隔线
+                # Write file name separator
                 separator = "=" * 80
                 output_file.write(f"\n{indent}{separator}\n")
                 output_file.write(f"{indent}文件名: {item.name}\n")
                 output_file.write(f"{indent}路径: {item.relative_to(folder_path)}\n")
                 output_file.write(f"{indent}{separator}\n\n")
 
-                # 读取并写入文件内容
+                # Read and write file content
                 content = get_file_content(item)
                 output_file.write(f"{indent}{content}\n")
 
         elif item.is_dir():
-            # 递归处理子文件夹
-            print(f"进入文件夹: {item}")
+            # Recursively process sub-folders
+            print(f"Entering folder: {item}")
 
-            # 写入文件夹分隔线
+            # Write folder separator
             folder_separator = "-" * 60
             output_file.write(f"\n{indent}{folder_separator}\n")
-            output_file.write(f"{indent}文件夹: {item.name}\n")
+            output_file.write(f"{indent}Folder: {item.name}\n")
             output_file.write(f"{indent}{folder_separator}\n\n")
 
-            # 递归处理子文件夹内容
+            # Recursively process sub-folder content
             combine_files_recursive(item, output_file, indent + "  ", user_ignore_dirs,
                                    user_ignore_paths, user_ignore_patterns, auto_ignore_long_md)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='递归读取文件夹并拼接Python文件')
-    parser.add_argument('folder_path', help='要读取的文件夹路径')
-    parser.add_argument('-o', '--output', help='输出文件名（可选，默认使用文件夹名）')
-    parser.add_argument('-t', '--tree', action='store_true', help='显示文件结构树')
-    parser.add_argument('--show-ignored', action='store_true', help='在文件树中显示被忽略的文件')
-    parser.add_argument('--ignore-dir', action='append', default=[], help='按目录名忽略（可重复）')
-    parser.add_argument('--ignore-path', action='append', default=[], help='按具体路径忽略（可重复）')
+    parser = argparse.ArgumentParser(description='Recursively read folder and concatenate Python files')
+    parser.add_argument('folder_path', help='Path to the folder to read')
+    parser.add_argument('-o', '--output', help='Output file name (optional, default uses folder name)')
+    parser.add_argument('-t', '--tree', action='store_true', help='Display file structure tree')
+    parser.add_argument('--show-ignored', action='store_true', help='Display ignored files in file tree')
+    parser.add_argument('--ignore-dir', action='append', default=[], help='Ignore by directory name (can be repeated)')
+    parser.add_argument('--ignore-path', action='append', default=[], help='Ignore by specific path (can be repeated)')
     parser.add_argument('--ignore-file-pattern', action='append', default=[],
-                       help='按文件名模式忽略（支持通配符，可重复），例如：README*')
+                       help='Ignore by file name pattern (supports wildcards, can be repeated), for example: README*')
     parser.add_argument('--no-auto-ignore-long-md', action='store_true',
-                       help='禁用自动忽略长markdown文件名的功能')
+                       help='Disable automatic long markdown file name ignore')
 
     args = parser.parse_args()
 
-    # 将相对路径转换为绝对路径
+    # Convert relative path to absolute path
     folder_path = Path(args.folder_path).resolve()
 
     if not folder_path.exists():
-        print(f"错误: 文件夹 '{folder_path}' 不存在")
+        print(f"Error: folder '{folder_path}' does not exist")
         sys.exit(1)
 
-    # 归一化用户忽略配置
+    # Normalize user ignore configuration
     user_ignore_dirs = set(args.ignore_dir or [])
     user_ignore_paths = _normalize_paths(args.ignore_path or [])
     user_ignore_patterns = args.ignore_file_pattern or []
     auto_ignore_long_md = not args.no_auto_ignore_long_md
 
-    # 保存当前工作目录
+    # Save current working directory
     original_cwd = Path.cwd()
 
-    # 如果只显示文件树
+    # If only displaying file tree
     if args.tree:
-        print(f"📁 文件结构: {folder_path}")
+        print(f"📁 File structure: {folder_path}")
         print("=" * 60)
         tree_lines = get_file_tree(folder_path, show_ignored=args.show_ignored,
                                  user_ignore_dirs=user_ignore_dirs, user_ignore_paths=user_ignore_paths,
@@ -305,27 +302,27 @@ def main():
         return
 
     try:
-        # 切换到目标文件夹的父目录
+        # Switch to parent directory of target folder
         os.chdir(folder_path.parent)
 
-        # 确定输出文件名
+        # Determine output file name
         if args.output:
-            # 确保输出文件有 .txt 扩展名
+            # Ensure output file has .txt extension
             output_filename = args.output
             if not output_filename.endswith('.txt'):
                 output_filename += '.txt'
         else:
             output_filename = f"{folder_path.name}_combined.txt"
 
-        # 确保输出文件的路径是相对于原始工作目录的
+        # Ensure output file path is relative to original working directory
         output_path = original_cwd / output_filename
 
-        print(f"开始处理文件夹: {folder_path}")
-        print(f"输出文件: {output_path}")
+        print(f"Starting to process folder: {folder_path}")
+        print(f"Output file: {output_path}")
 
-        # 显示文件结构（如果启用）
+        # Display file structure (if enabled)
         if args.show_ignored:
-            print("\n📁 文件结构（包含忽略文件）:")
+            print("\n📁 File structure (includes ignored files):")
             print("-" * 40)
             tree_lines = get_file_tree(folder_path, show_ignored=True, user_ignore_dirs=user_ignore_dirs,
                                      user_ignore_paths=user_ignore_paths, user_ignore_patterns=user_ignore_patterns,
@@ -334,16 +331,16 @@ def main():
                 print(line)
             print("-" * 40)
 
-        # 创建输出文件
+        # Create output file
         with open(output_path, 'w', encoding='utf-8') as output_file:
-            # 写入文件头
-            output_file.write(f"文件拼接结果\n")
-            output_file.write(f"源文件夹: {folder_path.absolute()}\n")
-            output_file.write(f"生成时间: {Path().cwd()}\n")
+            # Write file header
+            output_file.write(f"File concatenation result\n")
+            output_file.write(f"Source folder: {folder_path.absolute()}\n")
+            output_file.write(f"Generated time: {Path().cwd()}\n")
             output_file.write("=" * 80 + "\n\n")
 
-            # 写入文件结构
-            output_file.write("📁 文件结构:\n")
+            # Write file structure
+            output_file.write("📁 File structure:\n")
             output_file.write("-" * 40 + "\n")
             tree_lines = get_file_tree(folder_path, show_ignored=False, user_ignore_dirs=user_ignore_dirs,
                                      user_ignore_paths=user_ignore_paths, user_ignore_patterns=user_ignore_patterns,
@@ -352,22 +349,22 @@ def main():
                 output_file.write(line + "\n")
             output_file.write("-" * 40 + "\n\n")
 
-            # 开始递归处理
+            # Start recursive processing
             combine_files_recursive(folder_path, output_file, user_ignore_dirs=user_ignore_dirs,
                                    user_ignore_paths=user_ignore_paths, user_ignore_patterns=user_ignore_patterns,
                                    auto_ignore_long_md=auto_ignore_long_md)
 
-            # 写入文件尾
+            # Write file footer
             output_file.write("\n" + "=" * 80 + "\n")
-            output_file.write("文件拼接完成\n")
+            output_file.write("File concatenation completed\n")
 
-        print(f"处理完成！输出文件: {output_path}")
+        print(f"Processing completed! Output file: {output_path}")
 
     except Exception as e:
-        print(f"错误: {e}")
+        print(f"Error: {e}")
         sys.exit(1)
     finally:
-        # 恢复原始工作目录
+        # Restore original working directory
         os.chdir(original_cwd)
 
 

@@ -1,5 +1,5 @@
 // src/features/chat/components/ScrollToBottomButton.tsx
-// 滚动到底部按钮组件 - 使用统一的 Button 组件
+// Scroll to bottom button component - uses unified Button component
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
@@ -8,13 +8,13 @@ import { Button } from '@/components/ui';
 import { FRAMER, MOTION_EXIT } from '@/lib/motion';
 
 interface ScrollToBottomButtonProps {
-  /** 是否显示按钮 */
+  /** Whether to show the button */
   show: boolean;
-  /** 点击回调 */
+  /** Click callback */
   onClick: () => void;
-  /** 自定义类名 */
+  /** Custom class name */
   className?: string;
-  /** 按钮位置：视口固定或输入框上方 */
+  /** Button position: viewport fixed or above input box */
   placement?: 'viewport' | 'above-input';
 }
 

@@ -1,12 +1,12 @@
 // src/components/index.ts
-// 统一导出所有组件层
+// Unified export of all component layers
 
-// UI组件层 - 原子级纯UI组件
+// UI component layer - atomic-level pure UI components
 export * from './ui';
 
-// Common组件层 - 复合/工具组件
+// Common component layer - composite/utility components
 export * from './common';
 
-// 使用示例：
-// import { MarkdownRenderer, RoleSymbol } from '@/components'; // UI组件
-// import { ErrorBoundary, StatusIndicator } from '@/components';     // Common组件
+// Usage examples:
+// import { MarkdownRenderer, RoleSymbol } from '@/components'; // UI components
+// import { ErrorBoundary, StatusIndicator } from '@/components';     // Common components

@@ -618,7 +618,7 @@ class TestFormatLlmMessages:
 
     def test_format_llm_messages_deduplicates_current_input(self, context_service):
         """Test that _format_llm_messages deduplicates current input based on run_id."""
-        # Arrange: 构造包含当前run_id的历史记录
+        # Arrange: Construct history containing current run_id
         system_prompt = "You are Xi, an AI assistant."
         history_from_db = [
             {"run_id": "current_run_id", "role": "human", "content": "test input"},
@@ -628,8 +628,8 @@ class TestFormatLlmMessages:
         current_input = "test input"
         current_run_id = "current_run_id"
 
-        # Act: 调用格式化方法
-        # 注意：当前方法签名不支持current_run_id参数，这会导致测试失败
+        # Act: Call formatting method
+        # Note: Current method signature does not support current_run_id parameter, this will cause test failure
         result = context_service._format_llm_messages(
             system_prompt=system_prompt,
             history_from_db=history_from_db,
@@ -637,14 +637,14 @@ class TestFormatLlmMessages:
             current_run_id=current_run_id
         )
 
-        # Assert: 验证重复消息被过滤
+        # Assert: Verify duplicate messages are filtered
         human_messages = [msg for msg in result if msg["role"] == "user"]
-        # 应该只有2条用户消息：一条来自历史（other_run_id），一条是XML结构化的当前输入
+        # Should be only 2 user messages: one from history (other_run_id), one is XML-structured current input
         assert len(human_messages) == 2
-        # 验证XML结构化输入存在
+        # Verify XML-structured input exists
         xml_messages = [msg for msg in result if "<Human_Input>" in msg.get("content", "")]
         assert len(xml_messages) == 1
         assert "test input" in xml_messages[0]["content"]
-        # 验证历史中的其他用户输入仍然存在
+        # Verify other user input from history still exists
         other_user_messages = [msg for msg in human_messages if "other input" in msg.get("content", "")]
         assert len(other_user_messages) == 1

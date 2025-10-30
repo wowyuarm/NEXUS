@@ -245,7 +245,7 @@ class OrchestratorService:
                 
                 logger.info(f"Registered user (member) verified for owner_key={run.owner_key}")
                 
-                # Build user_profile from identity (包含identity全部信息)
+                # Build user_profile from identity (Contains all identity information)
                 # TODO: Refactor with unified RunContext object
                 #   Current approach passes user_profile through Run.metadata -> ContextService -> LLMService
                 #   Future: Create a RunContext object that encapsulates run, user_profile, and metadata
@@ -551,8 +551,8 @@ class OrchestratorService:
             # Call LLM again with complete history
             run.status = RunStatus.AWAITING_LLM_DECISION
 
-            # 当处于 E2E 假 LLM（NEXUS_E2E_FAKE_LLM=1）时，为避免循环，只传空工具列表；
-            # 否则在正常环境保留可用工具以支持连续工具调用。
+            # When in E2E fake LLM mode (NEXUS_E2E_FAKE_LLM=1), pass empty tool list to avoid loops;
+            # Otherwise, retain available tools in normal environment to support continuous tool calls.
             tools_for_followup = [] if os.getenv("NEXUS_E2E_FAKE_LLM", "0") == "1" else run.tools
 
             llm_request = Message(

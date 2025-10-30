@@ -352,7 +352,7 @@ class TestContextServiceIntegration:
         messages = published_message.content["messages"]
         system_message = messages[0]
         assert system_message["role"] == "system"
-        # System prompt should contain the overridden learning "我是曦"
+        # System prompt should contain the overridden learning "I am Xi"
         assert "我是曦" in system_message["content"]
         assert "你的AI灵魂伴侣" in system_message["content"]
         # The learning was overridden, but field/presence/capabilities parts still use defaults

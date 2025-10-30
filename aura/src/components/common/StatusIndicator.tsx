@@ -1,5 +1,5 @@
 // src/components/common/StatusIndicator.tsx
-// 通用状态指示器组件 - 合并加载、空状态和错误状态的展示
+// Universal status indicator component - combines loading, empty, and error state displays
 import React from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -11,7 +11,7 @@ interface StatusIndicatorProps {
   icon?: React.ReactNode;
   action?: React.ReactNode;
   className?: string;
-  size?: 'sm' | 'md' | 'lg'; // 仅对loading状态有效
+  size?: 'sm' | 'md' | 'lg'; // Only valid for loading state
 }
 
 export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
@@ -29,7 +29,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
     transition: FRAMER.reveal
   };
 
-  // Loading状态的渲染
+  // Render loading state
   if (variant === 'loading') {
     const sizeClasses = {
       sm: 'w-4 h-4',
@@ -64,7 +64,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
     );
   }
 
-  // Empty状态的渲染
+  // Render empty state
   if (variant === 'empty') {
     return (
       <motion.div
@@ -93,7 +93,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
     );
   }
 
-  // Error状态的渲染
+  // Render error state
   if (variant === 'error') {
     return (
       <motion.div

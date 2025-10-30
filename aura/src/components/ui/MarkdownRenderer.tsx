@@ -1,5 +1,5 @@
 // src/components/ui/MarkdownRenderer.tsx
-// Markdown渲染器 - 遵循灰度中庸设计哲学，集成所有markdown相关组件
+// Markdown renderer - follows grayscale moderate design philosophy, integrates all markdown-related components
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -7,9 +7,9 @@ import { Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TAILWIND } from '@/lib/motion';
 
-// ===== 内部组件定义 =====
+// ===== Internal component definitions =====
 
-// 内联代码组件
+// Inline code component
 interface InlineCodeProps {
   children: React.ReactNode;
   className?: string;
@@ -20,7 +20,7 @@ const InlineCode: React.FC<InlineCodeProps> = ({ children, className }) => {
     <code className={cn(
       'inline',
       'px-1.5 py-0.5',
-      'text-base font-mono', // 从 text-sm 改为 text-base，稍微大一些
+      'text-base font-mono',
       'bg-muted/40 text-foreground',
       'rounded-sm',
       'break-words',
@@ -31,7 +31,7 @@ const InlineCode: React.FC<InlineCodeProps> = ({ children, className }) => {
   );
 };
 
-// 代码块组件
+// Code block component
 interface CodeBlockProps {
   code: string;
   language?: string;
@@ -72,7 +72,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
       'hover:border-border-hover',
       className
     )}>
-      {/* 头部信息栏 */}
+      {/* Header information bar */}
       {(filename || language) && (
         <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-muted/30">
           <div className="flex items-center space-x-3">
@@ -93,7 +93,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
             className={cn(
               'p-1.5 text-secondary-foreground/70 rounded',
               TAILWIND.micro,
-              // Hover时显示：默认隐藏，group-hover时出现
+              // Show on hover: hidden by default, appears on group-hover
               'opacity-0 group-hover:opacity-100',
               'hover:text-secondary-foreground hover:bg-muted/50',
               // Fully suppress any focus/active rings
@@ -101,7 +101,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
               'ring-0 focus:ring-0 focus-visible:ring-0 active:ring-0',
               'appearance-none'
             )}
-            aria-label={copied ? "已复制" : "复制代码"}
+            aria-label={copied ? "Copied" : "Copy code"}
           >
             <div className="relative h-3.5 w-3.5">
               <Copy
@@ -129,9 +129,9 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
         </div>
       )}
 
-      {/* 代码内容区域 */}
+      {/* Code content area */}
       <div className="relative">
-        {/* 复制按钮（无头部信息时显示） */}
+        {/* Copy button (shown when no header info) */}
         {!filename && !language && (
           <button
             onClick={handleCopy}
@@ -139,7 +139,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
               'absolute top-3 right-3 z-10 p-1.5 rounded',
               'text-secondary-foreground/70 bg-card/50 backdrop-blur-sm',
               TAILWIND.micro,
-              // Hover时显示：默认隐藏，group-hover时出现
+              // Show on hover: hidden by default, appears on group-hover
               'opacity-0 group-hover:opacity-100',
               'hover:text-secondary-foreground hover:bg-muted/50',
               // Fully suppress any focus/active rings
@@ -147,7 +147,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
               'ring-0 focus:ring-0 focus-visible:ring-0 active:ring-0',
               'appearance-none'
             )}
-            aria-label={copied ? "已复制" : "复制代码"}
+            aria-label={copied ? "Copied" : "Copy code"}
           >
             <div className="relative h-3.5 w-3.5">
               <Copy
@@ -178,7 +178,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
           'overflow-x-auto px-3 py-3',
           'text-sm leading-relaxed',
           'font-mono',
-          !filename && !language && 'pr-10' // 为复制按钮留出空间
+          !filename && !language && 'pr-10'
         )}>
           <code className="text-foreground">
             {showLineNumbers ? (
@@ -189,7 +189,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
                       {index + 1}
                     </span>
                     <span className="table-cell">
-                      {line || '\u00A0'} {/* 空行显示为不间断空格 */}
+                      {line || '\u00A0'}
                     </span>
                   </div>
                 ))}
@@ -204,7 +204,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({
   );
 };
 
-// 表格组件
+// Table component
 interface TableProps {
   children: React.ReactNode;
   className?: string;
@@ -235,15 +235,15 @@ interface TableCellProps {
   className?: string;
 }
 
-// 主表格容器
+// Main table container
 const Table: React.FC<TableProps> = ({ children, className }) => (
-  <div className="w-full overflow-x-auto my-4"> {/* 添加水平滚动和外边距 */}
+  <div className="w-full overflow-x-auto my-4"> {/* Add horizontal scrolling and margin */}
     <table className={cn(
       'w-full border-collapse',
       'bg-card/30 backdrop-blur-sm',
       'border border-border/40',
       'rounded-lg overflow-hidden',
-      'min-w-full', // 确保表格最小宽度
+      'min-w-full', // Ensure minimum table width
       className
     )}>
       {children}
@@ -251,7 +251,7 @@ const Table: React.FC<TableProps> = ({ children, className }) => (
   </div>
 );
 
-// 表格头部
+// Table header
 const TableHeader: React.FC<TableHeaderProps> = ({ children, className }) => (
   <thead className={cn(
     'bg-card/50 backdrop-blur-sm',
@@ -262,14 +262,14 @@ const TableHeader: React.FC<TableHeaderProps> = ({ children, className }) => (
   </thead>
 );
 
-// 表格主体
+// Table body
 const TableBody: React.FC<TableBodyProps> = ({ children, className }) => (
   <tbody className={cn(className)}>
     {children}
   </tbody>
 );
 
-// 表格行
+// Table row
 const TableRow: React.FC<TableRowProps> = ({ children, className }) => (
   <tr className={cn(
     'border-b border-border/20 last:border-b-0',
@@ -281,20 +281,20 @@ const TableRow: React.FC<TableRowProps> = ({ children, className }) => (
   </tr>
 );
 
-// 表格头单元格
+// Table header cell
 const TableHead: React.FC<TableHeadProps> = ({ children, className }) => (
   <th className={cn(
     'px-3 py-2 text-left',
     'text-sm font-semibold text-foreground',
     'border-r border-border/20 last:border-r-0',
-    'whitespace-nowrap', // 防止标题换行
+    'whitespace-nowrap', // Prevent title wrapping
     className
   )}>
     {children}
   </th>
 );
 
-// 表格数据单元格
+// Table data cell
 const TableCell: React.FC<TableCellProps> = ({ children, className }) => (
   <td className={cn(
     'px-3 py-2',
@@ -308,7 +308,7 @@ const TableCell: React.FC<TableCellProps> = ({ children, className }) => (
 
 interface MarkdownRendererProps {
   content: string;
-  className?: string; // 添加可选的外部样式
+  className?: string; // Add optional external styles
 }
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ 
@@ -320,13 +320,13 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          // 代码块组件
+          // Code block component
           code: ((props: { inline?: boolean; className?: string; children?: React.ReactNode; [key: string]: unknown }) => {
             const { inline, className, children } = props;
             const match = /language-(\w+)/.exec(className || '');
             const language = match ? match[1] : undefined;
 
-            // 修复 inline 判断：如果没有换行符且没有语言类，则认为是行内代码
+            // Fix inline detection: if no line breaks and no language class, consider it inline code
             const codeContent = String(children);
             const isInlineCode = inline !== false && (!codeContent.includes('\n') && !language);
 
@@ -344,7 +344,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             );
           }) as React.ComponentType,
 
-          // 自定义表格组件
+          // Custom table component
           table: ({ children }) => (
             <Table>{children}</Table>
           ),
@@ -355,7 +355,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           th: ({ children }) => <TableHead>{children}</TableHead>,
           td: ({ children }) => <TableCell>{children}</TableCell>,
 
-          // 优化其他元素
+          // Optimize other elements
           p: ({ children }) => (
             <p className="text-foreground leading-relaxed mb-4 last:mb-0">
               {children}
@@ -372,7 +372,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             <hr className="border-border my-8" />
           ),
 
-          // 标题组件 - 添加锚点支持
+          // Title component - Add anchor support
           h1: ({ children, id }) => (
             <h1 
               id={id}
@@ -427,7 +427,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             </h6>
           ),
 
-// 无序列表组件 - 简化逻辑，依赖CSS处理嵌套
+// Unordered list component - simplified logic, rely on CSS for nesting
 ul: ({ children }) => (
   <ul className="my-2 pl-2 md:pl-3 list-none">
     {children}
@@ -436,7 +436,7 @@ ul: ({ children }) => (
 
 ol: ((props: { children?: React.ReactNode; start?: number; [key: string]: unknown }) => {
   const { children, start } = props;
-  // 使用状态来跟踪计数器
+  // Use state to track counter
   let counter = start || 1;
 
   return (
@@ -469,7 +469,7 @@ li: ((allProps: { children?: React.ReactNode; [key: string]: unknown }) => {
             {listNumber}.
           </span>
         ) : (
-          // 圆点在固定高度容器中垂直居中，与文本行高匹配
+          // Dot is vertically centered in a fixed height container, matching the text line height
           <span className="w-1.5 h-1.5 bg-secondary-foreground/60 rounded-full" />
         )}
       </span>
@@ -480,7 +480,7 @@ li: ((allProps: { children?: React.ReactNode; [key: string]: unknown }) => {
   );
 }) as React.ComponentType,
 
-          // 链接组件 - 微妙的交互效果，符合灰度中庸哲学
+          // Link component - Subtle interactive effect, following grayscale moderation philosophy
           a: ({ href, children }) => (
             <a
               href={href}
@@ -497,7 +497,7 @@ li: ((allProps: { children?: React.ReactNode; [key: string]: unknown }) => {
             </a>
           ),
 
-          // 文本样式组件
+          // Text style component
           strong: ({ children }) => (
             <strong className="font-semibold text-foreground">
               {children}
@@ -510,7 +510,7 @@ li: ((allProps: { children?: React.ReactNode; [key: string]: unknown }) => {
             </em>
           ),
 
-          // 添加图片组件
+          // Add image component
           img: ({ src, alt, title }) => (
             <img
               src={src}

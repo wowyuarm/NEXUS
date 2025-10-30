@@ -1,48 +1,48 @@
 // src/features/chat/hooks/useTypewriter.ts
-// 流式渲染引擎 - 自主管理打字机效果，实现 AI 思绪流
+// Streaming rendering engine - autonomously manages typewriter effect, implementing AI thought flow
 // 
-// Stream of Thought: 文本以有机的、类人的节奏出现，而非机械打印
-// - 微观变速：每个字符的延迟在 10-25ms 之间随机变化
-// - 启动延迟：首字符前有 50-100ms 的"思考启动"停顿
+// Stream of Thought: Text appears at an organic, human-like rhythm rather than mechanical printing
+// - Micro-variation: delay for each character varies randomly between 10-25ms
+// - Startup delay: 50-100ms "thinking startup" pause before first character
 import { useState, useEffect, useRef } from 'react';
 import { getTypewriterSpeed, getTypewriterStartupDelay } from '@/lib/motion';
 
 interface UseTypewriterOptions {
-  /** 目标文本，这个值会随着新的chunk流入而动态变化 */
+  /** Target text, this value dynamically changes as new chunks flow in */
   targetContent: string;
-  /** 是否为流式消息（用于判断是否需要打字机效果） */
+  /** Whether it's a streaming message (used to determine if typewriter effect is needed) */
   isStreamingMessage: boolean;
   /** 
-   * @deprecated 不再使用固定速度，现在使用微观变速（10-25ms）
-   * 保留此参数仅为向后兼容
+   * @deprecated No longer using fixed speed, now using micro-variation (10-25ms)
+   * Keep this parameter only for backward compatibility
    */
   speed?: number;
 }
 
 interface UseTypewriterReturn {
-  /** 当前显示的内容 */
+  /** Currently displayed content */
   displayedContent: string;
-  /** 打字机是否正在工作 */
+  /** Whether typewriter is working */
   isTyping: boolean;
-  /** 打字机是否已完成 */
+  /** Whether typewriter is finished */
   isFinished: boolean;
 }
 
 /**
- * useTypewriter Hook - AI 思绪流渲染引擎
+ * useTypewriter Hook - AI thought flow rendering engine
  *
- * 核心设计理念：
- * 1. 自主管理打字机状态，不依赖外部enabled控制
- * 2. 智能检测内容变化，持续渲染直到完成
- * 3. 区分"非流式消息"和"流式消息"的渲染策略
- * 4. **微观变速**：每个字符的延迟随机变化（10-25ms），模拟有机思考节奏
- * 5. **启动延迟**：首字符前短暂停顿（50-100ms），模拟"开始思考"
+ * Core design philosophy:
+ * 1. Autonomously manage typewriter state, not dependent on external enabled control
+ * 2. Intelligently detect content changes, continuously render until completion
+ * 3. Distinguish rendering strategies for "non-streaming messages" and "streaming messages"
+ * 4. **Micro-variation**: Random delay for each character (10-25ms), simulating organic thinking rhythm
+ * 5. **Startup delay**: Brief pause before first character (50-100ms), simulating "start thinking"
  *
- * 解决的问题：
- * - 流式输出中途被中断的问题
- * - 外部状态变化导致打字机重置的问题
- * - 缺乏打字机完成状态的问题
- * - **机械式均匀速度的问题** - 现在速度有机变化
+ * Problems solved:
+ * - Problem of streaming output being interrupted midway
+ * - Problem of typewriter reset due to external state changes
+ * - Problem of lacking typewriter completion status
+ * - **Problem of mechanical uniform speed** - speed now varies organically
  */
 export const useTypewriter = ({
   targetContent,
@@ -60,14 +60,14 @@ export const useTypewriter = ({
   const lastTargetLengthRef = useRef(0);
   const hasStartedRef = useRef(false); // Track if we've applied startup delay
 
-  // 更新目标内容引用
+  // Update target content reference
   useEffect(() => {
     targetContentRef.current = targetContent;
   }, [targetContent]);
 
-  // 核心打字机逻辑
+  // Core typewriter logic
   useEffect(() => {
-    // 非流式消息：仅在未开始打字（历史消息）时直接显示；如果已开始或有未完成的内容则继续打字至完成
+    // Non-streaming message: only display directly when not started typing (historical message); if already started or has unfinished content, continue typing until completion
     if (!isStreamingMessage && currentIndexRef.current === 0) {
       setDisplayedContent(targetContent);
       setIsTyping(false);
@@ -76,13 +76,13 @@ export const useTypewriter = ({
       return;
     }
 
-    // 流式消息：启动打字机效果
+    // Streaming message: start typewriter effect
     if (!isTyping && targetContent.length > 0) {
       setIsTyping(true);
       setIsFinished(false);
     }
 
-    // 如果没有内容，重置状态
+    // If no content, reset state
     if (targetContent.length === 0) {
       setDisplayedContent('');
       setIsTyping(false);
@@ -92,20 +92,20 @@ export const useTypewriter = ({
       return;
     }
 
-    // 递归打字函数：使用 setTimeout 实现变速
+    // Recursive typing function: use setTimeout to implement variable speed
     const typeNextChar = () => {
       const currentTarget = targetContentRef.current;
 
       if (currentIndexRef.current >= currentTarget.length) {
-        // 已经显示完所有当前内容，等待更多内容或检查是否完成
-        // 如果目标内容长度没有变化一段时间，认为打字完成
+        // Already displayed all current content, waiting for more content or checking if completed
+        // If target content length hasn't changed for a while, consider typing completed
         timeoutIdRef.current = window.setTimeout(() => {
           if (currentIndexRef.current >= targetContentRef.current.length) {
             setIsTyping(false);
             setIsFinished(true);
             timeoutIdRef.current = undefined;
           }
-        }, 50); // 等待 50ms 检查是否还有新内容
+        }, 50); // Wait 50ms to check if there's new content
         return;
       }
 
@@ -113,21 +113,21 @@ export const useTypewriter = ({
       setDisplayedContent((prev) => prev + nextChar);
       currentIndexRef.current++;
 
-      // 获取下一个字符的变速延迟（10-25ms 随机）
+      // Get variable speed delay for next character (10-25ms random)
       const nextDelay = getTypewriterSpeed();
       
       timeoutIdRef.current = window.setTimeout(typeNextChar, nextDelay);
     };
 
-    // 启动或继续打字机：当处于流式中，或虽已结束但尚未追平目标内容
+    // Start or continue typewriter: when streaming, or when finished but haven't caught up to target content
     if (!timeoutIdRef.current && (isStreamingMessage || currentIndexRef.current < targetContentRef.current.length)) {
-      // 如果是首次启动，应用启动延迟（50-100ms）
+      // If first time starting, apply startup delay (50-100ms)
       if (!hasStartedRef.current && currentIndexRef.current === 0) {
         hasStartedRef.current = true;
         const startupDelay = getTypewriterStartupDelay();
         timeoutIdRef.current = window.setTimeout(typeNextChar, startupDelay);
       } else {
-        // 继续打字，不需要启动延迟
+        // Continue typing, no startup delay needed
         typeNextChar();
       }
     }
@@ -140,7 +140,7 @@ export const useTypewriter = ({
     };
   }, [targetContent, isStreamingMessage, isTyping]);
 
-  // 清理定时器
+  // Clean up timer
   useEffect(() => {
     return () => {
       if (timeoutIdRef.current) {

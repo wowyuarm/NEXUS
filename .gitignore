@@ -1,7 +1,7 @@
-# 虚拟环境
+# Virtual environment
 .venv/
 
-# Python 缓存
+# Python cache
 __pycache__/
 *.pyc
 
@@ -10,17 +10,17 @@ __pycache__/
 .vscode/
 *.DS_Store
 
-# 环境变量文件
+# Environment variables file
 .env
 
-# 日志文件
+# Log files
 logs/
 
-# Aura (前端) build/dist 目录
+# Aura (frontend) build/dist directory
 aura/dist/
 aura/build/
 
-# Node.js 依赖
+# Node.js dependencies
 aura/node_modules/
 
 # AI rules/tools
@@ -28,17 +28,15 @@ aura/node_modules/
 .claude/
 .cursor/
 .windsurf/
-CLAUDE.md
-WINDSURF.md
 
-# 第三方
+# Third-party
 lib/
 vendor/
 dist/
 .pyscn/
 
-# 其他文档
+# Other documents
 docs/future
 docs/backup
-docs/learn
+docs/learn/self
 .vercel

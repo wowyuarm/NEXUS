@@ -1,12 +1,12 @@
 // src/components/common/Container.tsx
-// 通用容器组件，支持不同宽度和居中
+// Universal container component supporting different widths and centering
 import React, { type ComponentProps } from 'react';
 import { cn } from '@/lib/utils';
 
 interface ContainerProps extends ComponentProps<'div'> {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   centered?: boolean;
-  material?: boolean; // 是否应用标准材质
+  material?: boolean; // Whether to apply standard material design
 }
 
 export const Container: React.FC<ContainerProps> = ({
@@ -19,7 +19,7 @@ export const Container: React.FC<ContainerProps> = ({
 }) => {
   const sizeClasses = {
     sm: 'max-w-lg',    // 512px
-    md: 'max-w-2xl',   // 672px - 我们的标准宽度
+    md: 'max-w-2xl',   // 672px - Our standard width
     lg: 'max-w-4xl',   // 896px
     xl: 'max-w-6xl'    // 1152px
   };
