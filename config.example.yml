@@ -14,7 +14,7 @@ system:
   # 工具执行超时时间（秒）
   tool_execution_timeout: 20
   # 定义应用名称，可下发给前端用于显示，（可选）也可作用户自定义
-  app_name: "YX Nexus"
+  app_name: "NEXUS"
 
 # -------------------------------------------------------------------
 # Server Configuration (服务器配置)

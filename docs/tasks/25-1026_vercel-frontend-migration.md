@@ -365,11 +365,11 @@ Modify the `ALLOWED_ORIGINS` environment variable:
 ```yaml
 # Before (Render frontend only)
 - key: ALLOWED_ORIGINS
-  value: "https://aura-frontend-egej.onrender.com,https://app.yxnexus.com"
+  value: "https://aura-frontend-egej.onrender.com,https://app.nexus.com"
 
 # After (Add Vercel domains)
 - key: ALLOWED_ORIGINS
-  value: "https://aura-frontend-egej.onrender.com,https://app.yxnexus.com,https://your-vercel-app.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
+  value: "https://aura-frontend-egej.onrender.com,https://app.nexus.com,https://your-vercel-app.vercel.app,http://localhost:5173,http://127.0.0.1:5173"
 ```
 
 **Note:** After Vercel deployment, update this value in Render Dashboard with actual Vercel domain.

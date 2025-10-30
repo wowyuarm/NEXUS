@@ -1,6 +1,6 @@
 # 04: Core Concepts
 
-This document serves as the official glossary for the YX NEXUS project. It defines the fundamental entities and processes that constitute our system. A clear understanding of these concepts is essential for comprehending our architecture and contributing to the codebase.
+This document serves as the official glossary for the NEXUS project. It defines the fundamental entities and processes that constitute our system. A clear understanding of these concepts is essential for comprehending our architecture and contributing to the codebase.
 
 ---
 

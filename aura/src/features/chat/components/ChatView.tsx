@@ -185,7 +185,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           {...titleMotion}
         >
           <h1 className="text-4xl font-light text-secondary-foreground tracking-[0.2em] -translate-y-32">
-            YX NEXUS
+            NEXUS
           </h1>
         </motion.div>
 

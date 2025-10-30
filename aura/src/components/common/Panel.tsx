@@ -1,7 +1,7 @@
 /**
  * Panel Component - Universal Control Panel Structure
  * 
- * Provides a consistent structural and visual language for all control panels in YX Nexus.
+ * Provides a consistent structural and visual language for all control panels in NEXUS.
  * This component embodies the "liquid glass" material aesthetic and enforces a unified
  * layout pattern across identity, config, prompt, and future panels.
  * 

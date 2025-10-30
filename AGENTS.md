@@ -1,6 +1,6 @@
 # Repository Guidelines for Windsurf/Cascade
 
-Mandatory guidelines for Windsurf/Cascade AI working on YX NEXUS. These rules complement `AGENTS.md` with Windsurf-specific capabilities.
+Mandatory guidelines for Windsurf/Cascade AI working on NEXUS. These rules complement `AGENTS.md` with Windsurf-specific capabilities.
 
 ## Before You Start
 

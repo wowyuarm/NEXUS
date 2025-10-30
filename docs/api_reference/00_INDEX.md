@@ -1,6 +1,6 @@
 # API & Configuration Reference
 
-This section provides a detailed, technical reference for the core interfaces and configuration options of the YX NEXUS project. It is the single source of truth for the system's "hard contracts."
+This section provides a detailed, technical reference for the core interfaces and configuration options of the NEXUS project. It is the single source of truth for the system's "hard contracts."
 
 Unlike the [Knowledge Base](../knowledge_base/00_INDEX.md) which explains concepts, or the [Developer Guides](../developer_guides/00_INDEX.md) which explain processes, this reference provides precise, exhaustive specifications.
 

@@ -52,7 +52,7 @@
 
 ```yaml
 # render.yaml
-# Blueprint for deploying the YX NEXUS project on Render.
+# Blueprint for deploying the NEXUS project on Render.
 
 services:
   #--------------------------------

@@ -1,6 +1,6 @@
 # 03: Testing Strategy
 
-This document formalizes the testing approach for YX NEXUS and complements the mandatory charter in `tests/README.md`. Follow these practices along with the project-wide rules in `CLAUDE.md` / `AGENTS.md`.
+This document formalizes the testing approach for NEXUS and complements the mandatory charter in `tests/README.md`. Follow these practices along with the project-wide rules in `CLAUDE.md` / `AGENTS.md`.
 
 ## Required Reading
 - `tests/README.md` – authoritative TDD policy and QA pyramid

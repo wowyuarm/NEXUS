@@ -24,7 +24,7 @@ interface ThemeActions {
 
 export type ThemeStore = ThemeState & ThemeActions;
 
-const STORAGE_KEY = 'yx-nexus-theme';
+const STORAGE_KEY = 'nexus-theme';
 const THEME_DATA_ATTR = 'theme';
 
 type ThemeStateSnapshot = Pick<ThemeState, 'theme' | 'userPreference' | 'systemPreference'>;

@@ -5,7 +5,7 @@ This service manages all configuration loading from database with environment aw
 It provides a unified interface for accessing configuration values throughout the system
 with fallback to minimal hardcoded defaults for resilience. The authoritative source for
 all configuration is the 'configurations' collection in the database, which should be
-initialized using scripts/init_configurations.py.
+initialized using scripts/database_manager.py.
 
 Key features:
 - Database-driven configuration management (development/production environments)

@@ -1,6 +1,6 @@
 # The NEXUS & AURA Testing Charter
 
-This document is the foundational law governing all quality assurance practices within the YX NEXUS project. It defines our testing philosophy, mandatory workflows, and the strategic purpose of each layer of our test suite. Adherence to this charter is non-negotiable for all contributions.
+This document is the foundational law governing all quality assurance practices within the NEXUS project. It defines our testing philosophy, mandatory workflows, and the strategic purpose of each layer of our test suite. Adherence to this charter is non-negotiable for all contributions.
 
 ## I. Core Principles
 

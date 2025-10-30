@@ -45,7 +45,7 @@ services:
         value: "http://localhost:5173,http://127.0.0.1:5173"
         # Production: Add your Vercel domain in Render Dashboard
         # Example: https://your-app.vercel.app
-        # Also supports custom domains: https://app.yxnexus.com
+        # Also supports custom domains: https://app.nexus.com
 
       # Service configuration
       - key: NEXUS_ENV

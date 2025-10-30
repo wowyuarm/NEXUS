@@ -29,7 +29,7 @@ system:
   log_level: "INFO"              # Logging verbosity: DEBUG, INFO, WARNING, ERROR
   max_tool_iterations: 5         # Safety valve for agentic loop
   tool_execution_timeout: 20     # Timeout for tool execution in seconds
-  app_name: "YX Nexus"           # Application name (可下发给前端)
+  app_name: "NEXUS"           # Application name (可下发给前端)
 ```
 
 **Fields**:
@@ -325,7 +325,7 @@ system:
   log_level: "INFO"
   max_tool_iterations: 5
   tool_execution_timeout: 20
-  app_name: "YX Nexus"
+  app_name: "NEXUS"
 
 server:
   host: "0.0.0.0"

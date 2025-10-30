@@ -67,7 +67,7 @@ The Dynamic Personalization System sits at the intersection of three major subsy
   "system": {
     "log_level": "INFO",
     "max_tool_iterations": 5,
-    "app_name": "YX Nexus"
+    "app_name": "NEXUS"
   },
   "security": {
     "signature_required_commands": ["identity", "config.set", "prompt.set"]

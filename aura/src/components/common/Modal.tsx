@@ -1,7 +1,7 @@
 /**
  * Modal Component - Universal Modal Container
  * 
- * Provides the foundational modal behavior for the YX Nexus modal interaction system.
+ * Provides the foundational modal behavior for the NEXUS modal interaction system.
  * This component creates a "focused silence" - a temporary zen space for maintenance tasks,
  * representing the elegant transition from dialogue mode to maintenance mode.
  * 

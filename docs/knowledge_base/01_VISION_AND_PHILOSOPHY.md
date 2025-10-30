@@ -1,6 +1,6 @@
 # 01: Vision & Philosophy
 
-This document is the constitution of the YX NEXUS project. It codifies the core principles that govern our design and development. It is the ultimate source of truth for resolving debates and the final arbiter of aesthetic and architectural choices. Every line of code, every design decision, and every future feature must be weighed against these foundational laws.
+This document is the constitution of the NEXUS project. It codifies the core principles that govern our design and development. It is the ultimate source of truth for resolving debates and the final arbiter of aesthetic and architectural choices. Every line of code, every design decision, and every future feature must be weighed against these foundational laws.
 
 ## The Core Vision
 

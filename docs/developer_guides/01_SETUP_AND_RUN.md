@@ -1,6 +1,6 @@
 # 01: Setup and Run
 
-This guide provides a complete walkthrough for setting up the YX NEXUS development environment and running the application locally.
+This guide provides a complete walkthrough for setting up the NEXUS development environment and running the application locally.
 
 ## I. Prerequisites
 
@@ -136,7 +136,7 @@ If successful, the AURA interface will be available at `http://localhost:5173` (
 Once both the backend and frontend are running:
 
 1.  Open your web browser and navigate to `http://localhost:5173`.
-2.  You should see the initial AURA screen with the centered `YX NEXUS` title and input box.
+2.  You should see the initial AURA screen with the centered `NEXUS` title and input box.
 3.  Open your browser's developer console. You should see a log message indicating a successful WebSocket connection to NEXUS.
 4.  Type a message (e.g., "Hello") and send it. You should see the full interactive response from the AI.
 

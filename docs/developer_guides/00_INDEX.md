@@ -1,6 +1,6 @@
 # Developer Guides
 
-This section provides practical, step-by-step instructions for setting up, running, testing, and contributing to the YX NEXUS project. While the [Knowledge Base](../knowledge_base/00_INDEX.md) explains the "why," these guides focus on the "how."
+This section provides practical, step-by-step instructions for setting up, running, testing, and contributing to the NEXUS project. While the [Knowledge Base](../knowledge_base/00_INDEX.md) explains the "why," these guides focus on the "how."
 
 Following these guides is the first step for any new developer joining the project.
 

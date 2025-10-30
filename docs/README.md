@@ -1,6 +1,6 @@
 # Documentation Operating Guide
 
-The `docs/` directory is the knowledge nervous system for YX NEXUS. Every AI contributor must use it to plan work, understand architecture, avoid past pitfalls, and surface future risks. This README explains how the documentation ecosystem fits together and how to keep it alive.
+The `docs/` directory is the knowledge nervous system for NEXUS. Every AI contributor must use it to plan work, understand architecture, avoid past pitfalls, and surface future risks. This README explains how the documentation ecosystem fits together and how to keep it alive.
 
 ## Directory Map & Usage
 - **`developer_guides/`** – Process manuals (setup, contributing, testing, AI collaboration). Read before you touch code; they define the baseline workflow.

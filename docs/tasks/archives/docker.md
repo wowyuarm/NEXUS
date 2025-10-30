@@ -243,7 +243,7 @@
     3.  打开浏览器的开发者工具，切换到“控制台 (Console)”和“网络 (Network)”面板。
 *   **预期效果**:
     *   [ ] `docker ps`的输出显示`nexus_backend_prod`和`aura_frontend_prod`两个容器都处于`Up`状态，并且`STATUS`栏中应包含`(healthy)`字样。
-    *   [ ] AURA前端页面成功加载，显示`YX NEXUS`标题和居中的输入框。
+    *   [ ] AURA前端页面成功加载，显示`NEXUS`标题和居中的输入框。
     *   [ ] 在浏览器控制台中，**必须**能看到`WebSocket connected to NEXUS`的日志。
     *   [ ] 在“网络”面板中，可以看到对`/api/v1/ws/...`的WebSocket连接请求，其状态码为`101 Switching Protocols`。
 

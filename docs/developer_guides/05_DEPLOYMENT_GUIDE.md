@@ -2,7 +2,7 @@
 
 **Last Updated:** 2025-10-26
 
-This guide covers deploying YX NEXUS using a hybrid architecture:
+This guide covers deploying NEXUS using a hybrid architecture:
 - **Frontend (AURA)**: Vercel (global CDN, instant serving)
 - **Backend (NEXUS)**: Render (free tier with keepalive optimization)
 
@@ -207,7 +207,7 @@ The CLI will ask:
 - **Set up and deploy?** → Yes
 - **Which scope?** → Your personal account or team
 - **Link to existing project?** → No (first time) or Yes (redeployment)
-- **What's your project's name?** → `yx-nexus` or your preferred name
+- **What's your project's name?** → `nexus` or your preferred name
 - **In which directory is your code located?** → `./` (project root)
 
 Vercel will detect `vercel.json` configuration automatically.
@@ -216,13 +216,13 @@ Vercel will detect `vercel.json` configuration automatically.
 
 After deployment completes, note the URL:
 ```
-✅ Deployed to production: https://yx-nexus.vercel.app
+✅ Deployed to production: https://nexus.vercel.app
 ```
 
 **3.5. Set Environment Variables in Vercel Dashboard**
 
 1. Go to https://vercel.com/dashboard
-2. Select your project (`yx-nexus`)
+2. Select your project (`nexus`)
 3. Settings > Environment Variables
 4. Add these variables (use backend URL from Step 1):
 
@@ -270,12 +270,12 @@ Now that you have your Vercel domain, update backend CORS:
 4. Add your Vercel domain to the comma-separated list:
 
 ```
-https://yx-nexus.vercel.app,http://localhost:5173,http://127.0.0.1:5173
+https://nexus.vercel.app,http://localhost:5173,http://127.0.0.1:5173
 ```
 
 If you have a custom domain, add it too:
 ```
-https://yx-nexus.vercel.app,https://app.yxnexus.com,http://localhost:5173,http://127.0.0.1:5173
+https://nexus.vercel.app,https://app.nexus.com,http://localhost:5173,http://127.0.0.1:5173
 ```
 
 5. Click "Save Changes"
@@ -294,7 +294,7 @@ Check deployment status:
 
 **5.1. Test Frontend Loading**
 
-1. Open your Vercel URL: `https://yx-nexus.vercel.app`
+1. Open your Vercel URL: `https://nexus.vercel.app`
 2. Should load in <2 seconds
 3. Check browser console for configuration:
    ```
@@ -421,7 +421,7 @@ Manually trigger deployments to Render and/or Vercel from GitHub Actions UI, wit
 **Symptom:** Browser console shows:
 ```
 Access to XMLHttpRequest at 'https://nexus-backend-xxx.onrender.com/api/v1/config'
-from origin 'https://yx-nexus.vercel.app' has been blocked by CORS policy
+from origin 'https://nexus.vercel.app' has been blocked by CORS policy
 ```
 
 **Solution:**
@@ -569,7 +569,7 @@ ERROR
 
 **Or via CLI:**
 ```bash
-vercel rollback https://yx-nexus-xyz123.vercel.app
+vercel rollback https://nexus-xyz123.vercel.app
 ```
 
 ### Rollback Backend CORS
@@ -596,13 +596,13 @@ vercel rollback https://yx-nexus-xyz123.vercel.app
 ### Frontend Custom Domain
 
 **Prerequisites:**
-- Own a domain (e.g., `aura.yxnexus.com`)
+- Own a domain (e.g., `aura.nexus.com`)
 - Access to DNS settings
 
 **Steps:**
 
 1. Vercel Dashboard > Project > Settings > Domains
-2. Add domain: `aura.yxnexus.com`
+2. Add domain: `aura.nexus.com`
 3. Vercel provides DNS records (A/AAAA or CNAME)
 4. Add records to your DNS provider
 5. Wait for propagation (5-60 minutes)
@@ -615,14 +615,14 @@ vercel rollback https://yx-nexus-xyz123.vercel.app
 ### Backend Custom Domain
 
 **Prerequisites:**
-- Own a domain (e.g., `api.yxnexus.com`)
+- Own a domain (e.g., `api.nexus.com`)
 - Render paid plan ($7/month minimum)
 
 **Steps:**
 
 1. Render Dashboard > `nexus-backend` > Settings > Custom Domains
-2. Add domain: `api.yxnexus.com`
-3. Add CNAME record to DNS: `api.yxnexus.com` → `nexus-backend-xxx.onrender.com`
+2. Add domain: `api.nexus.com`
+3. Add CNAME record to DNS: `api.nexus.com` → `nexus-backend-xxx.onrender.com`
 4. Wait for verification
 5. Update Vercel environment variables to use custom domain
 

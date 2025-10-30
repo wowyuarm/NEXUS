@@ -62,7 +62,7 @@ You must configure these secrets in your GitHub repository:
 **What:** Vercel frontend deploy hook URL  
 **Where to get it:**
 1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
-2. Select your project (`nexus` or `yx-nexus`)
+2. Select your project (`nexus`)
 3. Settings > **Git** > **Deploy Hooks**
 4. Create a new deploy hook:
    - Name: `GitHub Actions Manual Deploy`

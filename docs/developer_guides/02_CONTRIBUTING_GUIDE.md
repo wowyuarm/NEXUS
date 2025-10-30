@@ -1,6 +1,6 @@
 # 02: Contributing Guide
 
-This guide is the canonical onboarding for anyone—human or AI—contributing to the YX NEXUS codebase. It builds on the global rules in `CLAUDE.md` / `AGENTS.md`; treat every instruction here as mandatory.
+This guide is the canonical onboarding for anyone—human or AI—contributing to the NEXUS codebase. It builds on the global rules in `CLAUDE.md` / `AGENTS.md`; treat every instruction here as mandatory.
 
 ## Required Reading Before You Code
 Review these documents at the start of every task. Reference them in your implementation plans when they inform a decision.
