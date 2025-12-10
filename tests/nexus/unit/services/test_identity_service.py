@@ -20,7 +20,7 @@ class TestIdentityService:
         """Test that IdentityService initializes with correct attributes."""
         mock_db_service = Mock()
         service = IdentityService(db_service=mock_db_service)
-        
+
         assert service.db_service == mock_db_service
 
     @pytest.mark.asyncio
@@ -29,40 +29,44 @@ class TestIdentityService:
         # Mock database service with provider
         mock_provider = Mock()
         mock_provider.find_identity_by_public_key = Mock(return_value=None)
-        
+
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
-        
+
         service = IdentityService(db_service=mock_db_service)
-        
+
         result = await service.get_identity("nonexistent_public_key")
-        
+
         assert result is None
-        mock_provider.find_identity_by_public_key.assert_called_once_with("nonexistent_public_key")
+        mock_provider.find_identity_by_public_key.assert_called_once_with(
+            "nonexistent_public_key"
+        )
 
     @pytest.mark.asyncio
     async def test_get_identity_found(self):
         """Test get_identity returns identity when it exists."""
         # Mock database service with provider
         mock_identity = {
-            'public_key': 'test_public_key_123',
-            'created_at': datetime.now(),
-            'metadata': {'name': 'Test User'}
+            "public_key": "test_public_key_123",
+            "created_at": datetime.now(),
+            "metadata": {"name": "Test User"},
         }
-        
+
         mock_provider = Mock()
         mock_provider.find_identity_by_public_key = Mock(return_value=mock_identity)
-        
+
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
-        
+
         service = IdentityService(db_service=mock_db_service)
-        
+
         result = await service.get_identity("test_public_key_123")
-        
+
         assert result == mock_identity
-        assert result['public_key'] == 'test_public_key_123'
-        mock_provider.find_identity_by_public_key.assert_called_once_with("test_public_key_123")
+        assert result["public_key"] == "test_public_key_123"
+        mock_provider.find_identity_by_public_key.assert_called_once_with(
+            "test_public_key_123"
+        )
 
     @pytest.mark.asyncio
     async def test_create_identity_success(self):
@@ -70,28 +74,28 @@ class TestIdentityService:
         # Mock database service with provider
         mock_provider = Mock()
         mock_provider.create_identity = Mock(return_value=True)
-        
+
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
-        
+
         service = IdentityService(db_service=mock_db_service)
-        
+
         result = await service.create_identity("test_public_key_123")
-        
+
         assert result is True
         mock_provider.create_identity.assert_called_once()
-        
+
         # Verify the identity_data structure
         call_args = mock_provider.create_identity.call_args[0][0]
-        assert call_args['public_key'] == 'test_public_key_123'
-        assert 'created_at' in call_args
-        assert 'metadata' in call_args
-        
+        assert call_args["public_key"] == "test_public_key_123"
+        assert "created_at" in call_args
+        assert "metadata" in call_args
+
         # Verify overrides fields are initialized as empty dicts
-        assert 'config_overrides' in call_args
-        assert call_args['config_overrides'] == {}
-        assert 'prompt_overrides' in call_args
-        assert call_args['prompt_overrides'] == {}
+        assert "config_overrides" in call_args
+        assert call_args["config_overrides"] == {}
+        assert "prompt_overrides" in call_args
+        assert call_args["prompt_overrides"] == {}
 
     @pytest.mark.asyncio
     async def test_create_identity_failure(self):
@@ -99,14 +103,14 @@ class TestIdentityService:
         # Mock database service with provider
         mock_provider = Mock()
         mock_provider.create_identity = Mock(return_value=False)
-        
+
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
-        
+
         service = IdentityService(db_service=mock_db_service)
-        
+
         result = await service.create_identity("test_public_key_123")
-        
+
         assert result is False
         mock_provider.create_identity.assert_called_once()
 
@@ -115,24 +119,26 @@ class TestIdentityService:
         """Test get_or_create_identity returns existing identity."""
         # Mock database service with provider
         mock_identity = {
-            'public_key': 'test_public_key_123',
-            'created_at': datetime.now(),
-            'metadata': {}
+            "public_key": "test_public_key_123",
+            "created_at": datetime.now(),
+            "metadata": {},
         }
-        
+
         mock_provider = Mock()
         mock_provider.find_identity_by_public_key = Mock(return_value=mock_identity)
         mock_provider.create_identity = Mock()
-        
+
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
-        
+
         service = IdentityService(db_service=mock_db_service)
-        
+
         result = await service.get_or_create_identity("test_public_key_123")
-        
+
         assert result == mock_identity
-        mock_provider.find_identity_by_public_key.assert_called_once_with("test_public_key_123")
+        mock_provider.find_identity_by_public_key.assert_called_once_with(
+            "test_public_key_123"
+        )
         # Should NOT call create_identity
         mock_provider.create_identity.assert_not_called()
 
@@ -142,26 +148,28 @@ class TestIdentityService:
         # Mock database service with provider
         # After creation, simulate finding the newly created identity
         created_identity = {
-            'public_key': 'test_public_key_123',
-            'created_at': datetime.now(),
-            'metadata': {}
+            "public_key": "test_public_key_123",
+            "created_at": datetime.now(),
+            "metadata": {},
         }
-        
+
         mock_provider = Mock()
         # First call returns None (not found), second call returns the created identity
-        mock_provider.find_identity_by_public_key = Mock(side_effect=[None, created_identity])
+        mock_provider.find_identity_by_public_key = Mock(
+            side_effect=[None, created_identity]
+        )
         mock_provider.create_identity = Mock(return_value=True)
-        
+
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
-        
+
         service = IdentityService(db_service=mock_db_service)
-        
+
         result = await service.get_or_create_identity("test_public_key_123")
-        
+
         assert result is not None
-        assert result['public_key'] == 'test_public_key_123'
-        
+        assert result["public_key"] == "test_public_key_123"
+
         # Should call find twice (before and after creation) and create once
         assert mock_provider.find_identity_by_public_key.call_count == 2
         mock_provider.create_identity.assert_called_once()
@@ -171,220 +179,240 @@ class TestIdentityService:
         """Test get_effective_profile returns default config for new user (no overrides)."""
         # Mock identity service with no overrides
         mock_provider = Mock()
-        mock_provider.find_identity_by_public_key = Mock(return_value={
-            'public_key': 'test_key',
-            'config_overrides': {},
-            'prompt_overrides': {},
-            'created_at': datetime.now()
-        })
-        
+        mock_provider.find_identity_by_public_key = Mock(
+            return_value={
+                "public_key": "test_key",
+                "config_overrides": {},
+                "prompt_overrides": {},
+                "created_at": datetime.now(),
+            }
+        )
+
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
-        
+
         # Mock config service (4-layer architecture)
         mock_config_service = Mock()
-        mock_config_service.get_user_defaults = Mock(return_value={
-            'config': {
-                'model': 'gemini-2.5-flash',
-                'temperature': 0.7,
-                'max_tokens': 4096
-            },
-            'prompts': {
-                'field': {'content': '场域：共同成长的对话空间...', 'editable': False, 'order': 1},
-                'presence': {'content': '在场方式：我如何存在...', 'editable': False, 'order': 2},
-                'capabilities': {'content': '能力与工具...', 'editable': False, 'order': 3},
-                'learning': {'content': '用户档案与学习记录...', 'editable': True, 'order': 4}
+        mock_config_service.get_user_defaults = Mock(
+            return_value={
+                "config": {
+                    "model": "gemini-2.5-flash",
+                    "temperature": 0.7,
+                    "max_tokens": 4096,
+                },
+                "prompts": {
+                    "friends_profile": {
+                        "content": "User profile and preferences...",
+                        "editable": True,
+                    },
+                },
             }
-        })
-        mock_config_service.get_genesis_template = Mock(return_value={
-            'llm': {'catalog': {}},
-            'ui': {
-                'editable_fields': ['config.model', 'config.temperature', 'prompts.learning'],
-                'field_options': {}
+        )
+        mock_config_service.get_genesis_template = Mock(
+            return_value={
+                "llm": {"catalog": {}},
+                "ui": {
+                    "editable_fields": [
+                        "config.model",
+                        "config.temperature",
+                        "prompts.friends_profile",
+                    ],
+                    "field_options": {},
+                },
             }
-        })
-        
+        )
+
         service = IdentityService(db_service=mock_db_service)
-        
+
         # Get effective profile
-        profile = await service.get_effective_profile('test_key', mock_config_service)
-        
+        profile = await service.get_effective_profile("test_key", mock_config_service)
+
         # Verify effective config matches defaults (no overrides)
-        assert profile['effective_config']['model'] == 'gemini-2.5-flash'
-        assert profile['effective_config']['temperature'] == 0.7
-        assert profile['effective_config']['max_tokens'] == 4096
-        
-        # Verify effective prompts match defaults (4-layer architecture)
-        assert profile['effective_prompts']['field']['content'] == '场域：共同成长的对话空间...'
-        assert profile['effective_prompts']['field']['editable'] == False
-        assert profile['effective_prompts']['field']['order'] == 1
-        assert profile['effective_prompts']['learning']['content'] == '用户档案与学习记录...'
-        assert profile['effective_prompts']['learning']['editable'] == True
-        assert profile['effective_prompts']['learning']['order'] == 4
-        
+        assert profile["effective_config"]["model"] == "gemini-2.5-flash"
+        assert profile["effective_config"]["temperature"] == 0.7
+        assert profile["effective_config"]["max_tokens"] == 4096
+
+        # Verify effective prompts match defaults (v2 architecture - friends_profile)
+        assert (
+            profile["effective_prompts"]["friends_profile"]["content"]
+            == "User profile and preferences..."
+        )
+        assert profile["effective_prompts"]["friends_profile"]["editable"] == True
+
         # Verify user overrides are empty
-        assert profile['user_overrides']['config_overrides'] == {}
-        assert profile['user_overrides']['prompt_overrides'] == {}
-        
+        assert profile["user_overrides"]["config_overrides"] == {}
+        assert profile["user_overrides"]["prompt_overrides"] == {}
+
         # Verify UI metadata
-        assert 'editable_fields' in profile
-        assert 'field_options' in profile
+        assert "editable_fields" in profile
+        assert "field_options" in profile
 
     @pytest.mark.asyncio
     async def test_get_effective_profile_with_config_overrides(self):
         """Test get_effective_profile merges config overrides correctly."""
         # Mock identity with config overrides
         mock_provider = Mock()
-        mock_provider.find_identity_by_public_key = Mock(return_value={
-            'public_key': 'test_key',
-            'config_overrides': {
-                'model': 'deepseek-chat',
-                'temperature': 0.9
-            },
-            'prompt_overrides': {},
-            'created_at': datetime.now()
-        })
-        
+        mock_provider.find_identity_by_public_key = Mock(
+            return_value={
+                "public_key": "test_key",
+                "config_overrides": {"model": "deepseek-chat", "temperature": 0.9},
+                "prompt_overrides": {},
+                "created_at": datetime.now(),
+            }
+        )
+
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
-        
-        # Mock config service with defaults (4-layer architecture)
+
+        # Mock config service with defaults (v2 architecture)
         mock_config_service = Mock()
-        mock_config_service.get_user_defaults = Mock(return_value={
-            'config': {
-                'model': 'gemini-2.5-flash',
-                'temperature': 0.7,
-                'max_tokens': 4096
-            },
-            'prompts': {
-                'field': {'content': '场域...', 'editable': False, 'order': 1},
-                'presence': {'content': '在场...', 'editable': False, 'order': 2},
-                'capabilities': {'content': '能力...', 'editable': False, 'order': 3},
-                'learning': {'content': '学习...', 'editable': True, 'order': 4}
+        mock_config_service.get_user_defaults = Mock(
+            return_value={
+                "config": {
+                    "model": "gemini-2.5-flash",
+                    "temperature": 0.7,
+                    "max_tokens": 4096,
+                },
+                "prompts": {
+                    "friends_profile": {"content": "Default profile...", "editable": True},
+                },
             }
-        })
-        mock_config_service.get_genesis_template = Mock(return_value={
-            'llm': {'catalog': {}},
-            'ui': {'editable_fields': [], 'field_options': {}}
-        })
-        
+        )
+        mock_config_service.get_genesis_template = Mock(
+            return_value={
+                "llm": {"catalog": {}},
+                "ui": {"editable_fields": [], "field_options": {}},
+            }
+        )
+
         service = IdentityService(db_service=mock_db_service)
-        profile = await service.get_effective_profile('test_key', mock_config_service)
-        
+        profile = await service.get_effective_profile("test_key", mock_config_service)
+
         # Verify overridden values
-        assert profile['effective_config']['model'] == 'deepseek-chat'
-        assert profile['effective_config']['temperature'] == 0.9
-        
+        assert profile["effective_config"]["model"] == "deepseek-chat"
+        assert profile["effective_config"]["temperature"] == 0.9
+
         # Verify non-overridden value stays default
-        assert profile['effective_config']['max_tokens'] == 4096
-        
+        assert profile["effective_config"]["max_tokens"] == 4096
+
         # Verify overrides are preserved
-        assert profile['user_overrides']['config_overrides']['model'] == 'deepseek-chat'
+        assert profile["user_overrides"]["config_overrides"]["model"] == "deepseek-chat"
 
     @pytest.mark.asyncio
     async def test_get_effective_profile_with_prompt_overrides(self):
-        """Test get_effective_profile merges prompt overrides correctly (only learning is editable)."""
-        # Mock identity with prompt overrides (only learning)
+        """Test get_effective_profile merges prompt overrides correctly."""
+        # Mock identity with prompt overrides (friends_profile)
         mock_provider = Mock()
-        mock_provider.find_identity_by_public_key = Mock(return_value={
-            'public_key': 'test_key',
-            'config_overrides': {},
-            'prompt_overrides': {
-                'learning': 'Custom learning profile...'
-            },
-            'created_at': datetime.now()
-        })
-        
+        mock_provider.find_identity_by_public_key = Mock(
+            return_value={
+                "public_key": "test_key",
+                "config_overrides": {},
+                "prompt_overrides": {"friends_profile": "Custom user profile..."},
+                "created_at": datetime.now(),
+            }
+        )
+
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
-        
-        # Mock config service (4-layer architecture)
+
+        # Mock config service (v2 architecture)
         mock_config_service = Mock()
-        mock_config_service.get_user_defaults = Mock(return_value={
-            'config': {},
-            'prompts': {
-                'field': {'content': 'Default field', 'editable': False, 'order': 1},
-                'presence': {'content': 'Default presence', 'editable': False, 'order': 2},
-                'capabilities': {'content': 'Default capabilities', 'editable': False, 'order': 3},
-                'learning': {'content': 'Default learning', 'editable': True, 'order': 4}
+        mock_config_service.get_user_defaults = Mock(
+            return_value={
+                "config": {},
+                "prompts": {
+                    "friends_profile": {
+                        "content": "Default profile",
+                        "editable": True,
+                    },
+                },
             }
-        })
-        mock_config_service.get_genesis_template = Mock(return_value={
-            'llm': {'catalog': {}},
-            'ui': {'editable_fields': [], 'field_options': {}}
-        })
-        
+        )
+        mock_config_service.get_genesis_template = Mock(
+            return_value={
+                "llm": {"catalog": {}},
+                "ui": {"editable_fields": [], "field_options": {}},
+            }
+        )
+
         service = IdentityService(db_service=mock_db_service)
-        profile = await service.get_effective_profile('test_key', mock_config_service)
-        
-        # Verify overridden learning (content is overridden, but metadata preserved)
-        assert profile['effective_prompts']['learning']['content'] == 'Custom learning profile...'
-        assert profile['effective_prompts']['learning']['editable'] == True  # Preserved from default
-        assert profile['effective_prompts']['learning']['order'] == 4  # Preserved from default
-        
-        # Verify non-overridden prompts stay default
-        assert profile['effective_prompts']['field']['content'] == 'Default field'
-        assert profile['effective_prompts']['presence']['content'] == 'Default presence'
-        assert profile['effective_prompts']['capabilities']['content'] == 'Default capabilities'
-        
+        profile = await service.get_effective_profile("test_key", mock_config_service)
+
+        # Verify overridden friends_profile (content is overridden, but metadata preserved)
+        assert (
+            profile["effective_prompts"]["friends_profile"]["content"]
+            == "Custom user profile..."
+        )
+        assert (
+            profile["effective_prompts"]["friends_profile"]["editable"] == True
+        )  # Preserved from default
+
         # Verify overrides are preserved
-        assert profile['user_overrides']['prompt_overrides']['learning'] == 'Custom learning profile...'
+        assert (
+            profile["user_overrides"]["prompt_overrides"]["friends_profile"]
+            == "Custom user profile..."
+        )
 
     @pytest.mark.asyncio
     async def test_get_effective_profile_complete_overrides(self):
-        """Test get_effective_profile with both config and learning overrides."""
+        """Test get_effective_profile with both config and prompt overrides."""
         # Mock identity with complete overrides
         mock_provider = Mock()
-        mock_provider.find_identity_by_public_key = Mock(return_value={
-            'public_key': 'test_key',
-            'config_overrides': {
-                'model': 'deepseek-chat',
-                'temperature': 0.95,
-                'max_tokens': 8192
-            },
-            'prompt_overrides': {
-                'learning': 'Custom learning profile with user preferences...'
-            },
-            'created_at': datetime.now()
-        })
-        
+        mock_provider.find_identity_by_public_key = Mock(
+            return_value={
+                "public_key": "test_key",
+                "config_overrides": {
+                    "model": "deepseek-chat",
+                    "temperature": 0.95,
+                    "max_tokens": 8192,
+                },
+                "prompt_overrides": {
+                    "friends_profile": "Custom user profile with preferences..."
+                },
+                "created_at": datetime.now(),
+            }
+        )
+
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
-        
-        # Mock config service (4-layer architecture)
+
+        # Mock config service (v2 architecture)
         mock_config_service = Mock()
-        mock_config_service.get_user_defaults = Mock(return_value={
-            'config': {
-                'model': 'gemini-2.5-flash',
-                'temperature': 0.7,
-                'max_tokens': 4096
-            },
-            'prompts': {
-                'field': {'content': 'Default field', 'editable': False, 'order': 1},
-                'presence': {'content': 'Default presence', 'editable': False, 'order': 2},
-                'capabilities': {'content': 'Default capabilities', 'editable': False, 'order': 3},
-                'learning': {'content': 'Default learning', 'editable': True, 'order': 4}
+        mock_config_service.get_user_defaults = Mock(
+            return_value={
+                "config": {
+                    "model": "gemini-2.5-flash",
+                    "temperature": 0.7,
+                    "max_tokens": 4096,
+                },
+                "prompts": {
+                    "friends_profile": {
+                        "content": "Default profile",
+                        "editable": True,
+                    },
+                },
             }
-        })
-        mock_config_service.get_genesis_template = Mock(return_value={
-            'llm': {'catalog': {}},
-            'ui': {'editable_fields': [], 'field_options': {}}
-        })
-        
+        )
+        mock_config_service.get_genesis_template = Mock(
+            return_value={
+                "llm": {"catalog": {}},
+                "ui": {"editable_fields": [], "field_options": {}},
+            }
+        )
+
         service = IdentityService(db_service=mock_db_service)
-        profile = await service.get_effective_profile('test_key', mock_config_service)
-        
+        profile = await service.get_effective_profile("test_key", mock_config_service)
+
         # Verify all config overrides
-        assert profile['effective_config']['model'] == 'deepseek-chat'
-        assert profile['effective_config']['temperature'] == 0.95
-        assert profile['effective_config']['max_tokens'] == 8192
-        
-        # Verify learning override (content overridden, metadata preserved)
-        assert profile['effective_prompts']['learning']['content'] == 'Custom learning profile with user preferences...'
-        # Verify non-overridden prompts stay default
-        assert profile['effective_prompts']['field']['content'] == 'Default field'
-        assert profile['effective_prompts']['presence']['content'] == 'Default presence'
-        assert profile['effective_prompts']['capabilities']['content'] == 'Default capabilities'
+        assert profile["effective_config"]["model"] == "deepseek-chat"
+        assert profile["effective_config"]["temperature"] == 0.95
+        assert profile["effective_config"]["max_tokens"] == 8192
+
+        # Verify friends_profile override (content overridden, metadata preserved)
+        assert (
+            profile["effective_prompts"]["friends_profile"]["content"]
+            == "Custom user profile with preferences..."
+        )
 
     @pytest.mark.asyncio
     async def test_update_user_config_success(self):
@@ -392,40 +420,36 @@ class TestIdentityService:
         # Mock successful update
         mock_provider = Mock()
         mock_provider.update_identity_field = Mock(return_value=True)
-        
+
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
-        
+
         service = IdentityService(db_service=mock_db_service)
-        
-        overrides = {'model': 'deepseek-chat', 'temperature': 0.9}
-        result = await service.update_user_config('test_key', overrides)
-        
+
+        overrides = {"model": "deepseek-chat", "temperature": 0.9}
+        result = await service.update_user_config("test_key", overrides)
+
         assert result is True
         mock_provider.update_identity_field.assert_called_once_with(
-            'test_key',
-            'config_overrides',
-            overrides
+            "test_key", "config_overrides", overrides
         )
 
     @pytest.mark.asyncio
     async def test_update_user_prompts_success(self):
-        """Test update_user_prompts successfully updates prompts (only learning is editable)."""
+        """Test update_user_prompts successfully updates prompts."""
         # Mock successful update
         mock_provider = Mock()
         mock_provider.update_identity_field = Mock(return_value=True)
-        
+
         mock_db_service = Mock()
         mock_db_service.provider = mock_provider
-        
+
         service = IdentityService(db_service=mock_db_service)
-        
-        overrides = {'learning': 'My custom learning profile...'}
-        result = await service.update_user_prompts('test_key', overrides)
-        
+
+        overrides = {"friends_profile": "My custom user profile..."}
+        result = await service.update_user_prompts("test_key", overrides)
+
         assert result is True
         mock_provider.update_identity_field.assert_called_once_with(
-            'test_key',
-            'prompt_overrides',
-            overrides
+            "test_key", "prompt_overrides", overrides
         )

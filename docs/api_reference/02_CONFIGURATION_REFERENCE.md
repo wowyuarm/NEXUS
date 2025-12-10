@@ -187,68 +187,45 @@ Users can override these via `POST /api/v1/config`:
 
 ### Prompts Subsection
 
-Modular prompt system with structured metadata.
+**New Architecture (v2)**: User profile and preferences for context building.
+
+In the new context architecture, `CORE_IDENTITY` is defined directly in code (`nexus/services/context/prompts.py`). The config only contains the `friends_profile` field for user personalization.
 
 ```yaml
 user_defaults:
   prompts:
-    field:
-      content: ""      # Loaded from nexus/prompts/nexus/field.md
-      editable: false  # System-managed, defines the interaction space
-      order: 1         # Concatenation order in system prompt
-    
-    presence:
-      content: ""      # Loaded from nexus/prompts/nexus/presence.md
-      editable: false  # System-managed, defines AI's way of being
-      order: 2
-    
-    capabilities:
-      content: ""      # Loaded from nexus/prompts/nexus/capabilities.md
-      editable: false  # System-managed, defines tools and abilities
-      order: 3
-    
-    learning:
-      content: ""      # Loaded from nexus/prompts/nexus/learning.md
-      editable: true   # User can customize, includes user profile & learning log
-      order: 4
+    friends_profile:
+      content: ""      # User profile and preferences
+      editable: true   # User can customize their profile
+      description: "About this friend - preferences, patterns, and context"
 ```
 
 **Fields**:
--   `content`: Actual prompt text (loaded from `.md` files during initialization)
--   `editable`: Whether user can modify this prompt (only `learning` is editable)
--   `order`: Concatenation sequence for final system prompt composition
-
-**Prompt Loading**:
-```python
-# In scripts/database_manager.py
-def load_prompt_files(prompts_dir: Path) -> Dict[str, str]:
-    prompts = {}
-    for prompt_name in ['field', 'presence', 'capabilities', 'learning']:
-        file_path = prompts_dir / f"{prompt_name}.md"
-        if file_path.exists():
-            prompts[prompt_name] = file_path.read_text(encoding='utf-8')
-    return prompts
-```
+-   `content`: User profile text (e.g., preferences, communication style, background)
+-   `editable`: Whether user can modify this field (always true)
+-   `description`: Human-readable description of the field's purpose
 
 **User Override Mechanism**:
-Users can override `learning` via `POST /api/v1/prompts` or it can be updated by the Memory Agent:
+Users can override `friends_profile` via `POST /api/v1/prompts`:
 ```python
 # Stored in identities collection:
 {
   "public_key": "0x...",
   "prompt_overrides": {
-    "learning": "用户档案：我是一个创意写作助手..."
+    "friends_profile": "I prefer concise, direct answers. I'm interested in AI ethics and philosophy."
   }
 }
 
-# Effective prompts preserve metadata:
-{
-  "learning": {
-    "content": "用户档案：我是一个创意写作助手...",  # User's override
-    "editable": true,    # From user_defaults
-    "order": 4           # From user_defaults
-  }
-}
+# Used in [FRIENDS_INFO] context block during LLM calls
+```
+
+**Legacy Compatibility**:
+The system still reads the legacy `learning` field for backward compatibility:
+```python
+# In nexus/services/context/formatters.py
+friends_profile = prompt_overrides.get("friends_profile", "")
+if not friends_profile:
+    friends_profile = prompt_overrides.get("learning", "")  # Fallback
 ```
 
 ---
@@ -268,7 +245,7 @@ ui:
     - "config.temperature"
     - "config.max_tokens"
     - "config.history_context_size"
-    - "prompts.learning"
+    - "prompts.friends_profile"
 ```
 
 **Usage**:

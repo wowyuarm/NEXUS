@@ -495,23 +495,6 @@ class DatabaseManager:
             logger.error(f"Error analyzing collection: {e}")
             return {}
 
-    def read_prompt_file(self, prompts_dir: Path, filename: str) -> str:
-        """Read prompt file content."""
-        file_path = prompts_dir / filename
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read().strip()
-            logger.info(f"Successfully read: {filename} ({len(content)} characters)")
-            print(f"✓ 成功读取: {filename} ({len(content)} 字符)")
-            return content
-        except FileNotFoundError:
-            logger.warning(f"File not found: {filename}")
-            print(f"✗ 文件不存在: {filename}")
-            return ""
-        except Exception as e:
-            logger.error(f"Error reading {filename}: {e}")
-            print(f"✗ 读取 {filename} 失败: {e}")
-            return ""
 
     def load_config_template(self) -> dict:
         """Load configuration template from config.example.yml."""
@@ -533,50 +516,31 @@ class DatabaseManager:
             print(f"✗ 加载配置模板失败: {e}")
             raise
 
-    def build_configuration_document(self, environment: str, prompts_dir: Path) -> dict:
-        """Build complete configuration document based on config.example.yml."""
+    def build_configuration_document(self, environment: str) -> dict:
+        """Build configuration document based on config.example.yml.
+        
+        Note: In the new context architecture (v2), CORE_IDENTITY is defined
+        directly in code (nexus/services/context/prompts.py). The config only
+        contains runtime settings and the friends_profile field for user personalization.
+        """
         print("\n开始构建配置文档...")
         print("-" * 60)
         
         # Load configuration template from YAML file
         config_template = self.load_config_template()
         
-        print("\n开始读取Prompt文件...")
-        print("-" * 60)
-        
-        # Read new prompt files (4-layer architecture)
-        field_content = self.read_prompt_file(prompts_dir, "field.md")
-        presence_content = self.read_prompt_file(prompts_dir, "presence.md")
-        capabilities_content = self.read_prompt_file(prompts_dir, "capabilities.md")
-        learning_content = self.read_prompt_file(prompts_dir, "learning.md")
-        
-        print("-" * 60)
-        total_chars = len(field_content) + len(presence_content) + len(capabilities_content) + len(learning_content)
-        print(f"总计读取: {total_chars} 字符\n")
-        
-        # Fill prompt contents into the template
-        if "user_defaults" in config_template and "prompts" in config_template["user_defaults"]:
-            prompts = config_template["user_defaults"]["prompts"]
-            
-            if "field" in prompts:
-                prompts["field"]["content"] = field_content
-            if "presence" in prompts:
-                prompts["presence"]["content"] = presence_content
-            if "capabilities" in prompts:
-                prompts["capabilities"]["content"] = capabilities_content
-            if "learning" in prompts:
-                prompts["learning"]["content"] = learning_content
-        
         # Add environment identifier
         config_template["environment"] = environment
         
         print("✓ 配置文档构建完成\n")
+        print("Note: CORE_IDENTITY is now defined in code (nexus/services/context/prompts.py)")
+        print("      Config only contains runtime settings and friends_profile.\n")
         return config_template
 
     def init_configurations(self, options: InitConfigOptions) -> bool:
         """Initialize configurations collection."""
         print(f"\n{'='*60}")
-        print(f"NEXUS Configuration Initialization")
+        print(f"NEXUS Configuration Initialization (v2)")
         print(f"Target Environment: {options.environment}")
         print(f"{'='*60}\n")
         
@@ -605,19 +569,10 @@ class DatabaseManager:
                 print(f"✗ 错误: 无法切换到数据库: {target_db}")
                 return False
         
-        # Check prompts directory
-        prompts_dir = self.project_root / "nexus" / "prompts" / "nexus"
-        if not prompts_dir.exists():
-            logger.error(f"Prompts directory does not exist: {prompts_dir}")
-            print(f"✗ 错误: Prompts目录不存在: {prompts_dir}")
-            print("  请确保nexus/prompts/nexus/目录存在且包含prompt文件")
-            return False
-        
-        print(f"Prompts Directory: {prompts_dir}")
         print(f"Target Database: {self.current_db}")
         
-        # Build configuration document
-        config_doc = self.build_configuration_document(options.environment, prompts_dir)
+        # Build configuration document (no longer reads prompt files)
+        config_doc = self.build_configuration_document(options.environment)
         
         # Write to database (idempotent operation)
         try:
@@ -663,12 +618,13 @@ class DatabaseManager:
                 print(f"    - prompts: {len(user_defaults.get('prompts', {}))} 个模块")
                 
                 prompts = user_defaults.get('prompts', {})
-                for key in ['field', 'presence', 'capabilities', 'learning']:
-                    prompt_obj = prompts.get(key, {})
-                    content_len = len(prompt_obj.get('content', ''))
-                    editable = prompt_obj.get('editable', False)
-                    order = prompt_obj.get('order', 0)
-                    print(f"      • {key}: {content_len} 字符 (editable={editable}, order={order})")
+                for key, prompt_obj in prompts.items():
+                    if isinstance(prompt_obj, dict):
+                        content_len = len(prompt_obj.get('content', ''))
+                        editable = prompt_obj.get('editable', False)
+                        print(f"      • {key}: {content_len} 字符 (editable={editable})")
+                
+                print("\n  ℹ️  Note: CORE_IDENTITY is defined in code, not in config")
                 
                 ui_config = stored_config.get('ui', {})
                 print(f"  ✓ UI配置:")

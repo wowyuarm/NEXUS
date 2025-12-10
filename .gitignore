@@ -36,7 +36,7 @@ dist/
 .pyscn/
 
 # Other documents
+.legacy/
 docs/future
-docs/backup
 docs/learn/self
 .vercel

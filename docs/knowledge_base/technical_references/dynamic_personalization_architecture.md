@@ -39,8 +39,8 @@ The Dynamic Personalization System sits at the intersection of three major subsy
 │         │                     │                              │
 │         ▼                     ▼                              │
 │  ┌──────────────┐      ┌──────────────┐                     │
-│  │ContextService│      │  LLMService  │                     │
-│  │(Prompt merge)│      │(Provider sel)│                     │
+│  │ContextBuilder│      │  LLMService  │                     │
+│  │(Multi-msg)   │      │(Provider sel)│                     │
 │  └──────────────┘      └──────────────┘                     │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -102,30 +102,15 @@ The Dynamic Personalization System sits at the intersection of three major subsy
       "history_context_size": 20
     },
     "prompts": {
-      "field": {
-        "content": "...",  // Loaded from nexus/prompts/nexus/field.md
-        "editable": false,
-        "order": 1,
-        "description": "对话空间的本质、原则和氛围"
-      },
-      "presence": {
-        "content": "...",  // Loaded from nexus/prompts/nexus/presence.md
-        "editable": false,
-        "order": 2,
-        "description": "AI如何存在和行动于这个场域"
-      },
-      "capabilities": {
-        "content": "...",  // Loaded from nexus/prompts/nexus/capabilities.md
-        "editable": false,
-        "order": 3,
-        "description": "具体的工具、系统架构和边界"
-      },
-      "learning": {
-        "content": "...",  // Loaded from nexus/prompts/nexus/learning.md
+      "friends_profile": {
+        "content": "",  // User profile and preferences
         "editable": true,
-        "order": 4,
-        "description": "用户偏好定义 + AI学习反思记录"
+        "description": "About this friend - preferences, patterns, and context"
       }
+      // Note: CORE_IDENTITY is now defined in code (nexus/services/context/prompts.py)
+      // [CAPABILITIES] is dynamically generated from ToolRegistry
+      // [SHARED_MEMORY] is fetched from messages collection
+      // [THIS_MOMENT] is constructed from current input
     }
   },
   "ui": {
@@ -134,7 +119,7 @@ The Dynamic Personalization System sits at the intersection of three major subsy
       "config.temperature",
       "config.max_tokens",
       "config.history_context_size",
-      "prompts.learning"  // Only learning module is user-editable
+      "prompts.friends_profile"  // User profile for [FRIENDS_INFO] block
     ],
     "field_options": { /* UI metadata */ }
   }
@@ -154,8 +139,9 @@ The Dynamic Personalization System sits at the intersection of three major subsy
   },
   "prompt_overrides": {
     // Optional: user-specific prompt overrides
-    // Only "learning" module can be overridden
-    "learning": "用户档案内容..."
+    // friends_profile: user profile and preferences for [FRIENDS_INFO] block
+    "friends_profile": "I prefer concise answers. Interested in AI ethics."
+    // Legacy: "learning" field still supported for backward compatibility
   }
 }
 ```

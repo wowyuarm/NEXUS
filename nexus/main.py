@@ -20,7 +20,7 @@ from nexus.services.database.service import DatabaseService
 from dotenv import load_dotenv
 from nexus.services.llm.service import LLMService
 from nexus.services.tool_executor import ToolExecutorService
-from nexus.services.context import ContextService
+from nexus.services.context import ContextBuilder
 from nexus.services.orchestrator import OrchestratorService
 from nexus.services.persistence import PersistenceService
 from nexus.services.command import CommandService
@@ -94,8 +94,8 @@ async def main() -> None:
     llm_service = LLMService(bus, config_service)
     tool_executor_service = ToolExecutorService(bus, tool_registry, config_service)
 
-    # Context service now depends on config and persistence services
-    context_service = ContextService(bus, tool_registry, config_service, persistence_service)
+    # Context builder for constructing LLM context with [TAG] structure
+    context_builder = ContextBuilder(bus, tool_registry, config_service, persistence_service)
 
     # Command service for deterministic command processing (inject identity_service)
     command_service = CommandService(bus, database_service=database_service, identity_service=identity_service)
@@ -109,7 +109,7 @@ async def main() -> None:
         persistence_service,
         llm_service,
         tool_executor_service,
-        context_service,
+        context_builder,
         command_service,
         orchestrator_service,
         websocket_interface,
