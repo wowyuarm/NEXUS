@@ -50,8 +50,11 @@ class TestRESTAPIIntegration:
         """Mock IdentityService with test data."""
         service = Mock(spec=IdentityService)
 
-        # Mock get_effective_profile
+        # Mock get_effective_profile - validates owner_key format
         async def mock_get_effective_profile(owner_key, config_svc):
+            # Reject invalid owner_key (must be valid Ethereum address format)
+            if not owner_key.startswith("0x") or len(owner_key) != 42:
+                raise ValueError(f"Invalid owner_key: {owner_key}")
             return {
                 "effective_config": {
                     "model": "gemini-2.5-flash",

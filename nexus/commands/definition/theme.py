@@ -1,7 +1,7 @@
 """Theme command definition for NEXUS."""
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ COMMAND_DEFINITION = {
 }
 
 
-async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
+async def execute(context: dict[str, Any]) -> dict[str, Any]:
     """Prevent accidental server execution of the client-only command."""
     logger.warning("Theme command executed on server; this should be client-only")
     raise RuntimeError(

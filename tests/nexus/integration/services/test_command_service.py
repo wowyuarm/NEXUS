@@ -39,8 +39,14 @@ class TestCommandServiceIntegration:
         """Create CommandService instance with mocked dependencies."""
         # Inject a fake identity_service to satisfy /identity execution path
         fake_identity_service = AsyncMock()
-        fake_identity_service.get_or_create_identity = AsyncMock(return_value={"public_key": "0xFAKE", "created_at": "2025-01-01T00:00:00Z"})
-        return CommandService(bus=mock_bus, database_service=mock_database_service, identity_service=fake_identity_service)
+        fake_identity_service.get_or_create_identity = AsyncMock(
+            return_value={"public_key": "0xFAKE", "created_at": "2025-01-01T00:00:00Z"}
+        )
+        return CommandService(
+            bus=mock_bus,
+            database_service=mock_database_service,
+            identity_service=fake_identity_service,
+        )
 
     @pytest.mark.asyncio
     async def test_ping_command_e2e(self, mock_bus, mock_database_service):
@@ -53,13 +59,19 @@ class TestCommandServiceIntegration:
             run_id="test-run-123",
             owner_key="test-session-456",
             role=Role.COMMAND,
-            content="/ping"
+            content="/ping",
         )
 
         # Act: Create service and simulate command handling
         fake_identity_service = AsyncMock()
-        fake_identity_service.get_or_create_identity = AsyncMock(return_value={"public_key": "0xFAKE", "created_at": "2025-01-01T00:00:00Z"})
-        service = CommandService(bus=mock_bus, database_service=mock_database_service, identity_service=fake_identity_service)
+        fake_identity_service.get_or_create_identity = AsyncMock(
+            return_value={"public_key": "0xFAKE", "created_at": "2025-01-01T00:00:00Z"}
+        )
+        service = CommandService(
+            bus=mock_bus,
+            database_service=mock_database_service,
+            identity_service=fake_identity_service,
+        )
         await service.handle_command(input_message)
 
         # Assert: Verify result was published to command.result topic
@@ -92,7 +104,7 @@ class TestCommandServiceIntegration:
             run_id="test-run-789",
             owner_key="test-session-012",
             role=Role.COMMAND,
-            content="/help"
+            content="/help",
         )
 
         # Act: Create service and simulate command handling
@@ -112,20 +124,22 @@ class TestCommandServiceIntegration:
         assert result_message.content["status"] == "success"
         assert "data" in result_message.content
         assert "commands" in result_message.content["data"]
-        
+
         # Verify command definitions include handler
         commands = result_message.content["data"]["commands"]
         assert "ping" in commands
         assert "help" in commands
         assert "clear" in commands
         assert "theme" in commands
-        
+
         # Verify handler field is present
         assert commands["ping"]["handler"] == "websocket"
-        assert commands["help"]["handler"] == "client"  # help is now a client-side command
+        assert (
+            commands["help"]["handler"] == "client"
+        )  # help is now a client-side command
         assert commands["clear"]["handler"] == "client"
         assert commands["theme"]["handler"] == "client"
-        
+
         assert result_message.run_id == "test-run-789"
         assert result_message.owner_key == "test-session-012"
 
@@ -139,7 +153,7 @@ class TestCommandServiceIntegration:
             run_id="test-run-invalid",
             owner_key="test-session-invalid",
             role=Role.COMMAND,
-            content="/unknown_command"
+            content="/unknown_command",
         )
 
         # Act: Create service and simulate command handling
@@ -161,7 +175,9 @@ class TestCommandServiceIntegration:
         assert "unknown_command" in result_message.content["message"]
 
     @pytest.mark.asyncio
-    async def test_command_service_initialization(self, mock_bus, mock_database_service):
+    async def test_command_service_initialization(
+        self, mock_bus, mock_database_service
+    ):
         """
         Test that CommandService initializes correctly and subscribes to system.command topic.
         """
@@ -169,7 +185,9 @@ class TestCommandServiceIntegration:
         service = CommandService(bus=mock_bus, database_service=mock_database_service)
 
         # Assert: Verify service subscribed to system.command topic
-        mock_bus.subscribe.assert_called_once_with(Topics.SYSTEM_COMMAND, service.handle_command)
+        mock_bus.subscribe.assert_called_once_with(
+            Topics.SYSTEM_COMMAND, service.handle_command
+        )
 
         # Verify commands were discovered and registered
         assert len(service._command_registry) > 0
@@ -188,16 +206,20 @@ class TestCommandServiceIntegration:
             run_id="test-run-error",
             owner_key="test-session-error",
             role=Role.COMMAND,
-            content="/ping"
+            content="/ping",
         )
 
         # Mock the ping command to raise an exception
-        with patch.object(CommandService, '_discover_and_register_commands') as mock_discover:
+        with patch.object(
+            CommandService, "_discover_and_register_commands"
+        ) as mock_discover:
             # Create a broken command registry
             async def broken_execute(context):
                 raise RuntimeError("Simulated command execution error")
 
-            service = CommandService(bus=mock_bus, database_service=mock_database_service)
+            service = CommandService(
+                bus=mock_bus, database_service=mock_database_service
+            )
             service._command_registry["ping"] = broken_execute
 
             # Act: Handle the command
@@ -231,10 +253,12 @@ class TestCommandServiceIntegration:
                 run_id="test-run-parse",
                 owner_key="test-session-parse",
                 role=Role.COMMAND,
-                content=command_input
+                content=command_input,
             )
 
-            service = CommandService(bus=mock_bus, database_service=mock_database_service)
+            service = CommandService(
+                bus=mock_bus, database_service=mock_database_service
+            )
             await service.handle_command(input_message)
 
             # Should succeed for ping command
@@ -244,23 +268,25 @@ class TestCommandServiceIntegration:
                 assert result_message.content["status"] == "success"
 
     @pytest.mark.asyncio
-    async def test_signed_command_verification_success(self, mock_bus, mock_database_service):
+    async def test_signed_command_verification_success(
+        self, mock_bus, mock_database_service
+    ):
         """
         Test that CommandService correctly verifies a properly signed command
         and executes the /identity whoami command successfully.
         """
         # Arrange: Generate a test key pair
-        private_key_bytes = b'\x01' * 32  # Simple test private key
+        private_key_bytes = b"\x01" * 32  # Simple test private key
         private_key = keys.PrivateKey(private_key_bytes)
         public_key_hex = private_key.public_key.to_address()
-        
+
         # Sign the command
         command_str = "/identity"
         # eth_keys expects bytes for signing, so we encode the command
-        message_hash = keccak(command_str.encode('utf-8'))
+        message_hash = keccak(command_str.encode("utf-8"))
         signature = private_key.sign_msg_hash(message_hash)
         signature_hex = signature.to_hex()
-        
+
         # Create message with auth payload
         input_message = Message(
             run_id="test-run-signed",
@@ -268,29 +294,37 @@ class TestCommandServiceIntegration:
             role=Role.COMMAND,
             content={
                 "command": command_str,
-                "auth": {
-                    "publicKey": public_key_hex,
-                    "signature": signature_hex
-                }
-            }
+                "auth": {"publicKey": public_key_hex, "signature": signature_hex},
+            },
         )
-        
+
         # Act: Create service and handle the signed command
         fake_identity_service = AsyncMock()
-        fake_identity_service.get_or_create_identity = AsyncMock(return_value={"public_key": public_key_hex, "created_at": "2025-01-01T00:00:00Z"})
-        service = CommandService(bus=mock_bus, database_service=mock_database_service, identity_service=fake_identity_service)
+        fake_identity_service.get_or_create_identity = AsyncMock(
+            return_value={
+                "public_key": public_key_hex,
+                "created_at": "2025-01-01T00:00:00Z",
+            }
+        )
+        service = CommandService(
+            bus=mock_bus,
+            database_service=mock_database_service,
+            identity_service=fake_identity_service,
+        )
         await service.handle_command(input_message)
-        
+
         # Assert: Verify command was executed successfully
         mock_bus.publish.assert_called_once()
         call_args = mock_bus.publish.call_args
-        
+
         result_message = call_args[0][1]
         assert result_message.content["status"] == "success"
         assert result_message.content["data"]["public_key"] == public_key_hex
 
     @pytest.mark.asyncio
-    async def test_signed_command_verification_failure(self, mock_bus, mock_database_service):
+    async def test_signed_command_verification_failure(
+        self, mock_bus, mock_database_service
+    ):
         """
         Test that CommandService rejects commands with invalid signatures
         and returns an authentication failure error.
@@ -299,7 +333,7 @@ class TestCommandServiceIntegration:
         command_str = "/identity"
         fake_signature = "0x" + "00" * 65  # Invalid signature
         fake_public_key = "0x" + "00" * 20  # Invalid public key
-        
+
         # Create message with invalid auth payload
         input_message = Message(
             run_id="test-run-invalid-sig",
@@ -307,23 +341,22 @@ class TestCommandServiceIntegration:
             role=Role.COMMAND,
             content={
                 "command": command_str,
-                "auth": {
-                    "publicKey": fake_public_key,
-                    "signature": fake_signature
-                }
-            }
+                "auth": {"publicKey": fake_public_key, "signature": fake_signature},
+            },
         )
-        
+
         # Act: Create service and handle the command with invalid signature
         service = CommandService(bus=mock_bus, database_service=mock_database_service)
         await service.handle_command(input_message)
-        
+
         # Assert: Verify authentication failure was returned
         mock_bus.publish.assert_called_once()
         call_args = mock_bus.publish.call_args
-        
+
         result_message = call_args[0][1]
         assert result_message.content["status"] == "error"
-        assert "authentication" in result_message.content["message"].lower() or \
-               "signature" in result_message.content["message"].lower() or \
-               "verification" in result_message.content["message"].lower()
+        assert (
+            "authentication" in result_message.content["message"].lower()
+            or "signature" in result_message.content["message"].lower()
+            or "verification" in result_message.content["message"].lower()
+        )

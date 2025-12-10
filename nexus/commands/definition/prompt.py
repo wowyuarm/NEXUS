@@ -21,11 +21,10 @@ COMMAND_DEFINITION = {
     "restOptions": {
         "getEndpoint": "/api/v1/prompts",
         "postEndpoint": "/api/v1/prompts",
-        "method": "GET"
-    }
+        "method": "GET",
+    },
 }
 
 # Note: REST commands do not require an execute() function
 # The execution logic is implemented in the REST API endpoints
 # located in nexus/interfaces/rest.py
-

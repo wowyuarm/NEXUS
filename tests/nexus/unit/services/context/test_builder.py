@@ -22,26 +22,38 @@ class TestContextBuilder:
     def mock_tool_registry(self):
         """Create mock ToolRegistry."""
         registry = MagicMock()
-        registry.get_all_tool_definitions = MagicMock(return_value=[
-            {
-                "type": "function",
-                "function": {
-                    "name": "web_search",
-                    "description": "Search the web",
-                    "parameters": {"type": "object", "properties": {}}
+        registry.get_all_tool_definitions = MagicMock(
+            return_value=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "web_search",
+                        "description": "Search the web",
+                        "parameters": {"type": "object", "properties": {}},
+                    },
                 }
-            }
-        ])
+            ]
+        )
         return registry
 
     @pytest.fixture
     def mock_persistence_service(self):
         """Create mock PersistenceService."""
         service = MagicMock()
-        service.get_history = AsyncMock(return_value=[
-            {"role": "human", "content": "Previous message", "timestamp": "2025-12-10T15:00:00Z"},
-            {"role": "ai", "content": "Previous response", "timestamp": "2025-12-10T15:01:00Z"},
-        ])
+        service.get_history = AsyncMock(
+            return_value=[
+                {
+                    "role": "human",
+                    "content": "Previous message",
+                    "timestamp": "2025-12-10T15:00:00Z",
+                },
+                {
+                    "role": "ai",
+                    "content": "Previous response",
+                    "timestamp": "2025-12-10T15:01:00Z",
+                },
+            ]
+        )
         return service
 
     @pytest.fixture
@@ -52,7 +64,13 @@ class TestContextBuilder:
         return service
 
     @pytest.fixture
-    def builder(self, mock_bus, mock_tool_registry, mock_persistence_service, mock_config_service):
+    def builder(
+        self,
+        mock_bus,
+        mock_tool_registry,
+        mock_persistence_service,
+        mock_config_service,
+    ):
         """Create ContextBuilder with mocks."""
         return ContextBuilder(
             bus=mock_bus,
@@ -159,7 +177,9 @@ class TestContextBuilder:
         assert "<current_time>" in this_moment
 
     @pytest.mark.asyncio
-    async def test_build_context_no_persistence_service(self, mock_bus, mock_tool_registry, mock_config_service):
+    async def test_build_context_no_persistence_service(
+        self, mock_bus, mock_tool_registry, mock_config_service
+    ):
         """Handle missing persistence service."""
         builder = ContextBuilder(
             bus=mock_bus,
@@ -189,8 +209,13 @@ class TestContextBuilder:
             id="run-123",
             owner_key="0xABC",
             history=[
-                Message(run_id="run-123", owner_key="0xABC", role=Role.HUMAN, content="Hello!")
-            ]
+                Message(
+                    run_id="run-123",
+                    owner_key="0xABC",
+                    role=Role.HUMAN,
+                    content="Hello!",
+                )
+            ],
         )
 
         result = builder._extract_user_input_from_run(run)

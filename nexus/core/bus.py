@@ -15,7 +15,8 @@ Design notes:
 
 import asyncio
 import logging
-from typing import Dict, List, Callable, Awaitable
+from collections.abc import Awaitable, Callable
+
 from .models import Message
 
 logger = logging.getLogger(__name__)
@@ -26,9 +27,9 @@ class NexusBus:
 
     def __init__(self) -> None:
         # Per-topic inbound queues
-        self._queues: Dict[str, asyncio.Queue] = {}
+        self._queues: dict[str, asyncio.Queue] = {}
         # Per-topic list of async handlers: Callable[[Message], Awaitable[None]]
-        self._subscribers: Dict[str, List[Callable[[Message], Awaitable[None]]]] = {}
+        self._subscribers: dict[str, list[Callable[[Message], Awaitable[None]]]] = {}
         logger.debug("NexusBus initialized with no topics/subscribers")
 
     async def publish(self, topic: str, message: Message) -> None:
@@ -53,7 +54,9 @@ class NexusBus:
             getattr(message, "id", None),
         )
 
-    def subscribe(self, topic: str, handler: Callable[[Message], Awaitable[None]]) -> None:
+    def subscribe(
+        self, topic: str, handler: Callable[[Message], Awaitable[None]]
+    ) -> None:
         """Register an async handler for a topic; create queue/list if missing."""
         if topic not in self._queues:
             self._queues[topic] = asyncio.Queue()
@@ -62,7 +65,11 @@ class NexusBus:
             self._subscribers[topic] = []
             logger.debug("Created subscriber list for topic=%s", topic)
         self._subscribers[topic].append(handler)
-        logger.info("Subscribed handler to topic=%s (total=%d)", topic, len(self._subscribers[topic]))
+        logger.info(
+            "Subscribed handler to topic=%s (total=%d)",
+            topic,
+            len(self._subscribers[topic]),
+        )
 
     async def run_forever(self) -> None:
         """Start listeners for all current topics and run indefinitely.
@@ -75,9 +82,11 @@ class NexusBus:
             await asyncio.Event().wait()
             return
 
-        tasks: List[asyncio.Task] = []
+        tasks: list[asyncio.Task] = []
         for topic, queue in self._queues.items():
-            task = asyncio.create_task(self._listener(topic, queue), name=f"nexusbus-listener:{topic}")
+            task = asyncio.create_task(
+                self._listener(topic, queue), name=f"nexusbus-listener:{topic}"
+            )
             tasks.append(task)
             logger.info("Listener started for topic=%s", topic)
 
@@ -98,18 +107,20 @@ class NexusBus:
                     len(handlers),
                 )
                 for handler in handlers:
-                    task = asyncio.create_task(handler(message))
+                    task: asyncio.Task[None] = asyncio.ensure_future(handler(message))
+
                     # Attach a done callback to surface exceptions for observability
-                    def _done_cb(t: asyncio.Task) -> None:
+                    def _done_cb(t: asyncio.Task, msg: Message = message) -> None:
                         exc = t.exception()
                         if exc is not None:
                             logger.exception(
                                 "Subscriber handler raised on topic=%s run_id=%s msg_id=%s: %s",
                                 topic,
-                                getattr(message, "run_id", None),
-                                getattr(message, "id", None),
+                                getattr(msg, "run_id", None),
+                                getattr(msg, "id", None),
                                 exc,
                             )
+
                     task.add_done_callback(_done_cb)
             finally:
                 queue.task_done()

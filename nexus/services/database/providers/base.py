@@ -9,7 +9,8 @@ Key classes:
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 from nexus.core.models import Message
 
 
@@ -57,7 +58,9 @@ class DatabaseProvider(ABC):
         pass
 
     @abstractmethod
-    def get_messages_by_owner_key(self, owner_key: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_messages_by_owner_key(
+        self, owner_key: str, limit: int = 20
+    ) -> list[dict[str, Any]]:
         """Retrieve messages for a specific owner (user identity).
 
         Args:
@@ -84,7 +87,7 @@ class DatabaseProvider(ABC):
         pass
 
     @abstractmethod
-    def get_configuration(self, environment: str) -> Optional[Dict[str, Any]]:
+    def get_configuration(self, environment: str) -> dict[str, Any] | None:
         """Get configuration for a specific environment.
 
         Args:
@@ -96,7 +99,9 @@ class DatabaseProvider(ABC):
         pass
 
     @abstractmethod
-    def upsert_configuration(self, environment: str, config_data: Dict[str, Any]) -> bool:
+    def upsert_configuration(
+        self, environment: str, config_data: dict[str, Any]
+    ) -> bool:
         """Insert or update configuration for a specific environment.
 
         Args:
@@ -109,7 +114,7 @@ class DatabaseProvider(ABC):
         pass
 
     @abstractmethod
-    def find_identity_by_public_key(self, public_key: str) -> Optional[Dict[str, Any]]:
+    def find_identity_by_public_key(self, public_key: str) -> dict[str, Any] | None:
         """Find an identity by its public key.
 
         Args:
@@ -121,7 +126,7 @@ class DatabaseProvider(ABC):
         pass
 
     @abstractmethod
-    def create_identity(self, identity_data: Dict[str, Any]) -> bool:
+    def create_identity(self, identity_data: dict[str, Any]) -> bool:
         """Create a new identity in the database.
 
         Args:

@@ -18,13 +18,9 @@ COMMAND_DEFINITION = {
     "handler": "rest",
     "requiresGUI": True,
     "examples": ["/history", "/history 50"],
-    "restOptions": {
-        "getEndpoint": "/api/v1/messages",
-        "method": "GET"
-    }
+    "restOptions": {"getEndpoint": "/api/v1/messages", "method": "GET"},
 }
 
 # Note: REST commands do not require an execute() function
 # The execution logic is implemented in the REST API endpoints
 # located in nexus/interfaces/rest.py
-

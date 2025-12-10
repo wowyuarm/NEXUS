@@ -36,9 +36,21 @@ class TestMemoryFormatter:
     def test_format_shared_memory_filters_tool_messages(self):
         """Tool messages are filtered out."""
         history = [
-            {"role": "human", "content": "Search for X", "timestamp": "2025-12-10T15:30:00Z"},
-            {"role": "tool", "content": "Tool result", "timestamp": "2025-12-10T15:31:00Z"},
-            {"role": "ai", "content": "Based on search...", "timestamp": "2025-12-10T15:32:00Z"},
+            {
+                "role": "human",
+                "content": "Search for X",
+                "timestamp": "2025-12-10T15:30:00Z",
+            },
+            {
+                "role": "tool",
+                "content": "Tool result",
+                "timestamp": "2025-12-10T15:31:00Z",
+            },
+            {
+                "role": "ai",
+                "content": "Based on search...",
+                "timestamp": "2025-12-10T15:32:00Z",
+            },
         ]
 
         result = MemoryFormatter.format_shared_memory(history)
@@ -51,7 +63,11 @@ class TestMemoryFormatter:
     def test_format_shared_memory_respects_limit(self):
         """Respects message limit."""
         history = [
-            {"role": "human", "content": f"Message {i}", "timestamp": "2025-12-10T15:30:00Z"}
+            {
+                "role": "human",
+                "content": f"Message {i}",
+                "timestamp": "2025-12-10T15:30:00Z",
+            }
             for i in range(30)
         ]
 
@@ -63,7 +79,11 @@ class TestMemoryFormatter:
         """Long messages are truncated."""
         long_content = "A" * 600
         history = [
-            {"role": "human", "content": long_content, "timestamp": "2025-12-10T15:30:00Z"},
+            {
+                "role": "human",
+                "content": long_content,
+                "timestamp": "2025-12-10T15:30:00Z",
+            },
         ]
 
         result = MemoryFormatter.format_shared_memory(history)
@@ -96,7 +116,7 @@ class TestFriendsInfoFormatter:
             "prompt_overrides": {
                 "friends_profile": "This friend prefers concise answers."
             },
-            "created_at": "2025-01-01T00:00:00Z"
+            "created_at": "2025-01-01T00:00:00Z",
         }
 
         result = FriendsInfoFormatter.format_friends_info(user_profile)
@@ -108,9 +128,7 @@ class TestFriendsInfoFormatter:
         """Backward compatibility: legacy learning field still works."""
         user_profile = {
             "public_key": "0xABC123",
-            "prompt_overrides": {
-                "learning": "Legacy learning content."
-            }
+            "prompt_overrides": {"learning": "Legacy learning content."},
         }
 
         result = FriendsInfoFormatter.format_friends_info(user_profile)
@@ -137,7 +155,7 @@ class TestFriendsInfoFormatter:
         user_profile = {
             "public_key": "0xABC123",
             "prompt_overrides": {},
-            "created_at": "2025-06-15T10:00:00Z"
+            "created_at": "2025-06-15T10:00:00Z",
         }
 
         result = FriendsInfoFormatter.format_friends_info(user_profile)
@@ -154,7 +172,7 @@ class TestMomentFormatter:
         result = MomentFormatter.format_this_moment(
             current_input="Hello, how are you?",
             timestamp_utc="2025-12-10T08:00:00Z",
-            timezone_offset=-480  # UTC+8
+            timezone_offset=-480,  # UTC+8
         )
 
         assert "[THIS_MOMENT]" in result
@@ -169,7 +187,7 @@ class TestMomentFormatter:
         result = MomentFormatter.format_this_moment(
             current_input="Test",
             timestamp_utc="2025-12-10T08:00:00Z",
-            timezone_offset=-480  # UTC+8 (480 minutes ahead, negative in JS)
+            timezone_offset=-480,  # UTC+8 (480 minutes ahead, negative in JS)
         )
 
         # Should show 16:00 in +08:00 timezone
@@ -178,9 +196,7 @@ class TestMomentFormatter:
     def test_format_this_moment_no_timestamp(self):
         """Handle missing timestamp gracefully."""
         result = MomentFormatter.format_this_moment(
-            current_input="Hello",
-            timestamp_utc="",
-            timezone_offset=0
+            current_input="Hello", timestamp_utc="", timezone_offset=0
         )
 
         assert "[THIS_MOMENT]" in result
@@ -193,9 +209,7 @@ class TestMomentFormatter:
         """Handle multiline input correctly."""
         multiline = "Line 1\nLine 2\nLine 3"
         result = MomentFormatter.format_this_moment(
-            current_input=multiline,
-            timestamp_utc="",
-            timezone_offset=0
+            current_input=multiline, timestamp_utc="", timezone_offset=0
         )
 
         assert "Line 1" in result

@@ -10,11 +10,12 @@ This module defines:
 All models are Pydantic-based with strict typing and sensible defaults.
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List  # noqa: F401 (Optional intentionally imported per spec)
-from enum import Enum
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class Role(str, Enum):
@@ -42,7 +43,7 @@ class RunStatus(str, Enum):
 
 def _now_utc() -> datetime:
     """Return current UTC timestamp."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _gen_msg_id() -> str:
@@ -75,7 +76,7 @@ class Message(BaseModel):
     role: Role
     content: Any
     timestamp: datetime = Field(default_factory=_now_utc)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class Run(BaseModel):
@@ -84,7 +85,7 @@ class Run(BaseModel):
     id: str = Field(default_factory=_gen_run_id)
     owner_key: str
     status: RunStatus = Field(default=RunStatus.PENDING)
-    history: List[Message] = Field(default_factory=list)
+    history: list[Message] = Field(default_factory=list)
     iteration_count: int = Field(default=0)
-    tools: List[Dict[str, Any]] = Field(default_factory=list)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    tools: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)

@@ -3,34 +3,35 @@
 # This Dockerfile should be built from the project root directory
 # Build command: docker build -f nexus/Dockerfile .
 
-# Builder stage
-FROM python:3.11-slim-bullseye AS builder
+# Builder stage - uses Poetry to export dependencies
+FROM python:3.12-slim-bookworm AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Update package lists and clean up
-RUN apt-get update && rm -rf /var/lib/apt/lists/*
+# Install Poetry
+RUN pip install --no-cache-dir poetry==1.8.0
 
-# Copy requirements first to leverage Docker cache
-COPY requirements.txt .
+# Copy dependency files first to leverage Docker cache
+COPY pyproject.toml poetry.lock ./
+
+# Export dependencies to requirements.txt (no Poetry in runtime image)
+RUN poetry export -f requirements.txt --output requirements.txt --without-hashes --only main
 
 # Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user -r requirements.txt
 
 # Copy application code
 COPY nexus/ ./nexus/
 
 # Final stage
-FROM python:3.11-slim-bullseye
+FROM python:3.12-slim-bookworm
 
 # Set working directory
 WORKDIR /app
 
 # Install runtime system dependencies
 RUN apt-get update && apt-get install -y \
-    libssl1.1 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 

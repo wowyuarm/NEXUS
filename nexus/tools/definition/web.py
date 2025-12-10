@@ -5,9 +5,10 @@ Provides web search functionality using the Tavily API. This module defines
 the web_search function and its corresponding tool metadata for LLM integration.
 """
 
-import os
 import logging
-from typing import Dict, Any, Union, List
+import os
+from typing import Any
+
 from tavily import TavilyClient
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,9 @@ DEFAULT_CONTENT = "No content available"
 ENV_VAR_API_KEY = "TAVILY_API_KEY"
 
 
-def _format_search_results(query: str, response: Dict[str, Any], include_answer: bool = False) -> str:
+def _format_search_results(
+    query: str, response: dict[str, Any], include_answer: bool = False
+) -> str:
     """
     Format search results into a readable string.
 
@@ -83,7 +86,9 @@ def web_search(query: str, max_results: int = 5, include_answer: bool = False) -
     if not 0 <= max_results <= 20:
         raise ValueError("max_results must be between 0 and 20")
 
-    logger.info(f"Executing web search for query: {query}, max_results: {max_results}, include_answer: {include_answer}")
+    logger.info(
+        f"Executing web search for query: {query}, max_results: {max_results}, include_answer: {include_answer}"
+    )
 
     # Get API key from environment
     api_key = os.getenv(ENV_VAR_API_KEY)
@@ -107,10 +112,10 @@ def web_search(query: str, max_results: int = 5, include_answer: bool = False) -
     except Exception as e:
         error_msg = f"Web search failed for query '{query}': {str(e)}"
         logger.error(error_msg)
-        raise Exception(error_msg)
+        raise Exception(error_msg) from e
 
 
-def web_extract(urls: Union[str, List[str]]) -> str:
+def web_extract(urls: str | list[str]) -> str:
     """
     Extract raw content from web pages using the Tavily Extract API.
 
@@ -144,7 +149,9 @@ def web_extract(urls: Union[str, List[str]]) -> str:
         client = TavilyClient(api_key=api_key)
 
         # Perform extraction
-        response = client.extract(urls_list, extract_depth="basic", include_images=False)
+        response = client.extract(
+            urls_list, extract_depth="basic", include_images=False
+        )
 
         # Format results
         formatted_results = _format_extract_results(urls_list, response)
@@ -154,10 +161,10 @@ def web_extract(urls: Union[str, List[str]]) -> str:
     except Exception as e:
         error_msg = f"Web extract failed for URLs {urls}: {str(e)}"
         logger.error(error_msg)
-        raise Exception(error_msg)
+        raise Exception(error_msg) from e
 
 
-def _format_extract_results(urls: List[str], response: Dict[str, Any]) -> str:
+def _format_extract_results(urls: list[str], response: dict[str, Any]) -> str:
     """
     Format extraction results into a readable string.
 
@@ -199,7 +206,7 @@ def _format_extract_results(urls: List[str], response: Dict[str, Any]) -> str:
 
 
 # Tool definition in OpenAI/Google format for LLM integration
-WEB_SEARCH_TOOL: Dict[str, Any] = {
+WEB_SEARCH_TOOL: dict[str, Any] = {
     "type": "function",
     "function": {
         "name": "web_search",
@@ -209,25 +216,25 @@ WEB_SEARCH_TOOL: Dict[str, Any] = {
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "The search query to find information about"
+                    "description": "The search query to find information about",
                 },
                 "max_results": {
                     "type": "integer",
                     "description": "Maximum number of search results to return (0-20, default: 5)",
-                    "default": 5
+                    "default": 5,
                 },
                 "include_answer": {
                     "type": "boolean",
                     "description": "Whether to include AI-generated answer summary (default: False)",
-                    "default": False
-                }
+                    "default": False,
+                },
             },
-            "required": ["query"]
-        }
-    }
+            "required": ["query"],
+        },
+    },
 }
 
-WEB_EXTRACT_TOOL: Dict[str, Any] = {
+WEB_EXTRACT_TOOL: dict[str, Any] = {
     "type": "function",
     "function": {
         "name": "web_extract",
@@ -237,10 +244,10 @@ WEB_EXTRACT_TOOL: Dict[str, Any] = {
             "properties": {
                 "urls": {
                     "type": "string",
-                    "description": "A single URL or comma-separated list of URLs to extract content from"
+                    "description": "A single URL or comma-separated list of URLs to extract content from",
                 }
             },
-            "required": ["urls"]
-        }
-    }
+            "required": ["urls"],
+        },
+    },
 }

@@ -15,4 +15,4 @@ Message structure:
 from nexus.services.context.builder import ContextBuilder
 from nexus.services.context.prompts import PromptManager
 
-__all__ = ['ContextBuilder', 'PromptManager']
+__all__ = ["ContextBuilder", "PromptManager"]

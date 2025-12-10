@@ -7,7 +7,7 @@ in the system.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +17,11 @@ COMMAND_DEFINITION = {
     "description": "Display information about available commands",
     "usage": "/help",
     "handler": "client",  # Client-side command: renders from commandStore
-    "examples": [
-        "/help"
-    ]
+    "examples": ["/help"],
 }
 
 
-async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
+async def execute(context: dict[str, Any]) -> dict[str, Any]:
     """
     Execute the help command.
 
@@ -44,23 +42,21 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
         logger.info("Help command executed")
 
         # Get command definitions from context
-        command_definitions = context.get('command_definitions', {})
+        command_definitions = context.get("command_definitions", {})
 
         if not command_definitions:
             logger.warning("No command definitions found in context")
-            result = {
+            empty_result: dict[str, Any] = {
                 "status": "success",
-                "message": "Available commands:\n  No commands found"
+                "message": "Available commands:\n  No commands found",
             }
-            return result
+            return empty_result
 
         # Return complete command metadata for frontend consumption
-        result = {
+        result: dict[str, Any] = {
             "status": "success",
             "message": "Available commands retrieved successfully",
-            "data": {
-                "commands": command_definitions
-            }
+            "data": {"commands": command_definitions},
         }
 
         logger.info("Help command completed successfully")
@@ -69,4 +65,4 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as e:
         error_msg = f"Help command execution failed: {str(e)}"
         logger.error(error_msg)
-        raise RuntimeError(error_msg)
+        raise RuntimeError(error_msg) from e

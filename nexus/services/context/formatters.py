@@ -9,7 +9,7 @@ Provides formatting utilities for different context sections:
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class MemoryFormatter:
     """Formats conversation history into [SHARED_MEMORY] block."""
 
     @staticmethod
-    def format_shared_memory(history: List[Dict], limit: int = 20) -> str:
+    def format_shared_memory(history: list[dict], limit: int = 20) -> str:
         """
         Format conversation history as shared memory.
 
@@ -58,7 +58,7 @@ class MemoryFormatter:
         lines = [
             f"[SHARED_MEMORY count={len(filtered)}]",
             "Recent conversation memory:",
-            ""
+            "",
         ]
 
         # Reverse to chronological order (oldest first)
@@ -92,7 +92,7 @@ class MemoryFormatter:
                 return timestamp.strftime("%Y-%m-%d %H:%M")
             elif isinstance(timestamp, str):
                 # Try parsing ISO format
-                dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
                 return dt.strftime("%Y-%m-%d %H:%M")
             else:
                 return str(timestamp)
@@ -104,7 +104,7 @@ class FriendsInfoFormatter:
     """Formats user profile into [FRIENDS_INFO] block."""
 
     @staticmethod
-    def format_friends_info(user_profile: Dict[str, Any]) -> str:
+    def format_friends_info(user_profile: dict[str, Any]) -> str:
         """
         Format user profile as friends info.
 
@@ -123,16 +123,12 @@ class FriendsInfoFormatter:
         if not user_profile:
             return "[FRIENDS_INFO]\nAbout this friend:\n\n(New friend, getting to know each other)"
 
-        lines = [
-            "[FRIENDS_INFO]",
-            "About this friend:",
-            ""
-        ]
+        lines = ["[FRIENDS_INFO]", "About this friend:", ""]
 
         # Extract prompt_overrides.friends_profile if available (user preferences)
         prompt_overrides = user_profile.get("prompt_overrides", {})
         friends_profile = prompt_overrides.get("friends_profile", "")
-        
+
         # Also check for legacy 'learning' field for backward compatibility
         if not friends_profile:
             friends_profile = prompt_overrides.get("learning", "")
@@ -141,7 +137,6 @@ class FriendsInfoFormatter:
             lines.append(friends_profile.strip())
         else:
             # Check for any other profile info
-            public_key = user_profile.get("public_key", "")
             created_at = user_profile.get("created_at")
 
             if created_at:
@@ -160,7 +155,7 @@ class FriendsInfoFormatter:
             if isinstance(created_at, datetime):
                 return created_at.strftime("%Y-%m-%d")
             elif isinstance(created_at, str):
-                dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
                 return dt.strftime("%Y-%m-%d")
             else:
                 return str(created_at)
@@ -173,9 +168,7 @@ class MomentFormatter:
 
     @staticmethod
     def format_this_moment(
-        current_input: str,
-        timestamp_utc: str = "",
-        timezone_offset: int = 0
+        current_input: str, timestamp_utc: str = "", timezone_offset: int = 0
     ) -> str:
         """
         Format current moment with XML structure.
@@ -225,7 +218,7 @@ class MomentFormatter:
         """
         try:
             # Parse UTC timestamp
-            utc_dt = datetime.fromisoformat(timestamp_utc.replace('Z', '+00:00'))
+            utc_dt = datetime.fromisoformat(timestamp_utc.replace("Z", "+00:00"))
 
             # Apply timezone offset (negative because getTimezoneOffset returns minutes west)
             offset_td = timedelta(minutes=-timezone_offset)
@@ -235,10 +228,10 @@ class MomentFormatter:
             total_minutes = -timezone_offset
             offset_hours = abs(total_minutes) // 60
             offset_mins = abs(total_minutes) % 60
-            offset_sign = '+' if total_minutes >= 0 else '-'
+            offset_sign = "+" if total_minutes >= 0 else "-"
 
             return local_dt.strftime(
-                f'%Y-%m-%d %H:%M:%S{offset_sign}{offset_hours:02d}:{offset_mins:02d}'
+                f"%Y-%m-%d %H:%M:%S{offset_sign}{offset_hours:02d}:{offset_mins:02d}"
             )
 
         except Exception as e:

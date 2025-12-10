@@ -7,7 +7,8 @@ This guide provides a complete walkthrough for setting up the NEXUS development 
 Before you begin, ensure you have the following installed on your system:
 
 -   **Git**: For version control.
--   **Python**: Version 3.10 or higher.
+-   **Python**: Version 3.12 or higher.
+-   **Poetry**: Python dependency management. Install via `curl -sSL https://install.python-poetry.org | python3 -`
 -   **Node.js**: Version 18 or higher, along with `pnpm` (recommended package manager).
 -   **MongoDB**: A running instance of MongoDB. You can use a local installation or a free cloud instance from [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register).
 
@@ -69,35 +70,21 @@ The project uses a `.env` file in the root directory to manage secret keys and e
 
 ## III. Backend Setup (NEXUS)
 
-The backend is a Python application. We will set up a dedicated virtual environment for it.
+The backend is a Python application managed by Poetry.
 
-### Step 4: Create and Activate Virtual Environment
+### Step 4: Install Python Dependencies
 
-From the project's root directory (`NEXUS/`):
+From the project's root directory (`NEXUS/`), install all dependencies via Poetry:
 ```bash
-# Create the virtual environment
-python -m venv .venv
-
-# Activate it
-# On macOS/Linux:
-source .venv/bin/activate
-# On Windows:
-# .venv\Scripts\activate
+poetry install
 ```
+This will create a virtual environment and install all application and development dependencies.
 
-### Step 5: Install Python Dependencies
-
-With the virtual environment activated, install all required packages:
-```bash
-pip install -r requirements.txt
-```
-This will install all application and testing dependencies.
-
-### Step 6: Run the Backend
+### Step 5: Run the Backend
 
 You can now start the NEXUS backend server:
 ```bash
-python -m nexus.main
+poetry run python -m nexus.main
 ```
 If successful, you will see logs indicating that the services have been initialized, the `NexusBus` is running, and the FastAPI server is listening on `http://127.0.0.1:8000`.
 
@@ -105,7 +92,7 @@ If successful, you will see logs indicating that the services have been initiali
 
 The frontend is a React application built with Vite.
 
-### Step 7: Install Node.js Dependencies
+### Step 6: Install Node.js Dependencies
 
 Navigate to the `aura` directory and install the dependencies using `pnpm`:
 ```bash
@@ -113,7 +100,7 @@ cd aura
 pnpm install
 ```
 
-### Step 8: Configure Frontend Environment
+### Step 7: Configure Frontend Environment
 
 The AURA frontend reads its configuration from its own `.env` file.
 
@@ -123,7 +110,7 @@ The AURA frontend reads its configuration from its own `.env` file.
     ```
 2.  The default values `VITE_AURA_WS_URL=ws://localhost:8000/api/v1/ws` and `VITE_AURA_API_URL=http://localhost:8000/api/v1` are typically correct for local development and do not need to be changed.
 
-### Step 9: Run the Frontend
+### Step 8: Run the Frontend
 
 Start the Vite development server:
 ```bash

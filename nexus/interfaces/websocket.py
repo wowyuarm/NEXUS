@@ -5,11 +5,13 @@ Provides real-time communication between the frontend and the NEXUS backend
 via WebSocket connections. Handles incoming user messages and outgoing responses.
 """
 
-import logging
 import json
+import logging
 import uuid
-from typing import Dict, Union, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from typing import Any
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message, Role, Run, RunStatus
 from nexus.core.topics import Topics
@@ -29,7 +31,7 @@ MESSAGE_TYPE_USER_MESSAGE = "user_message"
 MESSAGE_TYPE_SYSTEM_COMMAND = "system_command"
 
 
-def _parse_client_message(data: str) -> Dict[str, Union[str, Dict]]:
+def _parse_client_message(data: str) -> dict[str, str | dict]:
     """
     Parse incoming client message data and extract relevant information.
 
@@ -57,19 +59,15 @@ def _parse_client_message(data: str) -> Dict[str, Union[str, Dict]]:
             "payload": {
                 "content": user_input,
                 "client_timestamp_utc": client_timestamp_utc,
-                "client_timezone_offset": client_timezone_offset
+                "client_timezone_offset": client_timezone_offset,
             },
             "user_input": user_input,
             "client_timestamp_utc": client_timestamp_utc,
-            "client_timezone_offset": client_timezone_offset
+            "client_timezone_offset": client_timezone_offset,
         }
     elif message_type == MESSAGE_TYPE_SYSTEM_COMMAND:
         command = payload.get("command", "")
-        return {
-            "type": message_type,
-            "payload": payload,
-            "command": command
-        }
+        return {"type": message_type, "payload": payload, "command": command}
     elif message_type == "":
         return {"type": "", "payload": payload}
     else:
@@ -77,12 +75,17 @@ def _parse_client_message(data: str) -> Dict[str, Union[str, Dict]]:
 
 
 class WebsocketInterface:
-    def __init__(self, bus: NexusBus, database_service: DatabaseService, identity_service: Optional[IdentityService] = None):
+    def __init__(
+        self,
+        bus: NexusBus,
+        database_service: DatabaseService,
+        identity_service: IdentityService | None = None,
+    ):
         self.bus = bus
         self.database_service = database_service
         self.identity_service = identity_service
         # Store active WebSocket connections by public_key (user identity)
-        self.connections: Dict[str, WebSocket] = {}
+        self.connections: dict[str, WebSocket] = {}
         logger.info("WebsocketInterface initialized")
 
     def _generate_run_id(self) -> str:
@@ -91,12 +94,7 @@ class WebsocketInterface:
 
     def _create_error_response(self, error_message: str) -> str:
         """Create standardized error response JSON."""
-        return json.dumps({
-            "type": RESPONSE_TYPE_ERROR,
-            "message": error_message
-        })
-
-
+        return json.dumps({"type": RESPONSE_TYPE_ERROR, "message": error_message})
 
     def subscribe_to_bus(self) -> None:
         """Subscribe to UI events for sending messages to frontend."""
@@ -124,7 +122,9 @@ class WebsocketInterface:
             # Find the WebSocket connection for this user
             websocket = self.connections.get(owner_key)
             if not websocket:
-                logger.warning(f"No WebSocket connection found for owner_key={owner_key}")
+                logger.warning(
+                    f"No WebSocket connection found for owner_key={owner_key}"
+                )
                 return
 
             # Forward the standardized UI event directly to frontend
@@ -149,12 +149,16 @@ class WebsocketInterface:
             owner_key = message.owner_key
             content = message.content
 
-            logger.info(f"Handling command result for owner_key={owner_key}, run_id={run_id}")
+            logger.info(
+                f"Handling command result for owner_key={owner_key}, run_id={run_id}"
+            )
 
             # Find the WebSocket connection for this user
             websocket = self.connections.get(owner_key)
             if not websocket:
-                logger.warning(f"No WebSocket connection found for owner_key={owner_key}")
+                logger.warning(
+                    f"No WebSocket connection found for owner_key={owner_key}"
+                )
                 return
 
             # Create standardized UI event for command result
@@ -169,25 +173,24 @@ class WebsocketInterface:
                 else:
                     cmd_str = str(raw_cmd or "")
                 # Ensure leading slash for consistent UI echo
-                if cmd_str and not cmd_str.startswith('/'):
-                    cmd_str = '/' + cmd_str
+                if cmd_str and not cmd_str.startswith("/"):
+                    cmd_str = "/" + cmd_str
+
                 # Ensure content is JSON-serializable (convert datetime to ISO strings)
                 def _sanitize(obj):
                     if isinstance(obj, dict):
                         return {k: _sanitize(v) for k, v in obj.items()}
                     elif isinstance(obj, list):
                         return [_sanitize(v) for v in obj]
-                    elif hasattr(obj, 'isoformat'):
+                    elif hasattr(obj, "isoformat"):
                         try:
                             return obj.isoformat()
                         except Exception:
                             return str(obj)
                     else:
                         return obj
-                wrapped_payload = {
-                    "command": cmd_str,
-                    "result": _sanitize(content)
-                }
+
+                wrapped_payload = {"command": cmd_str, "result": _sanitize(content)}
             except Exception:
                 # Fallback to raw content if any issue occurs
                 wrapped_payload = content
@@ -195,7 +198,7 @@ class WebsocketInterface:
             ui_event = {
                 "event": "command_result",
                 "run_id": run_id,
-                "payload": wrapped_payload
+                "payload": wrapped_payload,
             }
 
             # Send the UI event to frontend
@@ -218,6 +221,7 @@ class WebsocketInterface:
         Args:
             app: FastAPI application instance to add routes to
         """
+
         @app.websocket("/api/v1/ws/{public_key}")
         async def websocket_endpoint(websocket: WebSocket, public_key: str):
             await websocket.accept()
@@ -234,9 +238,7 @@ class WebsocketInterface:
                     state_event = {
                         "event": "connection_state",
                         "run_id": f"connect_{uuid.uuid4().hex}",
-                        "payload": {
-                            "visitor": identity is None
-                        }
+                        "payload": {"visitor": identity is None},
                     }
                     await websocket.send_text(json.dumps(state_event))
             except Exception as e:
@@ -246,7 +248,9 @@ class WebsocketInterface:
                 while True:
                     # Receive message from client
                     data = await websocket.receive_text()
-                    logger.info(f"Received message from public_key={public_key}: {data[:100]}...")
+                    logger.info(
+                        f"Received message from public_key={public_key}: {data[:100]}..."
+                    )
 
                     try:
                         # Parse the incoming message using the helper function
@@ -255,36 +259,64 @@ class WebsocketInterface:
 
                         # Handle different message types
                         if message_type == MESSAGE_TYPE_PING:
-                            logger.debug(f"Received ping from client public_key={public_key}")
+                            logger.debug(
+                                f"Received ping from client public_key={public_key}"
+                            )
                             continue
                         elif message_type == MESSAGE_TYPE_USER_MESSAGE:
-                            user_input = parsed_message.get("user_input", "")
-                            client_timestamp_utc = parsed_message.get("client_timestamp_utc", "")
-                            client_timezone_offset = parsed_message.get("client_timezone_offset", 0)
+                            if isinstance(parsed_message, dict):
+                                user_input = parsed_message.get("user_input", "")
+                                client_timezone_offset = parsed_message.get(
+                                    "client_timezone_offset", 0
+                                )
+                                client_timestamp_utc = parsed_message.get(
+                                    "client_timestamp_utc"
+                                )
+                            else:
+                                user_input = ""
+                                client_timezone_offset = 0
+                                client_timestamp_utc = None
 
-                            if not user_input.strip():
-                                logger.warning(f"Empty user message received from public_key={public_key}")
+                            if (
+                                not isinstance(user_input, str)
+                                or not user_input.strip()
+                            ):
+                                logger.warning(
+                                    f"Empty user message received from public_key={public_key}"
+                                )
                                 continue
                         elif message_type == MESSAGE_TYPE_SYSTEM_COMMAND:
-                            command = parsed_message.get("command", "")
-                            logger.info(f"Received system command from public_key={public_key}: {command}")
+                            if isinstance(parsed_message, dict):
+                                command = parsed_message.get("command", "")
+                            else:
+                                command = ""
+                            logger.info(
+                                f"Received system command from public_key={public_key}: {command}"
+                            )
 
-                            if not command.strip():
-                                logger.warning(f"Empty command received from public_key={public_key}")
+                            if not isinstance(command, str) or not command.strip():
+                                logger.warning(
+                                    f"Empty command received from public_key={public_key}"
+                                )
                                 continue
 
                             # Check if command has authentication data
                             payload = parsed_message.get("payload", {})
-                            auth_data = payload.get("auth") if isinstance(payload, dict) else None
+                            auth_data = (
+                                payload.get("auth")
+                                if isinstance(payload, dict)
+                                else None
+                            )
 
                             # Create command message content
                             # If auth is present, use structured format; otherwise use simple string
+                            command_content: str | dict[str, Any]
                             if auth_data:
                                 command_content = {
                                     "command": command,
-                                    "auth": auth_data
+                                    "auth": auth_data,
                                 }
-                                logger.info(f"Command has signature authentication")
+                                logger.info("Command has signature authentication")
                             else:
                                 command_content = command
 
@@ -293,47 +325,65 @@ class WebsocketInterface:
                                 run_id=self._generate_run_id(),
                                 owner_key=public_key,
                                 role=Role.COMMAND,
-                                content=command_content
+                                content=command_content,
                             )
 
                             # Publish to system command topic
-                            await self.bus.publish(Topics.SYSTEM_COMMAND, command_message)
-                            logger.info(f"Published system command for public_key={public_key}: {command}")
+                            await self.bus.publish(
+                                Topics.SYSTEM_COMMAND, command_message
+                            )
+                            logger.info(
+                                f"Published system command for public_key={public_key}: {command}"
+                            )
                             continue
                         else:
-                            logger.warning(f"Received unknown message type '{message_type}' from public_key={public_key}")
+                            logger.warning(
+                                f"Received unknown message type '{message_type}' from public_key={public_key}"
+                            )
                             continue
 
                         # Create a new run for this user input
                         run_id = self._generate_run_id()
 
                         # Create the initial user message with client timestamp in metadata
-                        user_message_metadata = {}
+                        user_message_metadata: dict[str, Any] = {}
                         if client_timestamp_utc:
-                            user_message_metadata["client_timestamp_utc"] = client_timestamp_utc
-                        if client_timezone_offset != 0:
-                            user_message_metadata["client_timezone_offset"] = client_timezone_offset
+                            user_message_metadata["client_timestamp_utc"] = (
+                                client_timestamp_utc
+                            )
+                        if (
+                            isinstance(client_timezone_offset, int)
+                            and client_timezone_offset != 0
+                        ):
+                            user_message_metadata["client_timezone_offset"] = (
+                                client_timezone_offset
+                            )
 
                         user_message = Message(
                             run_id=run_id,
                             owner_key=public_key,
                             role=Role.HUMAN,
                             content=user_input,
-                            metadata=user_message_metadata
+                            metadata=user_message_metadata,
                         )
 
                         # Create Run object with client timestamp in metadata and add the initial message to its history
-                        run_metadata = {}
+                        run_metadata: dict[str, Any] = {}
                         if client_timestamp_utc:
                             run_metadata["client_timestamp_utc"] = client_timestamp_utc
-                        if client_timezone_offset != 0:
-                            run_metadata["client_timezone_offset"] = client_timezone_offset
+                        if (
+                            isinstance(client_timezone_offset, int)
+                            and client_timezone_offset != 0
+                        ):
+                            run_metadata["client_timezone_offset"] = (
+                                client_timezone_offset
+                            )
 
                         run = Run(
                             id=run_id,
                             owner_key=public_key,
                             status=RunStatus.PENDING,
-                            metadata=run_metadata
+                            metadata=run_metadata,
                         )
                         run.history.append(user_message)
 
@@ -342,19 +392,29 @@ class WebsocketInterface:
                             run_id=run_id,
                             owner_key=public_key,
                             role=Role.SYSTEM,
-                            content=run
+                            content=run,
                         )
 
                         # Publish the envelope message to start the conversation flow
                         await self.bus.publish(Topics.RUNS_NEW, envelope_message)
-                        logger.info(f"Published new run for public_key={public_key}, run_id={run_id}")
+                        logger.info(
+                            f"Published new run for public_key={public_key}, run_id={run_id}"
+                        )
 
                     except json.JSONDecodeError as e:
-                        logger.error(f"Invalid JSON received from public_key={public_key}: {e}")
-                        await websocket.send_text(self._create_error_response(ERROR_MSG_INVALID_JSON))
+                        logger.error(
+                            f"Invalid JSON received from public_key={public_key}: {e}"
+                        )
+                        await websocket.send_text(
+                            self._create_error_response(ERROR_MSG_INVALID_JSON)
+                        )
                     except Exception as e:
-                        logger.error(f"Error processing message from public_key={public_key}: {e}")
-                        await websocket.send_text(self._create_error_response(ERROR_MSG_PROCESSING))
+                        logger.error(
+                            f"Error processing message from public_key={public_key}: {e}"
+                        )
+                        await websocket.send_text(
+                            self._create_error_response(ERROR_MSG_PROCESSING)
+                        )
 
             except WebSocketDisconnect:
                 logger.info(f"WebSocket disconnected for public_key={public_key}")

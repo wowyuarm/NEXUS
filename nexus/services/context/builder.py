@@ -12,20 +12,19 @@ Message structure:
 5. user: [THIS_MOMENT]
 """
 
-import asyncio
 import logging
-from typing import Dict, List, Any
+from typing import Any
 
 from nexus.core.bus import NexusBus
-from nexus.core.models import Message, Run, Role
+from nexus.core.models import Message, Role, Run
 from nexus.core.topics import Topics
-from nexus.tools.registry import ToolRegistry
-from nexus.services.context.prompts import PromptManager
 from nexus.services.context.formatters import (
-    MemoryFormatter,
     FriendsInfoFormatter,
+    MemoryFormatter,
     MomentFormatter,
 )
+from nexus.services.context.prompts import PromptManager
+from nexus.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ class ContextBuilder:
         bus: NexusBus,
         tool_registry: ToolRegistry,
         config_service=None,
-        persistence_service=None
+        persistence_service=None,
     ):
         """
         Initialize ContextBuilder.
@@ -87,23 +86,31 @@ class ContextBuilder:
             # Extract Run object from message content
             run = message.content
             if not isinstance(run, Run):
-                logger.error(f"Expected Run object in context build request for run_id={message.run_id}")
+                logger.error(
+                    f"Expected Run object in context build request for run_id={message.run_id}"
+                )
                 await self._publish_error_response(message)
                 return
 
             # Extract user_profile from Run.metadata
-            user_profile = run.metadata.get('user_profile', {}) if run.metadata else {}
+            user_profile = run.metadata.get("user_profile", {}) if run.metadata else {}
 
             # Extract current input from Run.history (first message)
             current_input = self._extract_user_input_from_run(run)
             if not current_input:
-                logger.error(f"No current_input found in Run.history for run_id={run.id}")
+                logger.error(
+                    f"No current_input found in Run.history for run_id={run.id}"
+                )
                 await self._publish_error_response(message)
                 return
 
             # Extract client timestamp from run metadata
-            client_timestamp_utc = run.metadata.get('client_timestamp_utc', '') if run.metadata else ''
-            client_timezone_offset = run.metadata.get('client_timezone_offset', 0) if run.metadata else 0
+            client_timestamp_utc = (
+                run.metadata.get("client_timestamp_utc", "") if run.metadata else ""
+            )
+            client_timezone_offset = (
+                run.metadata.get("client_timezone_offset", 0) if run.metadata else 0
+            )
 
             # Build context messages
             messages = await self.build_context(
@@ -123,29 +130,27 @@ class ContextBuilder:
                 run_id=run.id,
                 owner_key=message.owner_key,
                 role=Role.SYSTEM,
-                content={
-                    "status": "success",
-                    "messages": messages,
-                    "tools": tools
-                }
+                content={"status": "success", "messages": messages, "tools": tools},
             )
 
             await self.bus.publish(Topics.CONTEXT_BUILD_RESPONSE, response_message)
             logger.info(f"Published context build response for run_id={run.id}")
 
         except Exception as e:
-            logger.error(f"Error handling context build request for run_id={message.run_id}: {e}")
+            logger.error(
+                f"Error handling context build request for run_id={message.run_id}: {e}"
+            )
             await self._publish_error_response(message)
 
     async def build_context(
         self,
         owner_key: str,
-        user_profile: Dict[str, Any],
+        user_profile: dict[str, Any],
         current_input: str,
         current_run_id: str = "",
         timestamp_utc: str = "",
         timezone_offset: int = 0,
-    ) -> List[Dict[str, str]]:
+    ) -> list[dict[str, str]]:
         """
         Build complete context message list.
 
@@ -175,21 +180,15 @@ class ContextBuilder:
 
         # Build each section
         messages = [
-            {
-                "role": "system",
-                "content": self.prompt_manager.get_core_identity()
-            },
+            {"role": "system", "content": self.prompt_manager.get_core_identity()},
             {
                 "role": "user",
-                "content": self.prompt_manager.get_capabilities_prompt(tools)
+                "content": self.prompt_manager.get_capabilities_prompt(tools),
             },
+            {"role": "user", "content": MemoryFormatter.format_shared_memory(history)},
             {
                 "role": "user",
-                "content": MemoryFormatter.format_shared_memory(history)
-            },
-            {
-                "role": "user",
-                "content": FriendsInfoFormatter.format_friends_info(user_profile)
+                "content": FriendsInfoFormatter.format_friends_info(user_profile),
             },
             {
                 "role": "user",
@@ -197,18 +196,18 @@ class ContextBuilder:
                     current_input=current_input,
                     timestamp_utc=timestamp_utc,
                     timezone_offset=timezone_offset,
-                )
+                ),
             },
         ]
 
-        logger.info(f"Built context with {len(messages)} messages for owner_key={owner_key}")
+        logger.info(
+            f"Built context with {len(messages)} messages for owner_key={owner_key}"
+        )
         return messages
 
     async def _get_history(
-        self,
-        owner_key: str,
-        current_run_id: str = ""
-    ) -> List[Dict]:
+        self, owner_key: str, current_run_id: str = ""
+    ) -> list[dict[str, Any]]:
         """
         Get conversation history from persistence service.
 
@@ -232,17 +231,25 @@ class ContextBuilder:
                 )
 
             # Retrieve historical messages
-            history = await self.persistence_service.get_history(owner_key, history_limit)
+            history = await self.persistence_service.get_history(
+                owner_key, history_limit
+            )
+            history_list: list[dict[str, Any]] = (
+                history if isinstance(history, list) else []
+            )
 
             # Filter out current run messages to prevent duplication
             if current_run_id:
-                history = [
-                    msg for msg in history
-                    if msg.get('run_id') != current_run_id
+                history_list = [
+                    msg
+                    for msg in history_list
+                    if msg.get("run_id") != current_run_id
                 ]
 
-            logger.info(f"Retrieved {len(history)} history messages for owner_key={owner_key}")
-            return history
+            logger.info(
+                f"Retrieved {len(history_list)} history messages for owner_key={owner_key}"
+            )
+            return history_list
 
         except Exception as e:
             logger.error(f"Failed to load history for owner_key={owner_key}: {e}")
@@ -260,10 +267,6 @@ class ContextBuilder:
             run_id=message.run_id,
             owner_key=message.owner_key,
             role=Role.SYSTEM,
-            content={
-                "status": "error",
-                "messages": [],
-                "tools": []
-            }
+            content={"status": "error", "messages": [], "tools": []},
         )
         await self.bus.publish(Topics.CONTEXT_BUILD_RESPONSE, error_message)

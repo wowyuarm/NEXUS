@@ -7,9 +7,6 @@ communication protocols:
 - websocket: WebSocket interface for real-time communication
 """
 
-from nexus.interfaces import rest
-from nexus.interfaces import websocket
+from nexus.interfaces import rest, websocket
 
-__all__ = ['rest', 'websocket']
-
-
+__all__ = ["rest", "websocket"]

@@ -14,8 +14,10 @@ Features:
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import Any
+
 from openai import AsyncOpenAI
+
 from .base import LLMProvider
 from .common import (
     build_chat_api_params,
@@ -34,7 +36,7 @@ class OpenRouterLLMProvider(LLMProvider):
         api_key: str,
         base_url: str = "https://openrouter.ai/api/v1",
         model: str = "moonshotai/kimi-k2:free",
-        timeout: int = 30
+        timeout: int = 30,
     ):
         """
         Initialize the OpenRouter LLM provider.
@@ -55,17 +57,17 @@ class OpenRouterLLMProvider(LLMProvider):
 
         # Initialize OpenAI client for OpenRouter
         self.client = AsyncOpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            timeout=self.timeout
+            api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
         )
-        
+
         logger.info(
             f"OpenRouterLLMProvider initialized with model={self.default_model}, "
             f"timeout={self.timeout}s, base_url={self.base_url}"
         )
 
-    async def chat_completion(self, messages: List[Dict[str, Any]], **kwargs) -> Dict[str, Any]:
+    async def chat_completion(
+        self, messages: list[dict[str, Any]], **kwargs
+    ) -> dict[str, Any]:
         """
         Generate a chat completion using OpenRouter.
 
@@ -111,11 +113,9 @@ class OpenRouterLLMProvider(LLMProvider):
             logger.error(f"Error in OpenRouter chat completion: {e}")
             raise
 
-
-
     # Provider-specific handlers are deduplicated via common utilities
 
-    async def list_models(self) -> List[Dict[str, Any]]:
+    async def list_models(self) -> list[dict[str, Any]]:
         """
         List available models from OpenRouter.
 
@@ -131,9 +131,9 @@ class OpenRouterLLMProvider(LLMProvider):
                     f"{self.base_url}/models",
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
                     },
-                    timeout=self.timeout
+                    timeout=self.timeout,
                 )
                 response.raise_for_status()
 
@@ -142,13 +142,15 @@ class OpenRouterLLMProvider(LLMProvider):
 
                 # Parse OpenRouter models response
                 for model in data.get("data", []):
-                    models.append({
-                        "id": model.get("id", ""),
-                        "name": model.get("name", model.get("id", "")),
-                        "description": model.get("description", ""),
-                        "context_length": model.get("context_length", 0),
-                        "pricing": model.get("pricing", {}),
-                    })
+                    models.append(
+                        {
+                            "id": model.get("id", ""),
+                            "name": model.get("name", model.get("id", "")),
+                            "description": model.get("description", ""),
+                            "context_length": model.get("context_length", 0),
+                            "pricing": model.get("pricing", {}),
+                        }
+                    )
 
                 logger.info(f"Retrieved {len(models)} models from OpenRouter")
                 return models

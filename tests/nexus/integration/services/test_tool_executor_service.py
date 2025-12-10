@@ -45,13 +45,15 @@ class TestToolExecutorServiceIntegration:
     def tool_executor_service(self, mock_bus, mock_tool_registry, mock_config_service):
         """Create ToolExecutorService instance with mocked dependencies."""
         return ToolExecutorService(
-            bus=mock_bus, 
+            bus=mock_bus,
             tool_registry=mock_tool_registry,
-            config_service=mock_config_service
+            config_service=mock_config_service,
         )
 
     @pytest.mark.asyncio
-    async def test_handle_tool_request_success(self, tool_executor_service, mock_bus, mock_tool_registry):
+    async def test_handle_tool_request_success(
+        self, tool_executor_service, mock_bus, mock_tool_registry
+    ):
         """
         Test that ToolExecutorService correctly handles TOOLS_REQUESTS and publishes
         properly formatted TOOLS_RESULTS with successful execution status.
@@ -63,8 +65,8 @@ class TestToolExecutorServiceIntegration:
             role=Role.SYSTEM,
             content={
                 "name": "web_search",
-                "args": {"query": "artificial intelligence news"}
-            }
+                "args": {"query": "artificial intelligence news"},
+            },
         )
 
         # Configure mock tool registry to return a simple lambda function
@@ -77,16 +79,16 @@ class TestToolExecutorServiceIntegration:
         # Assert: Verify that TOOLS_RESULTS was published with correct format
         mock_bus.publish.assert_called_once()
         call_args = mock_bus.publish.call_args
-        
+
         # Verify topic
         assert call_args[0][0] == Topics.TOOLS_RESULTS
-        
+
         # Verify message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-123"
         assert published_message.owner_key == "test-session-456"
         assert published_message.role == Role.TOOL
-        
+
         # Verify content structure
         content = published_message.content
         assert content["status"] == "success"
@@ -97,7 +99,9 @@ class TestToolExecutorServiceIntegration:
         mock_tool_registry.get_tool_function.assert_called_once_with("web_search")
 
     @pytest.mark.asyncio
-    async def test_handle_tool_request_failure(self, tool_executor_service, mock_bus, mock_tool_registry):
+    async def test_handle_tool_request_failure(
+        self, tool_executor_service, mock_bus, mock_tool_registry
+    ):
         """
         Test that ToolExecutorService correctly handles tool execution failures and publishes
         error response with proper status and error message.
@@ -107,16 +111,13 @@ class TestToolExecutorServiceIntegration:
             run_id="test-run-error",
             owner_key="test-session-error",
             role=Role.SYSTEM,
-            content={
-                "name": "failing_tool",
-                "args": {"param": "value"}
-            }
+            content={"name": "failing_tool", "args": {"param": "value"}},
         )
 
         # Configure mock tool registry to return a function that raises an exception
         def failing_tool_function(**kwargs):
             raise ValueError("Tool execution failed: invalid parameter")
-        
+
         mock_tool_registry.get_tool_function.return_value = failing_tool_function
 
         # Act: Handle the tool request
@@ -125,16 +126,16 @@ class TestToolExecutorServiceIntegration:
         # Assert: Verify that error response was published
         mock_bus.publish.assert_called_once()
         call_args = mock_bus.publish.call_args
-        
+
         # Verify topic
         assert call_args[0][0] == Topics.TOOLS_RESULTS
-        
+
         # Verify error message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-error"
         assert published_message.owner_key == "test-session-error"
         assert published_message.role == Role.TOOL
-        
+
         # Verify error content
         content = published_message.content
         assert content["status"] == "error"
@@ -142,7 +143,9 @@ class TestToolExecutorServiceIntegration:
         assert content["tool_name"] == "failing_tool"
 
     @pytest.mark.asyncio
-    async def test_handle_tool_request_tool_not_found(self, tool_executor_service, mock_bus, mock_tool_registry):
+    async def test_handle_tool_request_tool_not_found(
+        self, tool_executor_service, mock_bus, mock_tool_registry
+    ):
         """
         Test that ToolExecutorService handles missing tools gracefully.
         """
@@ -151,10 +154,7 @@ class TestToolExecutorServiceIntegration:
             run_id="test-run-missing",
             owner_key="test-session-missing",
             role=Role.SYSTEM,
-            content={
-                "name": "nonexistent_tool",
-                "args": {}
-            }
+            content={"name": "nonexistent_tool", "args": {}},
         )
 
         # Configure mock tool registry to return None (tool not found)
@@ -166,16 +166,16 @@ class TestToolExecutorServiceIntegration:
         # Assert: Verify that error response was published
         mock_bus.publish.assert_called_once()
         call_args = mock_bus.publish.call_args
-        
+
         # Verify topic
         assert call_args[0][0] == Topics.TOOLS_RESULTS
-        
+
         # Verify error message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-missing"
         assert published_message.owner_key == "test-session-missing"
         assert published_message.role == Role.TOOL
-        
+
         # Verify error content
         content = published_message.content
         assert content["status"] == "error"
@@ -183,7 +183,9 @@ class TestToolExecutorServiceIntegration:
         assert content["tool_name"] == "nonexistent_tool"
 
     @pytest.mark.asyncio
-    async def test_handle_tool_request_invalid_content(self, tool_executor_service, mock_bus):
+    async def test_handle_tool_request_invalid_content(
+        self, tool_executor_service, mock_bus
+    ):
         """
         Test that ToolExecutorService handles invalid message content gracefully.
         """
@@ -192,7 +194,7 @@ class TestToolExecutorServiceIntegration:
             run_id="test-run-invalid",
             owner_key="test-session-invalid",
             role=Role.SYSTEM,
-            content="invalid_content_not_dict"  # Should be a dict
+            content="invalid_content_not_dict",  # Should be a dict
         )
 
         # Act: Handle the tool request
@@ -201,16 +203,16 @@ class TestToolExecutorServiceIntegration:
         # Assert: Verify that error response was published
         mock_bus.publish.assert_called_once()
         call_args = mock_bus.publish.call_args
-        
+
         # Verify topic
         assert call_args[0][0] == Topics.TOOLS_RESULTS
-        
+
         # Verify error message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-invalid"
         assert published_message.owner_key == "test-session-invalid"
         assert published_message.role == Role.TOOL
-        
+
         # Verify error content
         content = published_message.content
         assert content["status"] == "error"
@@ -218,7 +220,9 @@ class TestToolExecutorServiceIntegration:
         assert content["tool_name"] == "unknown"
 
     @pytest.mark.asyncio
-    async def test_handle_tool_request_missing_tool_name(self, tool_executor_service, mock_bus):
+    async def test_handle_tool_request_missing_tool_name(
+        self, tool_executor_service, mock_bus
+    ):
         """
         Test that ToolExecutorService handles missing tool name gracefully.
         """
@@ -230,7 +234,7 @@ class TestToolExecutorServiceIntegration:
             content={
                 "args": {"param": "value"}
                 # Missing "name" field
-            }
+            },
         )
 
         # Act: Handle the tool request
@@ -239,16 +243,16 @@ class TestToolExecutorServiceIntegration:
         # Assert: Verify that error response was published
         mock_bus.publish.assert_called_once()
         call_args = mock_bus.publish.call_args
-        
+
         # Verify topic
         assert call_args[0][0] == Topics.TOOLS_RESULTS
-        
+
         # Verify error message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-no-name"
         assert published_message.owner_key == "test-session-no-name"
         assert published_message.role == Role.TOOL
-        
+
         # Verify error content
         content = published_message.content
         assert content["status"] == "error"
@@ -256,7 +260,9 @@ class TestToolExecutorServiceIntegration:
         assert content["tool_name"] == "unknown"
 
     @pytest.mark.asyncio
-    async def test_handle_tool_request_invalid_args_type(self, tool_executor_service, mock_bus, mock_tool_registry):
+    async def test_handle_tool_request_invalid_args_type(
+        self, tool_executor_service, mock_bus, mock_tool_registry
+    ):
         """
         Test that ToolExecutorService handles invalid args type gracefully.
         """
@@ -267,8 +273,8 @@ class TestToolExecutorServiceIntegration:
             role=Role.SYSTEM,
             content={
                 "name": "test_tool",
-                "args": "invalid_args_should_be_dict"  # Should be a dict
-            }
+                "args": "invalid_args_should_be_dict",  # Should be a dict
+            },
         )
 
         # Act: Handle the tool request
@@ -277,16 +283,16 @@ class TestToolExecutorServiceIntegration:
         # Assert: Verify that error response was published
         mock_bus.publish.assert_called_once()
         call_args = mock_bus.publish.call_args
-        
+
         # Verify topic
         assert call_args[0][0] == Topics.TOOLS_RESULTS
-        
+
         # Verify error message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-invalid-args"
         assert published_message.owner_key == "test-session-invalid-args"
         assert published_message.role == Role.TOOL
-        
+
         # Verify error content
         content = published_message.content
         assert content["status"] == "error"
@@ -294,7 +300,9 @@ class TestToolExecutorServiceIntegration:
         assert content["tool_name"] == "test_tool"
 
     @pytest.mark.asyncio
-    async def test_handle_tool_request_with_complex_result(self, tool_executor_service, mock_bus, mock_tool_registry):
+    async def test_handle_tool_request_with_complex_result(
+        self, tool_executor_service, mock_bus, mock_tool_registry
+    ):
         """
         Test that ToolExecutorService handles tools that return complex data structures.
         """
@@ -303,10 +311,7 @@ class TestToolExecutorServiceIntegration:
             run_id="test-run-complex",
             owner_key="test-session-complex",
             role=Role.SYSTEM,
-            content={
-                "name": "data_processor",
-                "args": {"input_data": [1, 2, 3]}
-            }
+            content={"name": "data_processor", "args": {"input_data": [1, 2, 3]}},
         )
 
         # Configure mock tool registry to return a function with complex result
@@ -314,9 +319,9 @@ class TestToolExecutorServiceIntegration:
             return {
                 "processed_data": [x * 2 for x in input_data],
                 "summary": f"Processed {len(input_data)} items",
-                "metadata": {"timestamp": "2023-01-01", "version": "1.0"}
+                "metadata": {"timestamp": "2023-01-01", "version": "1.0"},
             }
-        
+
         mock_tool_registry.get_tool_function.return_value = complex_tool_function
 
         # Act: Handle the tool request
@@ -325,21 +330,21 @@ class TestToolExecutorServiceIntegration:
         # Assert: Verify that success response was published with complex result
         mock_bus.publish.assert_called_once()
         call_args = mock_bus.publish.call_args
-        
+
         # Verify topic
         assert call_args[0][0] == Topics.TOOLS_RESULTS
-        
+
         # Verify message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-complex"
         assert published_message.owner_key == "test-session-complex"
         assert published_message.role == Role.TOOL
-        
+
         # Verify content structure
         content = published_message.content
         assert content["status"] == "success"
         assert content["tool_name"] == "data_processor"
-        
+
         # Verify complex result is preserved
         result = content["result"]
         assert isinstance(result, dict)
@@ -356,12 +361,13 @@ class TestToolExecutorServiceIntegration:
 
         # Assert: Verify subscription to correct topic
         mock_bus.subscribe.assert_called_once_with(
-            Topics.TOOLS_REQUESTS,
-            tool_executor_service.handle_tool_request
+            Topics.TOOLS_REQUESTS, tool_executor_service.handle_tool_request
         )
 
     @pytest.mark.asyncio
-    async def test_handle_tool_request_timeout(self, tool_executor_service, mock_bus, mock_tool_registry):
+    async def test_handle_tool_request_timeout(
+        self, tool_executor_service, mock_bus, mock_tool_registry
+    ):
         """
         Test that ToolExecutorService correctly handles tool execution timeout.
         """
@@ -370,20 +376,18 @@ class TestToolExecutorServiceIntegration:
             run_id="test-run-timeout",
             owner_key="test-session-timeout",
             role=Role.SYSTEM,
-            content={
-                "name": "slow_tool",
-                "args": {"duration": 30}
-            }
+            content={"name": "slow_tool", "args": {"duration": 30}},
         )
 
         # Configure mock tool registry to return a slow async function
         async def slow_tool_function(duration):
             import asyncio
+
             await asyncio.sleep(duration)
             return "completed"
-        
+
         mock_tool_registry.get_tool_function.return_value = slow_tool_function
-        
+
         # Override timeout for this test to be very short (1 second)
         tool_executor_service.tool_timeout = 1
 
@@ -393,16 +397,16 @@ class TestToolExecutorServiceIntegration:
         # Assert: Verify that timeout error response was published
         mock_bus.publish.assert_called_once()
         call_args = mock_bus.publish.call_args
-        
+
         # Verify topic
         assert call_args[0][0] == Topics.TOOLS_RESULTS
-        
+
         # Verify timeout message structure
         published_message = call_args[0][1]
         assert published_message.run_id == "test-run-timeout"
         assert published_message.owner_key == "test-session-timeout"
         assert published_message.role == Role.TOOL
-        
+
         # Verify timeout content
         content = published_message.content
         assert content["status"] == "timeout"
@@ -410,36 +414,36 @@ class TestToolExecutorServiceIntegration:
         assert content["tool_name"] == "slow_tool"
 
     @pytest.mark.asyncio
-    async def test_config_service_timeout_configuration(self, mock_bus, mock_tool_registry):
+    async def test_config_service_timeout_configuration(
+        self, mock_bus, mock_tool_registry
+    ):
         """
         Test that ToolExecutorService reads timeout from config service.
         """
         # Arrange: Create config service that returns custom timeout
         mock_config = Mock()
         mock_config.get_int = Mock(return_value=30)
-        
+
         # Act: Create service with custom config
         service = ToolExecutorService(
-            bus=mock_bus,
-            tool_registry=mock_tool_registry,
-            config_service=mock_config
+            bus=mock_bus, tool_registry=mock_tool_registry, config_service=mock_config
         )
-        
+
         # Assert: Verify timeout was read from config
         mock_config.get_int.assert_called_once_with("system.tool_execution_timeout", 20)
         assert service.tool_timeout == 30
 
     @pytest.mark.asyncio
-    async def test_no_config_service_uses_default_timeout(self, mock_bus, mock_tool_registry):
+    async def test_no_config_service_uses_default_timeout(
+        self, mock_bus, mock_tool_registry
+    ):
         """
         Test that ToolExecutorService uses default timeout when no config service provided.
         """
         # Act: Create service without config service
         service = ToolExecutorService(
-            bus=mock_bus,
-            tool_registry=mock_tool_registry,
-            config_service=None
+            bus=mock_bus, tool_registry=mock_tool_registry, config_service=None
         )
-        
+
         # Assert: Verify default timeout is used
         assert service.tool_timeout == 20

@@ -216,7 +216,7 @@ async def get_all_commands(
         logger.error(f"Error retrieving commands: {e}")
         raise HTTPException(
             status_code=500, detail=f"Error retrieving commands: {str(e)}"
-        )
+        ) from e
 
 
 # Config endpoints
@@ -246,9 +246,12 @@ async def get_config(
         profile = await identity_svc.get_effective_profile(owner_key, config_svc)
         result: dict[str, Any] = profile if isinstance(profile, dict) else {}
         return result
+    except ValueError as e:
+        logger.warning(f"Invalid owner_key {owner_key}: {e}")
+        raise HTTPException(status_code=401, detail="Invalid owner_key") from e
     except Exception as e:
         logger.error(f"Error retrieving config for {owner_key}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/config")
@@ -294,7 +297,7 @@ async def update_config(
         raise
     except Exception as e:
         logger.error(f"Error updating config for {owner_key}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # Prompts endpoints
@@ -321,29 +324,23 @@ async def get_prompts(
     try:
         logger.info(f"Getting prompts for owner_key={owner_key}")
         profile = await identity_svc.get_effective_profile(owner_key, config_svc)
-        profile_dict: dict[str, Any] = profile if isinstance(profile, dict) else {}
 
         # Return prompts-related parts only
-        result: dict[str, Any] = {
-            "effective_prompts": profile_dict.get("effective_prompts", {}),
-            "prompt_overrides": profile_dict.get("user_overrides", {}).get(
-                "prompt_overrides", {}
-            ),
+        return {
+            "effective_prompts": profile["effective_prompts"],
+            "prompt_overrides": profile["user_overrides"]["prompt_overrides"],
             "editable_fields": [
-                f
-                for f in profile_dict.get("editable_fields", [])
-                if isinstance(f, str) and f.startswith("prompts.")
+                f for f in profile["editable_fields"] if f.startswith("prompts.")
             ],
             "field_options": {
                 k: v
-                for k, v in profile_dict.get("field_options", {}).items()
-                if isinstance(k, str) and k.startswith("prompts.")
+                for k, v in profile["field_options"].items()
+                if k.startswith("prompts.")
             },
         }
-        return result
     except Exception as e:
         logger.error(f"Error retrieving prompts for {owner_key}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/prompts")
@@ -384,7 +381,7 @@ async def update_prompts(
         raise
     except Exception as e:
         logger.error(f"Error updating prompts for {owner_key}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # Messages endpoint
@@ -415,4 +412,4 @@ async def get_messages(
         return result
     except Exception as e:
         logger.error(f"Error retrieving messages for {owner_key}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

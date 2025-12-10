@@ -6,8 +6,10 @@ to communicate with Google's Gemini API.
 """
 
 import logging
-from typing import List, Dict, Any
+from typing import Any
+
 from openai import AsyncOpenAI
+
 from .base import LLMProvider
 from .common import (
     build_chat_api_params,
@@ -21,7 +23,13 @@ logger = logging.getLogger(__name__)
 class GoogleLLMProvider(LLMProvider):
     """Google Gemini LLM provider using OpenAI library."""
 
-    def __init__(self, api_key: str, base_url: str, model: str = "gemini-2.5-flash", timeout: int = 30):
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str,
+        model: str = "gemini-2.5-flash",
+        timeout: int = 30,
+    ):
         """
         Initialize the Google LLM provider.
 
@@ -43,11 +51,15 @@ class GoogleLLMProvider(LLMProvider):
         self.client = AsyncOpenAI(
             api_key=self.api_key,
             base_url=f"{self.base_url}/openai/",
-            timeout=self.timeout
+            timeout=self.timeout,
         )
-        logger.info(f"GoogleLLMProvider initialized with model={self.default_model}, timeout={self.timeout}s")
+        logger.info(
+            f"GoogleLLMProvider initialized with model={self.default_model}, timeout={self.timeout}s"
+        )
 
-    async def chat_completion(self, messages: List[Dict[str, Any]], **kwargs) -> Dict[str, Any]:
+    async def chat_completion(
+        self, messages: list[dict[str, Any]], **kwargs
+    ) -> dict[str, Any]:
         """
         Generate a chat completion using Google Gemini.
 

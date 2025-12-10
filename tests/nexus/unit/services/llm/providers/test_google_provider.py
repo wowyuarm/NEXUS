@@ -11,7 +11,10 @@ from unittest.mock import Mock, MagicMock, AsyncMock, patch
 import asyncio
 
 from nexus.services.llm.providers.google import GoogleLLMProvider
-from nexus.services.llm.providers.common import handle_streaming_response, handle_non_streaming_response
+from nexus.services.llm.providers.common import (
+    handle_streaming_response,
+    handle_non_streaming_response,
+)
 
 
 class TestGoogleLLMProvider:
@@ -20,36 +23,39 @@ class TestGoogleLLMProvider:
     def test_initialization_with_api_key(self, mocker):
         """Test successful initialization with API key."""
         # Mock AsyncOpenAI
-        mock_async_openai = mocker.patch('nexus.services.llm.providers.google.AsyncOpenAI')
+        mock_async_openai = mocker.patch(
+            "nexus.services.llm.providers.google.AsyncOpenAI"
+        )
         mock_client = Mock()
         mock_async_openai.return_value = mock_client
-        
+
         provider = GoogleLLMProvider(
             api_key="test_api_key",
             base_url="https://generativelanguage.googleapis.com/v1beta",
             model="gemini-2.5-flash",
-            timeout=30
+            timeout=30,
         )
-        
+
         assert provider.api_key == "test_api_key"
         assert provider.base_url == "https://generativelanguage.googleapis.com/v1beta"
         assert provider.default_model == "gemini-2.5-flash"
         assert provider.timeout == 30
         assert provider.client == mock_client
-        
+
         # Verify AsyncOpenAI was initialized with correct parameters
         mock_async_openai.assert_called_once_with(
             api_key="test_api_key",
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-            timeout=30
+            timeout=30,
         )
 
     def test_initialization_with_no_api_key(self):
         """Test initialization fails when no API key is provided."""
-        with pytest.raises(ValueError, match="API key is required for GoogleLLMProvider"):
+        with pytest.raises(
+            ValueError, match="API key is required for GoogleLLMProvider"
+        ):
             GoogleLLMProvider(
-                api_key="",
-                base_url="https://generativelanguage.googleapis.com/v1beta"
+                api_key="", base_url="https://generativelanguage.googleapis.com/v1beta"
             )
 
     @pytest.mark.asyncio
@@ -60,37 +66,35 @@ class TestGoogleLLMProvider:
         mock_response = Mock()
         mock_choice = Mock()
         mock_message = Mock()
-        
+
         # Setup mock response structure
         mock_response.choices = [mock_choice]
         mock_choice.message = mock_message
         mock_message.content = "This is a test response"
         mock_message.tool_calls = None
-        
+
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
-        
+
         provider = GoogleLLMProvider(
             api_key="test_api_key",
-            base_url="https://generativelanguage.googleapis.com/v1beta"
+            base_url="https://generativelanguage.googleapis.com/v1beta",
         )
         provider.client = mock_client
-        
-        messages = [
-            {"role": "user", "content": "Hello, how are you?"}
-        ]
-        
+
+        messages = [{"role": "user", "content": "Hello, how are you?"}]
+
         result = await provider.chat_completion(messages)
-        
+
         assert result["content"] == "This is a test response"
         assert result["tool_calls"] is None
-        
+
         # Verify API was called with correct parameters
         mock_client.chat.completions.create.assert_called_once_with(
             model="gemini-2.5-flash",
             messages=messages,
             temperature=0.7,
             max_tokens=4096,
-            stream=False
+            stream=False,
         )
 
     @pytest.mark.asyncio
@@ -102,31 +106,29 @@ class TestGoogleLLMProvider:
         mock_choice = Mock()
         mock_message = Mock()
         mock_tool_call = Mock()
-        
+
         # Setup mock response structure
         mock_response.choices = [mock_choice]
         mock_choice.message = mock_message
         mock_message.content = "I'll help you search for that information."
-        
+
         # Setup mock tool call
         mock_tool_call.id = "call_123"
         mock_tool_call.type = "function"
         mock_tool_call.function.name = "web_search"
         mock_tool_call.function.arguments = '{"query": "weather forecast"}'
-        
+
         mock_message.tool_calls = [mock_tool_call]
-        
+
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
-        
+
         provider = GoogleLLMProvider(
             api_key="test_api_key",
-            base_url="https://generativelanguage.googleapis.com/v1beta"
+            base_url="https://generativelanguage.googleapis.com/v1beta",
         )
         provider.client = mock_client
-        
-        messages = [
-            {"role": "user", "content": "What's the weather like today?"}
-        ]
+
+        messages = [{"role": "user", "content": "What's the weather like today?"}]
         tools = [
             {
                 "type": "function",
@@ -138,24 +140,24 @@ class TestGoogleLLMProvider:
                         "properties": {
                             "query": {"type": "string", "description": "Search query"}
                         },
-                        "required": ["query"]
-                    }
-                }
+                        "required": ["query"],
+                    },
+                },
             }
         ]
-        
+
         result = await provider.chat_completion(messages, tools=tools)
-        
+
         assert result["content"] == "I'll help you search for that information."
         assert result["tool_calls"] is not None
         assert len(result["tool_calls"]) == 1
-        
+
         tool_call = result["tool_calls"][0]
         assert tool_call["id"] == "call_123"
         assert tool_call["type"] == "function"
         assert tool_call["function"]["name"] == "web_search"
         assert tool_call["function"]["arguments"] == '{"query": "weather forecast"}'
-        
+
         # Verify API was called with tools
         mock_client.chat.completions.create.assert_called_once_with(
             model="gemini-2.5-flash",
@@ -163,7 +165,7 @@ class TestGoogleLLMProvider:
             temperature=0.7,
             max_tokens=4096,
             stream=False,
-            tools=tools
+            tools=tools,
         )
 
     @pytest.mark.asyncio
@@ -192,35 +194,31 @@ class TestGoogleLLMProvider:
         mock_streaming_response = AsyncMock()
         mock_streaming_response.__aiter__ = Mock(return_value=mock_async_iter())
 
-        mock_client.chat.completions.create = AsyncMock(return_value=mock_streaming_response)
-        
+        mock_client.chat.completions.create = AsyncMock(
+            return_value=mock_streaming_response
+        )
+
         provider = GoogleLLMProvider(
             api_key="test_api_key",
-            base_url="https://generativelanguage.googleapis.com/v1beta"
+            base_url="https://generativelanguage.googleapis.com/v1beta",
         )
         provider.client = mock_client
-        
-        messages = [
-            {"role": "user", "content": "Test message"}
-        ]
-        
+
+        messages = [{"role": "user", "content": "Test message"}]
+
         result = await provider.chat_completion(
-            messages,
-            model="gemini-pro",
-            temperature=0.5,
-            max_tokens=1024,
-            stream=True
+            messages, model="gemini-pro", temperature=0.5, max_tokens=1024, stream=True
         )
-        
+
         assert result["content"] == "Custom response"
-        
+
         # Verify custom parameters were used
         mock_client.chat.completions.create.assert_called_once_with(
             model="gemini-pro",
             messages=messages,
             temperature=0.5,
             max_tokens=1024,
-            stream=True
+            stream=True,
         )
 
     @pytest.mark.asyncio
@@ -228,18 +226,18 @@ class TestGoogleLLMProvider:
         """Test chat completion when API call fails."""
         # Mock the OpenAI client to raise an exception
         mock_client = Mock()
-        mock_client.chat.completions.create = AsyncMock(side_effect=Exception("API Error"))
-        
+        mock_client.chat.completions.create = AsyncMock(
+            side_effect=Exception("API Error")
+        )
+
         provider = GoogleLLMProvider(
             api_key="test_api_key",
-            base_url="https://generativelanguage.googleapis.com/v1beta"
+            base_url="https://generativelanguage.googleapis.com/v1beta",
         )
         provider.client = mock_client
-        
-        messages = [
-            {"role": "user", "content": "Test message"}
-        ]
-        
+
+        messages = [{"role": "user", "content": "Test message"}]
+
         with pytest.raises(Exception, match="API Error"):
             await provider.chat_completion(messages)
 
@@ -250,21 +248,19 @@ class TestGoogleLLMProvider:
         mock_client = Mock()
         mock_response = Mock()
         mock_response.choices = []
-        
+
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
-        
+
         provider = GoogleLLMProvider(
             api_key="test_api_key",
-            base_url="https://generativelanguage.googleapis.com/v1beta"
+            base_url="https://generativelanguage.googleapis.com/v1beta",
         )
         provider.client = mock_client
-        
-        messages = [
-            {"role": "user", "content": "Test message"}
-        ]
-        
+
+        messages = [{"role": "user", "content": "Test message"}]
+
         result = await provider.chat_completion(messages)
-        
+
         assert result["content"] is None
         assert result["tool_calls"] is None
 
@@ -273,38 +269,38 @@ class TestGoogleLLMProvider:
         """Test handling of streaming response."""
         provider = GoogleLLMProvider(
             api_key="test_api_key",
-            base_url="https://generativelanguage.googleapis.com/v1beta"
+            base_url="https://generativelanguage.googleapis.com/v1beta",
         )
-        
+
         # Mock streaming chunks
         mock_chunk1 = Mock()
         mock_chunk1.choices = [Mock()]
         mock_chunk1.choices[0].delta = Mock()
         mock_chunk1.choices[0].delta.content = "Hello"
         mock_chunk1.choices[0].delta.tool_calls = None
-        
+
         mock_chunk2 = Mock()
         mock_chunk2.choices = [Mock()]
         mock_chunk2.choices[0].delta = Mock()
         mock_chunk2.choices[0].delta.content = " world"
         mock_chunk2.choices[0].delta.tool_calls = None
-        
+
         mock_chunk3 = Mock()
         mock_chunk3.choices = [Mock()]
         mock_chunk3.choices[0].delta = Mock()
         mock_chunk3.choices[0].delta.content = "!"
         mock_chunk3.choices[0].delta.tool_calls = None
-        
+
         # Create an async iterator
         async def mock_async_iter():
             for chunk in [mock_chunk1, mock_chunk2, mock_chunk3]:
                 yield chunk
-        
+
         mock_response = AsyncMock()
         mock_response.__aiter__ = Mock(return_value=mock_async_iter())
-        
+
         result = await handle_streaming_response(mock_response)
-        
+
         assert result["content"] == "Hello world!"
         assert result["tool_calls"] is None
         assert "content_chunks" in result
@@ -315,36 +311,36 @@ class TestGoogleLLMProvider:
         """Test handling of streaming response with tool calls."""
         provider = GoogleLLMProvider(
             api_key="test_api_key",
-            base_url="https://generativelanguage.googleapis.com/v1beta"
+            base_url="https://generativelanguage.googleapis.com/v1beta",
         )
-        
+
         # Mock streaming chunks with tool calls
         mock_chunk = Mock()
         mock_chunk.choices = [Mock()]
         mock_chunk.choices[0].delta = Mock()
         mock_chunk.choices[0].delta.content = None
-        
+
         mock_tool_call = Mock()
         mock_tool_call.id = "call_123"
         mock_tool_call.type = "function"
         mock_tool_call.function.name = "web_search"
         mock_tool_call.function.arguments = '{"query": "test"}'
-        
+
         mock_chunk.choices[0].delta.tool_calls = [mock_tool_call]
-        
+
         # Create an async iterator
         async def mock_async_iter():
             yield mock_chunk
-        
+
         mock_response = AsyncMock()
         mock_response.__aiter__ = Mock(return_value=mock_async_iter())
-        
+
         result = await handle_streaming_response(mock_response)
-        
+
         assert result["content"] is None
         assert result["tool_calls"] is not None
         assert len(result["tool_calls"]) == 1
-        
+
         tool_call = result["tool_calls"][0]
         assert tool_call["id"] == "call_123"
         assert tool_call["function"]["name"] == "web_search"
@@ -354,22 +350,22 @@ class TestGoogleLLMProvider:
         """Test handling of non-streaming response without tool calls."""
         provider = GoogleLLMProvider(
             api_key="test_api_key",
-            base_url="https://generativelanguage.googleapis.com/v1beta"
+            base_url="https://generativelanguage.googleapis.com/v1beta",
         )
-        
+
         # Mock response
         mock_response = Mock()
         mock_choice = Mock()
         mock_message = Mock()
-        
+
         mock_response.choices = [mock_choice]
         mock_choice.message = mock_message
         mock_message.content = "Test response"
         # No tool_calls attribute
         del mock_message.tool_calls
-        
+
         result = await handle_non_streaming_response(mock_response)
-        
+
         assert result["content"] == "Test response"
         assert result["tool_calls"] is None
 
@@ -378,15 +374,15 @@ class TestGoogleLLMProvider:
         """Test handling of non-streaming response with empty choices."""
         provider = GoogleLLMProvider(
             api_key="test_api_key",
-            base_url="https://generativelanguage.googleapis.com/v1beta"
+            base_url="https://generativelanguage.googleapis.com/v1beta",
         )
-        
+
         # Mock response with no choices
         mock_response = Mock()
         mock_response.choices = []
-        
+
         result = await handle_non_streaming_response(mock_response)
-        
+
         assert result["content"] is None
         assert result["tool_calls"] is None
 
@@ -398,30 +394,28 @@ class TestGoogleLLMProvider:
         mock_response = Mock()
         mock_choice = Mock()
         mock_message = Mock()
-        
+
         mock_response.choices = [mock_choice]
         mock_choice.message = mock_message
         mock_message.content = "Response without tools"
         mock_message.tool_calls = None
-        
+
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
-        
+
         provider = GoogleLLMProvider(
             api_key="test_api_key",
-            base_url="https://generativelanguage.googleapis.com/v1beta"
+            base_url="https://generativelanguage.googleapis.com/v1beta",
         )
         provider.client = mock_client
-        
-        messages = [
-            {"role": "user", "content": "Test message"}
-        ]
-        
+
+        messages = [{"role": "user", "content": "Test message"}]
+
         # Pass empty tools list
         result = await provider.chat_completion(messages, tools=[])
-        
+
         assert result["content"] == "Response without tools"
         assert result["tool_calls"] is None
-        
+
         # Verify API was called without tools parameter
         call_kwargs = mock_client.chat.completions.create.call_args[1]
         assert "tools" not in call_kwargs

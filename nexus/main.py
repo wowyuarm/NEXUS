@@ -8,23 +8,23 @@ long-lived tasks concurrently.
 import asyncio
 import logging
 import os
-from typing import List
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
 from nexus.core.bus import NexusBus
-from nexus.interfaces.websocket import WebsocketInterface
 from nexus.interfaces import rest
+from nexus.interfaces.websocket import WebsocketInterface
+from nexus.services.command import CommandService
 from nexus.services.config import ConfigService
-from nexus.services.database.service import DatabaseService
-from dotenv import load_dotenv
-from nexus.services.llm.service import LLMService
-from nexus.services.tool_executor import ToolExecutorService
 from nexus.services.context import ContextBuilder
+from nexus.services.database.service import DatabaseService
+from nexus.services.identity import IdentityService
+from nexus.services.llm.service import LLMService
 from nexus.services.orchestrator import OrchestratorService
 from nexus.services.persistence import PersistenceService
-from nexus.services.command import CommandService
-from nexus.services.identity import IdentityService
+from nexus.services.tool_executor import ToolExecutorService
 from nexus.tools.registry import ToolRegistry
 
 
@@ -49,9 +49,11 @@ async def main() -> None:
     # 2): Bootstrap Configuration
     mongo_uri = os.getenv("MONGO_URI")
     if not mongo_uri:
-        logger.error("MONGO_URI not found in environment variables. Please check your .env file.")
+        logger.error(
+            "MONGO_URI not found in environment variables. Please check your .env file."
+        )
         return
-    
+
     # Dynamic database name based on environment
     db_name = f"NEXUS_DB_{'DEV' if environment == 'development' else 'PROD'}"
     logger.info(f"Bootstrap configuration - Environment: {environment}, DB: {db_name}")
@@ -60,10 +62,12 @@ async def main() -> None:
     logger.info("Initializing database service...")
     bus = NexusBus()
     database_service = DatabaseService(bus, mongo_uri, db_name)
-    
+
     logger.info("Connecting to database...")
     if not database_service.connect():
-        logger.error("Failed to connect to database. Please check your MongoDB instance and MONGO_URI configuration.")
+        logger.error(
+            "Failed to connect to database. Please check your MongoDB instance and MONGO_URI configuration."
+        )
         return
     logger.info("Database connection established successfully")
 
@@ -77,7 +81,7 @@ async def main() -> None:
     tool_registry = ToolRegistry()
 
     # Auto-discover and register all tools
-    tool_registry.discover_and_register('nexus.tools.definition')
+    tool_registry.discover_and_register("nexus.tools.definition")
     logger.info("Tools auto-discovery and registration completed")
 
     # 6) Instantiate services and interfaces with proper dependency injection
@@ -95,16 +99,22 @@ async def main() -> None:
     tool_executor_service = ToolExecutorService(bus, tool_registry, config_service)
 
     # Context builder for constructing LLM context with [TAG] structure
-    context_builder = ContextBuilder(bus, tool_registry, config_service, persistence_service)
+    context_builder = ContextBuilder(
+        bus, tool_registry, config_service, persistence_service
+    )
 
     # Command service for deterministic command processing (inject identity_service)
-    command_service = CommandService(bus, database_service=database_service, identity_service=identity_service)
+    command_service = CommandService(
+        bus, database_service=database_service, identity_service=identity_service
+    )
 
     # Orchestrator service with identity gatekeeper (inject identity_service)
-    orchestrator_service = OrchestratorService(bus, config_service, identity_service=identity_service)
+    orchestrator_service = OrchestratorService(
+        bus, config_service, identity_service=identity_service
+    )
     websocket_interface = WebsocketInterface(bus, database_service, identity_service)
 
-    services: List[object] = [
+    services: list[object] = [
         database_service,
         persistence_service,
         llm_service,
@@ -134,18 +144,22 @@ async def main() -> None:
     # 9) Create unified FastAPI application
     app = FastAPI(title="NEXUS API", version="2.0.0")
     logger.info("Created unified FastAPI application")
-    
+
     # 9.5) Configure CORS middleware with environment-aware origins
     allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "")
-    origins = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
-    
+    origins = [
+        origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()
+    ]
+
     # Security: Production without configured origins = block all
     if environment == "production" and not origins:
-        logger.warning("⚠️ No ALLOWED_ORIGINS configured for production. CORS requests will be blocked.")
+        logger.warning(
+            "⚠️ No ALLOWED_ORIGINS configured for production. CORS requests will be blocked."
+        )
         origins = []
-    
+
     logger.info(f"CORS configured for origins: {origins}")
-    
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -153,7 +167,7 @@ async def main() -> None:
         allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["*"],
     )
-    
+
     # 10) Add health check endpoints
     @app.get("/")
     async def root_health():
@@ -161,39 +175,50 @@ async def main() -> None:
 
     @app.get("/health")
     async def basic_health():
-        return {"status": "healthy", "connections": len(websocket_interface.connections)}
+        return {
+            "status": "healthy",
+            "connections": len(websocket_interface.connections),
+        }
 
     @app.get("/api/v1/health")
     async def comprehensive_health_check():
         """Comprehensive health check including database connectivity."""
         try:
             is_db_healthy = database_service.provider.health_check()
-            
+
             if is_db_healthy:
                 return {"status": "ok", "dependencies": {"database": "ok"}}
             else:
                 raise HTTPException(
-                    status_code=503, 
-                    detail={"status": "error", "dependencies": {"database": "unavailable"}}
+                    status_code=503,
+                    detail={
+                        "status": "error",
+                        "dependencies": {"database": "unavailable"},
+                    },
                 )
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             raise HTTPException(
                 status_code=503,
-                detail={"status": "error", "dependencies": {"database": "connection_error"}}
-            )
-    
+                detail={
+                    "status": "error",
+                    "dependencies": {"database": "connection_error"},
+                },
+            ) from e
+
     # 11) Configure dependency injection for REST interface
     app.dependency_overrides[rest.get_command_service] = lambda: command_service
     app.dependency_overrides[rest.get_identity_service] = lambda: identity_service
     app.dependency_overrides[rest.get_persistence_service] = lambda: persistence_service
     app.dependency_overrides[rest.get_config_service] = lambda: config_service
-    logger.info("Configured dependency injection for REST interface (command, identity, persistence, config services)")
-    
+    logger.info(
+        "Configured dependency injection for REST interface (command, identity, persistence, config services)"
+    )
+
     # 12) Add REST API routes
     app.include_router(rest.router, prefix="/api/v1", tags=["commands"])
     logger.info("Added REST API routes")
-    
+
     # 13) Add WebSocket routes
     websocket_interface.add_websocket_routes(app)
     logger.info("Added WebSocket routes")
@@ -201,7 +226,9 @@ async def main() -> None:
     # 14) Long-running tasks (bus listeners)
     bus_task = asyncio.create_task(bus.run_forever(), name="nexusbus.run_forever")
 
-    logger.info(f"NEXUS engine configured with FastAPI app at {server_host}:{server_port}")
+    logger.info(
+        f"NEXUS engine configured with FastAPI app at {server_host}:{server_port}"
+    )
 
     # 15) Import uvicorn and run the FastAPI app
     import uvicorn
@@ -212,10 +239,7 @@ async def main() -> None:
 
     # Run bus and server concurrently
     try:
-        await asyncio.gather(
-            bus_task,
-            server.serve()
-        )
+        await asyncio.gather(bus_task, server.serve())
     except asyncio.CancelledError:
         logger.info("Shutdown requested; cancelling tasks...")
         bus_task.cancel()

@@ -6,7 +6,7 @@ This command is executed entirely on the frontend without backend communication.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +16,11 @@ COMMAND_DEFINITION = {
     "description": "Clear the chat messages from view (context history preserved)",
     "usage": "/clear",
     "handler": "client",
-    "examples": [
-        "/clear"
-    ]
+    "examples": ["/clear"],
 }
 
 
-async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
+async def execute(context: dict[str, Any]) -> dict[str, Any]:
     """
     Execute the clear command.
 
@@ -38,8 +36,10 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
     Raises:
         RuntimeError: Always, as this should be handled client-side
     """
-    logger.warning("Clear command executed on server - this should be handled client-side")
-    
+    logger.warning(
+        "Clear command executed on server - this should be handled client-side"
+    )
+
     raise RuntimeError(
         "Clear command should be executed on the client side, not on the server. "
         "This indicates a configuration or routing error."

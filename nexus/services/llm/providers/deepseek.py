@@ -12,8 +12,10 @@ Features:
 """
 
 import logging
-from typing import Dict, List, Optional
+from typing import Any
+
 from openai import AsyncOpenAI
+
 from .base import LLMProvider
 from .common import (
     build_chat_api_params,
@@ -32,7 +34,7 @@ class DeepSeekLLMProvider(LLMProvider):
         api_key: str,
         base_url: str = "https://api.deepseek.com",
         model: str = "deepseek-chat",
-        timeout: int = 30
+        timeout: int = 30,
     ):
         """
         Initialize the DeepSeek LLM provider.
@@ -53,9 +55,7 @@ class DeepSeekLLMProvider(LLMProvider):
 
         # Initialize OpenAI client for DeepSeek
         self.client = AsyncOpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            timeout=self.timeout
+            api_key=self.api_key, base_url=self.base_url, timeout=self.timeout
         )
 
         logger.info(
@@ -65,13 +65,14 @@ class DeepSeekLLMProvider(LLMProvider):
 
     async def chat_completion(
         self,
-        messages: List[Dict],
-        model: Optional[str] = None,
+        messages: list[dict[str, Any]],
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4096,
         stream: bool = False,
-        tools: Optional[List[Dict]] = None
-    ) -> Dict:
+        tools: list[dict[str, Any]] | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         """
         Generate a chat completion using DeepSeek.
 
@@ -112,4 +113,3 @@ class DeepSeekLLMProvider(LLMProvider):
             raise
 
     # Provider-specific handlers are deduplicated via common utilities
-

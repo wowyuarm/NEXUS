@@ -27,10 +27,11 @@ Key classes:
 
 import asyncio
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message
+
 from .providers.mongo import MongoProvider
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ class DatabaseService:
         self.bus = bus
         self.mongo_uri = mongo_uri
         self.db_name = db_name
-        self.provider: Optional[MongoProvider] = None
+        self.provider: MongoProvider | None = None
         self._connected = False
 
         # Initialize database provider
@@ -66,7 +67,9 @@ class DatabaseService:
         """Initialize the database provider."""
         try:
             if not self.mongo_uri:
-                raise ValueError("MongoDB URI not provided. Please set MONGO_URI in .env file.")
+                raise ValueError(
+                    "MongoDB URI not provided. Please set MONGO_URI in .env file."
+                )
 
             # Create MongoDB provider (but don't connect yet)
             self.provider = MongoProvider(self.mongo_uri, self.db_name)
@@ -80,14 +83,14 @@ class DatabaseService:
     def connect(self) -> bool:
         """
         Establish connection to the database.
-        
+
         Returns:
             True if connection was successful, False otherwise
         """
         if not self.provider:
             logger.error("Database provider not initialized")
             return False
-        
+
         try:
             self.provider.connect()
             self._connected = True
@@ -97,16 +100,16 @@ class DatabaseService:
             logger.error(f"Failed to connect to database: {e}")
             self._connected = False
             return False
-    
+
     def is_connected(self) -> bool:
         """
         Check if database connection is established.
-        
+
         Returns:
             True if connected, False otherwise
         """
         return self._connected and self.provider is not None
-    
+
     def disconnect(self) -> None:
         """Close database connection."""
         if self.provider:
@@ -116,7 +119,7 @@ class DatabaseService:
                 logger.info("Database connection closed")
             except Exception as e:
                 logger.error(f"Error during database disconnect: {e}")
-    
+
     def subscribe_to_bus(self) -> None:
         """Subscribe to bus topics (no direct subscriptions for now)."""
         # DatabaseService doesn't directly subscribe to topics
@@ -127,12 +130,12 @@ class DatabaseService:
         """Asynchronously insert a message into the database.
 
         Args:
-            message: The Message object to be persisted
+            message: The message object to insert
 
         Returns:
             bool: True if insertion was successful, False otherwise
         """
-        if not self.is_connected():
+        if not self.is_connected() or not self.provider:
             logger.error("Database not connected. Cannot insert message.")
             return False
 
@@ -145,7 +148,9 @@ class DatabaseService:
             logger.error(f"Error during async message insertion: {e}")
             return False
 
-    async def get_history_by_owner_key(self, owner_key: str, limit: int = 20) -> List[Dict[str, Any]]:
+    async def get_history_by_owner_key(
+        self, owner_key: str, limit: int = 20
+    ) -> list[dict[str, Any]]:
         """Asynchronously retrieve message history for an owner (user identity).
 
         Args:
@@ -156,16 +161,14 @@ class DatabaseService:
             List[Dict[str, Any]]: List of message dictionaries, sorted by timestamp
                                  in descending order (newest first)
         """
-        if not self.is_connected():
+        if not self.is_connected() or not self.provider:
             logger.error("Database not connected. Cannot retrieve history.")
             return []
 
         try:
             # Use asyncio.to_thread to run the sync database operation
             messages = await asyncio.to_thread(
-                self.provider.get_messages_by_owner_key,
-                owner_key,
-                limit
+                self.provider.get_messages_by_owner_key, owner_key, limit
             )
             return messages
 
@@ -173,9 +176,7 @@ class DatabaseService:
             logger.error(f"Error during async history retrieval: {e}")
             return []
 
-
-
-    async def get_configuration_async(self, environment: str) -> Optional[Dict[str, Any]]:
+    async def get_configuration_async(self, environment: str) -> dict[str, Any] | None:
         """Asynchronously get configuration for a specific environment.
 
         Args:
@@ -184,20 +185,24 @@ class DatabaseService:
         Returns:
             Optional[Dict[str, Any]]: Configuration dictionary if found, None otherwise
         """
-        if not self.is_connected():
+        if not self.is_connected() or not self.provider:
             logger.error("Database not connected. Cannot retrieve configuration.")
             return None
 
         try:
             # Use asyncio.to_thread to run the sync database operation
-            config = await asyncio.to_thread(self.provider.get_configuration, environment)
+            config = await asyncio.to_thread(
+                self.provider.get_configuration, environment
+            )
             return config
 
         except Exception as e:
             logger.error(f"Error during async configuration retrieval: {e}")
             return None
 
-    async def upsert_configuration_async(self, environment: str, config_data: Dict[str, Any]) -> bool:
+    async def upsert_configuration_async(
+        self, environment: str, config_data: dict[str, Any]
+    ) -> bool:
         """Asynchronously insert or update configuration for a specific environment.
 
         Args:
@@ -207,13 +212,15 @@ class DatabaseService:
         Returns:
             bool: True if operation was successful, False otherwise
         """
-        if not self.is_connected():
+        if not self.is_connected() or not self.provider:
             logger.error("Database not connected. Cannot upsert configuration.")
             return False
 
         try:
             # Use asyncio.to_thread to run the sync database operation
-            result = await asyncio.to_thread(self.provider.upsert_configuration, environment, config_data)
+            result = await asyncio.to_thread(
+                self.provider.upsert_configuration, environment, config_data
+            )
             return result
 
         except Exception as e:

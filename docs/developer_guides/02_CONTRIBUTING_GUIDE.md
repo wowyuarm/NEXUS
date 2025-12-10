@@ -87,7 +87,7 @@ Choose the appropriate workflow based on task complexity:
 
 7. **Refactor & Harden**
    - Clean code and tests for readability and consistency.
-   - Ensure formatting (`black`, Prettier) and lint tools (`flake8`, ESLint) pass.
+   - Ensure formatting (`ruff format`, Prettier) and lint tools (`ruff check`, `mypy`, ESLint) pass.
    - Run the full relevant test scope (`pytest`, `pnpm test:run`, etc.).
 
 8. **Self-Audit**
@@ -145,8 +145,9 @@ Choose the appropriate workflow based on task complexity:
 - Commit frequently with clear, descriptive messages explaining the "why" behind changes.
 
 ## Local Command Reference
-- Backend setup: `python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`.
-- Backend run: `python -m nexus.main` (or `scripts/shell/run.sh` to launch backend + frontend together).
+- Backend setup: `curl -sSL https://install.python-poetry.org | python3 -` (install Poetry once), then `poetry install`.
+- Backend run: `poetry run python -m nexus.main` (or `scripts/shell/run.sh` to launch backend + frontend together).
+- Backend linting: `poetry run ruff check nexus/`, formatting: `poetry run ruff format nexus/`, type check: `poetry run mypy nexus/`.
 - Frontend setup: `cd aura && pnpm install`.
 - Frontend dev: `pnpm dev`; build: `pnpm build`; lint: `pnpm lint`; tests: `pnpm test`, `pnpm test:run`, `pnpm test:coverage`.
 - Backend container (optional): `docker-compose up --build` provisions `nexus-backend` on `nexus-net`.

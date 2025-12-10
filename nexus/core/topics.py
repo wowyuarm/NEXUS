@@ -5,8 +5,6 @@ This module centralizes all topic strings to prevent typos and provide a single
 source of truth for inter-service communication channels.
 """
 
-from typing import List, Dict
-
 
 class Topics:
     """
@@ -80,4 +78,3 @@ class Topics:
     Published by CommandService with the result of command execution.
     Message content: {"status": "success"|"error", "message": str}
     """
-

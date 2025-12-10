@@ -8,23 +8,23 @@ This module centralizes repetitive logic across provider implementations:
 - Normalizing tool_calls structures
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 def build_chat_api_params(
     *,
     model: str,
-    messages: List[Dict[str, Any]],
+    messages: list[dict[str, Any]],
     temperature: float,
     max_tokens: int,
     stream: bool,
-    tools: Optional[List[Dict[str, Any]]] = None,
-) -> Dict[str, Any]:
+    tools: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Build parameters for OpenAI-compatible chat.completions.create.
 
     Excludes optional fields (like tools) when empty to avoid provider quirks.
     """
-    params: Dict[str, Any] = {
+    params: dict[str, Any] = {
         "model": model,
         "messages": messages,
         "temperature": temperature,
@@ -36,11 +36,15 @@ def build_chat_api_params(
     return params
 
 
-def _format_single_tool_call(tool_call: Any) -> Dict[str, Any]:
+def _format_single_tool_call(tool_call: Any) -> dict[str, Any]:
     """Normalize a single tool_call to a plain dict structure."""
     # Object-like tool_call with attributes (provider SDK types)
-    if hasattr(tool_call, "id") and hasattr(tool_call, "type") and hasattr(tool_call, "function"):
-        function_obj = getattr(tool_call, "function")
+    if (
+        hasattr(tool_call, "id")
+        and hasattr(tool_call, "type")
+        and hasattr(tool_call, "function")
+    ):
+        function_obj = tool_call.function
         name = getattr(function_obj, "name", "unknown")
         arguments = getattr(function_obj, "arguments", {})
         return {
@@ -72,7 +76,7 @@ def _format_single_tool_call(tool_call: Any) -> Dict[str, Any]:
     }
 
 
-def format_tool_calls(tool_calls: Any) -> Optional[List[Dict[str, Any]]]:
+def format_tool_calls(tool_calls: Any) -> list[dict[str, Any]] | None:
     """Normalize provider-specific tool_calls to a uniform list of dicts.
 
     Returns None when no tool calls are present.
@@ -90,18 +94,20 @@ def format_tool_calls(tool_calls: Any) -> Optional[List[Dict[str, Any]]]:
             return None
 
 
-async def handle_non_streaming_response(response: Any) -> Dict[str, Any]:
+async def handle_non_streaming_response(response: Any) -> dict[str, Any]:
     """Parse a non-streaming OpenAI-compatible response into a simple dict."""
-    message = response.choices[0].message if getattr(response, "choices", None) else None
+    message = (
+        response.choices[0].message if getattr(response, "choices", None) else None
+    )
     content = getattr(message, "content", None) if message is not None else None
     tool_calls = getattr(message, "tool_calls", None) if message is not None else None
     formatted_tool_calls = format_tool_calls(tool_calls)
     return {"content": content, "tool_calls": formatted_tool_calls}
 
 
-async def handle_streaming_response(response: Any) -> Dict[str, Any]:
+async def handle_streaming_response(response: Any) -> dict[str, Any]:
     """Parse a streaming OpenAI-compatible response into chunks and final values."""
-    content_chunks: List[str] = []
+    content_chunks: list[str] = []
     tool_calls = None
 
     async for chunk in response:
@@ -120,6 +126,8 @@ async def handle_streaming_response(response: Any) -> Dict[str, Any]:
 
     full_content = "".join(content_chunks) if content_chunks else None
     formatted_tool_calls = format_tool_calls(tool_calls)
-    return {"content": full_content, "tool_calls": formatted_tool_calls, "content_chunks": content_chunks}
-
-
+    return {
+        "content": full_content,
+        "tool_calls": formatted_tool_calls,
+        "content_chunks": content_chunks,
+    }

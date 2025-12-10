@@ -6,7 +6,7 @@ generating capability descriptions.
 """
 
 import logging
-from typing import Dict, List, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -218,7 +218,7 @@ class PromptManager:
         """
         return CORE_IDENTITY.strip()
 
-    def get_capabilities_prompt(self, tool_definitions: List[Dict[str, Any]]) -> str:
+    def get_capabilities_prompt(self, tool_definitions: list[dict[str, Any]]) -> str:
         """
         Format [CAPABILITIES] section with available tools.
 
@@ -228,11 +228,7 @@ class PromptManager:
         Returns:
             Formatted [CAPABILITIES] block string
         """
-        lines = [
-            "[CAPABILITIES]",
-            "Available tools in this conversation:",
-            ""
-        ]
+        lines = ["[CAPABILITIES]", "Available tools in this conversation:", ""]
 
         if not tool_definitions:
             lines.append("(No tools available)")
@@ -257,8 +253,12 @@ class PromptManager:
                 for param_name, param_info in props.items():
                     param_type = param_info.get("type", "any")
                     param_desc = param_info.get("description", "")
-                    req_marker = "(required)" if param_name in required else "(optional)"
-                    lines.append(f"- `{param_name}` ({param_type}) {req_marker}: {param_desc}")
+                    req_marker = (
+                        "(required)" if param_name in required else "(optional)"
+                    )
+                    lines.append(
+                        f"- `{param_name}` ({param_type}) {req_marker}: {param_desc}"
+                    )
 
             lines.append("")
 

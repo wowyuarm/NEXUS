@@ -65,12 +65,12 @@ class TestPromptManager:
                         "properties": {
                             "query": {
                                 "type": "string",
-                                "description": "The search query"
+                                "description": "The search query",
                             }
                         },
-                        "required": ["query"]
-                    }
-                }
+                        "required": ["query"],
+                    },
+                },
             }
         ]
 
@@ -99,17 +99,17 @@ class TestPromptManager:
                 "function": {
                     "name": "tool_a",
                     "description": "First tool",
-                    "parameters": {"type": "object", "properties": {}}
-                }
+                    "parameters": {"type": "object", "properties": {}},
+                },
             },
             {
                 "type": "function",
                 "function": {
                     "name": "tool_b",
                     "description": "Second tool",
-                    "parameters": {"type": "object", "properties": {}}
-                }
-            }
+                    "parameters": {"type": "object", "properties": {}},
+                },
+            },
         ]
 
         result = manager.get_capabilities_prompt(tools)
@@ -131,12 +131,18 @@ class TestPromptManager:
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "required_param": {"type": "string", "description": "Required"},
-                            "optional_param": {"type": "string", "description": "Optional"}
+                            "required_param": {
+                                "type": "string",
+                                "description": "Required",
+                            },
+                            "optional_param": {
+                                "type": "string",
+                                "description": "Optional",
+                            },
                         },
-                        "required": ["required_param"]
-                    }
-                }
+                        "required": ["required_param"],
+                    },
+                },
             }
         ]
 

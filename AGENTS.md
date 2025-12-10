@@ -104,12 +104,16 @@ If a task requires multiple conversations or exceeds context limits (>15 files),
    ```
    **Never work directly on `main`** unless explicitly instructed.
 
-3. **Backend**
+3. **Backend** (Poetry-based)
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   python -m nexus.main
+   # Install Poetry (if not installed)
+   curl -sSL https://install.python-poetry.org | python3 -
+   
+   # Install dependencies
+   poetry install
+   
+   # Run backend
+   poetry run python -m nexus.main
    ```
 4. **Frontend**
    ```bash
@@ -141,7 +145,7 @@ If a task requires multiple conversations or exceeds context limits (>15 files),
 - All suites must pass before delivering work; never skip tests or use `--no-verify`.
 
 ## Coding Style & Quality
-- Python: format with `black` (line length 88) and lint with `flake8`.
+- Python: format with `ruff format` and lint with `ruff check`. Type check with `mypy nexus/`.
 - TypeScript/React: rely on Prettier defaults and the ESLint config in `aura/eslint.config.js`.
 - Enforce grayscale-only styling, motion timing, and interaction rules from `docs/rules/frontend_design_principles.md`.
 - Keep modules ≤ 600 lines as mandated in the AI charter; refactor when approaching limits.

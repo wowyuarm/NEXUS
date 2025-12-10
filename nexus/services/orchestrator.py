@@ -10,7 +10,7 @@ Key responsibilities:
   between "visitors" (unregistered) and "members" (registered users)
 - User profile injection: Enriches Run metadata with user_profile (config/prompt overrides)
   for downstream personalization in ContextService and LLMService
-- Run lifecycle management: Tracks run state transitions (BUILDING_CONTEXT, 
+- Run lifecycle management: Tracks run state transitions (BUILDING_CONTEXT,
   AWAITING_LLM_DECISION, AWAITING_TOOL_RESULT, COMPLETED, TIMED_OUT)
 - Tool call orchestration: Detects tool calls from LLM responses, publishes tool
   requests, and synchronizes multiple concurrent tool executions
@@ -22,17 +22,18 @@ Key responsibilities:
   LLM_RESULTS to UI_EVENTS to preserve ordering through a single UI gateway
 
 Event flow:
-RUNS_NEW → identity check → CONTEXT_BUILD_REQUEST → CONTEXT_BUILD_RESPONSE → 
-LLM_REQUESTS → LLM_RESULTS → (tool calls?) → TOOLS_REQUESTS → TOOLS_RESULTS → 
+RUNS_NEW → identity check → CONTEXT_BUILD_REQUEST → CONTEXT_BUILD_RESPONSE →
+LLM_REQUESTS → LLM_RESULTS → (tool calls?) → TOOLS_REQUESTS → TOOLS_RESULTS →
 LLM_REQUESTS (loop) → UI_EVENTS (run_finished)
 """
 
+import json
 import logging
 import os
-import json
-from typing import Dict, List
+from typing import Any
+
 from nexus.core.bus import NexusBus
-from nexus.core.models import Message, Run, RunStatus, Role
+from nexus.core.models import Message, Role, Run, RunStatus
 from nexus.core.topics import Topics
 from nexus.services.config import ConfigService
 
@@ -53,14 +54,18 @@ LLM_ROLE_USER = "user"
 
 
 class OrchestratorService:
-    def __init__(self, bus: NexusBus, config_service: ConfigService, identity_service=None):
+    def __init__(
+        self, bus: NexusBus, config_service: ConfigService, identity_service=None
+    ):
         self.bus = bus
         self.config_service = config_service
         self.identity_service = identity_service
         # Track active runs by run_id
-        self.active_runs: Dict[str, Run] = {}
+        self.active_runs: dict[str, Run] = {}
         # Get max tool iterations from config
-        self.max_tool_iterations = config_service.get_int("system.max_tool_iterations", 5)
+        self.max_tool_iterations = config_service.get_int(
+            "system.max_tool_iterations", 5
+        )
         logger.info("OrchestratorService initialized")
 
     def _extract_user_input_from_run(self, run: Run) -> str:
@@ -69,17 +74,18 @@ class OrchestratorService:
             return run.history[0].content
         return ""
 
-    def _parse_tool_arguments(self, raw_args) -> Dict:
+    def _parse_tool_arguments(self, raw_args: Any) -> dict[str, Any]:
         """Parse tool arguments, handling both string and dict formats."""
         if isinstance(raw_args, str):
             try:
-                return json.loads(raw_args)
+                result = json.loads(raw_args)
+                return result if isinstance(result, dict) else {}
             except json.JSONDecodeError:
                 logger.error(f"Failed to parse tool arguments as JSON: {raw_args}")
                 return {}
         return raw_args if isinstance(raw_args, dict) else {}
 
-    def _convert_history_to_llm_messages(self, run: Run) -> List[Dict]:
+    def _convert_history_to_llm_messages(self, run: Run) -> list[dict[str, Any]]:
         """Convert run history to LLM-compatible message format."""
         messages = []
         for hist_msg in run.history:
@@ -88,19 +94,23 @@ class OrchestratorService:
                 # Coerce content to a string (empty string if None) per OpenAI-compatible schema
                 assistant_content = hist_msg.content
                 if not isinstance(assistant_content, str):
-                    assistant_content = "" if assistant_content is None else str(assistant_content)
-                msg_dict = {
+                    assistant_content = (
+                        "" if assistant_content is None else str(assistant_content)
+                    )
+                msg_dict: dict[str, Any] = {
                     "role": LLM_ROLE_ASSISTANT,
-                    "content": assistant_content
+                    "content": assistant_content,
                 }
                 # Normalize tool_calls schema: ensure function.arguments is a JSON string
                 if "tool_calls" in hist_msg.metadata:
-                    normalized_tool_calls = []
+                    normalized_tool_calls: list[dict[str, Any]] = []
                     for tc in hist_msg.metadata["tool_calls"] or []:
-                        function_obj = tc.get("function", {}) if isinstance(tc, dict) else {}
+                        function_obj = (
+                            tc.get("function", {}) if isinstance(tc, dict) else {}
+                        )
                         args = function_obj.get("arguments")
                         # arguments must be a JSON string per OpenAI-compatible schema
-                        if isinstance(args, (dict, list)):
+                        if isinstance(args, dict | list):
                             try:
                                 args_str = json.dumps(args, ensure_ascii=False)
                             except Exception:
@@ -110,14 +120,18 @@ class OrchestratorService:
                         else:
                             args_str = json.dumps({})
 
-                        normalized_tool_calls.append({
-                            "id": tc.get("id", "") if isinstance(tc, dict) else "",
-                            "type": tc.get("type", "function") if isinstance(tc, dict) else "function",
-                            "function": {
-                                "name": function_obj.get("name", ""),
-                                "arguments": args_str,
-                            },
-                        })
+                        normalized_tool_calls.append(
+                            {
+                                "id": tc.get("id", "") if isinstance(tc, dict) else "",
+                                "type": tc.get("type", "function")
+                                if isinstance(tc, dict)
+                                else "function",
+                                "function": {
+                                    "name": function_obj.get("name", ""),
+                                    "arguments": args_str,
+                                },
+                            }
+                        )
                     msg_dict["tool_calls"] = normalized_tool_calls
                 messages.append(msg_dict)
             elif hist_msg.role == Role.TOOL:
@@ -132,21 +146,23 @@ class OrchestratorService:
                 # Per OpenAI-compatible schema for tool messages, include content and tool_call_id only
                 # Note: Some providers (e.g., Google's OpenAI-compatible endpoint) also require the tool 'name'
                 # to properly map to their native function_response schema. We include it when available.
-                messages.append({
-                    "role": LLM_ROLE_TOOL,
-                    "content": content_value,
-                    "tool_call_id": hist_msg.metadata.get("call_id", ""),
-                    "name": hist_msg.metadata.get("tool_name", "unknown") or "unknown"
-                })
+                messages.append(
+                    {
+                        "role": LLM_ROLE_TOOL,
+                        "content": content_value,
+                        "tool_call_id": hist_msg.metadata.get("call_id", ""),
+                        "name": hist_msg.metadata.get("tool_name", "unknown")
+                        or "unknown",
+                    }
+                )
             elif hist_msg.role == Role.HUMAN:
                 # User message
-                messages.append({
-                    "role": LLM_ROLE_USER,
-                    "content": hist_msg.content
-                })
+                messages.append({"role": LLM_ROLE_USER, "content": hist_msg.content})
         return messages
 
-    def _create_standardized_ui_event(self, run_id: str, owner_key: str, content: str) -> Message:
+    def _create_standardized_ui_event(
+        self, run_id: str, owner_key: str, content: str
+    ) -> Message:
         """Create a standardized UI event message."""
         return Message(
             run_id=run_id,
@@ -155,13 +171,13 @@ class OrchestratorService:
             content={
                 "event": UI_EVENT_TEXT_CHUNK,
                 "run_id": run_id,
-                "payload": {
-                    "chunk": content
-                }
-            }
+                "payload": {"chunk": content},
+            },
         )
 
-    def _create_ui_event(self, run_id: str, owner_key: str, event_type: str, payload: dict) -> Message:
+    def _create_ui_event(
+        self, run_id: str, owner_key: str, event_type: str, payload: dict
+    ) -> Message:
         """
         Create a generic UI event message with specified event type and payload.
 
@@ -178,11 +194,7 @@ class OrchestratorService:
             run_id=run_id,
             owner_key=owner_key,
             role=Role.SYSTEM,
-            content={
-                "event": event_type,
-                "run_id": run_id,
-                "payload": payload
-            }
+            content={"event": event_type, "run_id": run_id, "payload": payload},
         )
 
     def subscribe_to_bus(self) -> None:
@@ -213,11 +225,13 @@ class OrchestratorService:
             # Check if user is registered (member) or unregistered (visitor)
             if self.identity_service:
                 identity = await self.identity_service.get_identity(run.owner_key)
-                
+
                 if identity is None:
                     # Visitor flow: Send guidance message and halt
-                    logger.info(f"Unregistered user (visitor) detected for owner_key={run.owner_key}, sending guidance")
-                    
+                    logger.info(
+                        f"Unregistered user (visitor) detected for owner_key={run.owner_key}, sending guidance"
+                    )
+
                     guidance_message = self._create_ui_event(
                         run_id=run.id,
                         owner_key=run.owner_key,
@@ -227,24 +241,28 @@ class OrchestratorService:
                             "chunk": "欢迎！您当前处于访客模式。要创建您的专属身份并启用个性化功能，请执行 `/identity` 指令。",
                             "is_final": True,
                             # Hint UI to render this as a system message
-                            "role": "SYSTEM"
-                        }
+                            "role": "SYSTEM",
+                        },
                     )
                     await self.bus.publish(Topics.UI_EVENTS, guidance_message)
-                    
+
                     # Publish run_finished event to close the run
                     run_finished_event = self._create_ui_event(
                         run_id=run.id,
                         owner_key=run.owner_key,
                         event_type=UI_EVENT_RUN_FINISHED,
-                        payload={"status": "visitor_guidance_sent"}
+                        payload={"status": "visitor_guidance_sent"},
                     )
                     await self.bus.publish(Topics.UI_EVENTS, run_finished_event)
-                    logger.info(f"Visitor guidance sent for run_id={run.id}, halting normal flow")
+                    logger.info(
+                        f"Visitor guidance sent for run_id={run.id}, halting normal flow"
+                    )
                     return
-                
-                logger.info(f"Registered user (member) verified for owner_key={run.owner_key}")
-                
+
+                logger.info(
+                    f"Registered user (member) verified for owner_key={run.owner_key}"
+                )
+
                 # Build user_profile from identity (Contains all identity information)
                 # TODO: Refactor with unified RunContext object
                 #   Current approach passes user_profile through Run.metadata -> ContextService -> LLMService
@@ -252,18 +270,20 @@ class OrchestratorService:
                 #   to simplify the data passing chain and reduce coupling.
                 # See docs/future_roadmap.md for more details.
                 user_profile = {
-                    'public_key': identity['public_key'],
-                    'config_overrides': identity.get('config_overrides', {}),
-                    'prompt_overrides': identity.get('prompt_overrides', {}),
-                    'created_at': identity.get('created_at'),
+                    "public_key": identity["public_key"],
+                    "config_overrides": identity.get("config_overrides", {}),
+                    "prompt_overrides": identity.get("prompt_overrides", {}),
+                    "created_at": identity.get("created_at"),
                 }
-                
+
                 # Inject user_profile into Run.metadata
                 if run.metadata is None:
                     run.metadata = {}
-                run.metadata['user_profile'] = user_profile
-                logger.info(f"Injected user_profile into Run.metadata for owner_key={run.owner_key}")
-            
+                run.metadata["user_profile"] = user_profile
+                logger.info(
+                    f"Injected user_profile into Run.metadata for owner_key={run.owner_key}"
+                )
+
             # === MEMBER FLOW: Continue normal processing ===
             # Publish run_started UI event
             run_started_event = self._create_ui_event(
@@ -272,8 +292,8 @@ class OrchestratorService:
                 event_type=UI_EVENT_RUN_STARTED,
                 payload={
                     "owner_key": run.owner_key,
-                    "user_input": self._extract_user_input_from_run(run)
-                }
+                    "user_input": self._extract_user_input_from_run(run),
+                },
             )
             await self.bus.publish(Topics.UI_EVENTS, run_started_event)
             logger.info(f"Published run_started UI event for run_id={run.id}")
@@ -289,7 +309,7 @@ class OrchestratorService:
                 run_id=run.id,
                 owner_key=run.owner_key,
                 role=Role.SYSTEM,
-                content=run  # Pass the entire Run object with user_profile in metadata
+                content=run,  # Pass the entire Run object with user_profile in metadata
             )
 
             await self.bus.publish(Topics.CONTEXT_BUILD_REQUEST, context_request)
@@ -339,15 +359,19 @@ class OrchestratorService:
                 content={
                     "messages": messages,
                     "tools": tools,
-                    "user_profile": run.metadata.get('user_profile', {})  # Pass user_profile for dynamic config
-                }
+                    "user_profile": run.metadata.get(
+                        "user_profile", {}
+                    ),  # Pass user_profile for dynamic config
+                },
             )
 
             await self.bus.publish(Topics.LLM_REQUESTS, llm_request)
             logger.info(f"Published LLM request for run_id={run_id}")
 
         except Exception as e:
-            logger.error(f"Error handling context ready for run_id={message.run_id}: {e}")
+            logger.error(
+                f"Error handling context ready for run_id={message.run_id}: {e}"
+            )
 
     async def handle_llm_result(self, message: Message) -> None:
         """
@@ -368,7 +392,10 @@ class OrchestratorService:
             content = message.content
 
             # Forward interim streaming events (text_chunk, tool_call_started) to UI as-is
-            if isinstance(content, dict) and content.get("event") in {UI_EVENT_TEXT_CHUNK, UI_EVENT_TOOL_CALL_STARTED}:
+            if isinstance(content, dict) and content.get("event") in {
+                UI_EVENT_TEXT_CHUNK,
+                UI_EVENT_TOOL_CALL_STARTED,
+            }:
                 ui_event = Message(
                     run_id=run_id,
                     owner_key=run.owner_key,
@@ -376,7 +403,9 @@ class OrchestratorService:
                     content=content,
                 )
                 await self.bus.publish(Topics.UI_EVENTS, ui_event)
-                logger.info(f"Forwarded streaming event '{content.get('event')}' for run_id={run_id} to UI")
+                logger.info(
+                    f"Forwarded streaming event '{content.get('event')}' for run_id={run_id} to UI"
+                )
                 return
 
             llm_content = content.get("content", "")
@@ -384,11 +413,15 @@ class OrchestratorService:
 
             # Check if there are tool calls
             if tool_calls:
-                logger.info(f"Tool calls detected for run_id={run_id}: {len(tool_calls)} calls")
+                logger.info(
+                    f"Tool calls detected for run_id={run_id}: {len(tool_calls)} calls"
+                )
 
                 # Safety valve: check iteration count
                 if run.iteration_count >= self.max_tool_iterations:
-                    logger.warning(f"Max tool iterations ({self.max_tool_iterations}) exceeded for run_id={run_id}")
+                    logger.warning(
+                        f"Max tool iterations ({self.max_tool_iterations}) exceeded for run_id={run_id}"
+                    )
                     run.status = RunStatus.TIMED_OUT
 
                     # Send error message to UI
@@ -401,8 +434,8 @@ class OrchestratorService:
                             "run_id": run_id,
                             "payload": {
                                 "message": f"Maximum tool iterations ({self.max_tool_iterations}) exceeded"
-                            }
-                        }
+                            },
+                        },
                     )
                     await self.bus.publish(Topics.UI_EVENTS, error_event)
 
@@ -411,18 +444,22 @@ class OrchestratorService:
                         run_id=run_id,
                         owner_key=run.owner_key,
                         event_type=UI_EVENT_RUN_FINISHED,
-                        payload={"status": "timed_out"}
+                        payload={"status": "timed_out"},
                     )
                     await self.bus.publish(Topics.UI_EVENTS, run_finished_event)
-                    logger.info(f"Published run_finished UI event for timed out run_id={run_id}")
+                    logger.info(
+                        f"Published run_finished UI event for timed out run_id={run_id}"
+                    )
 
                     # Remove timed out run
                     del self.active_runs[run_id]
                     return
 
                 # Record pending tool calls count for synchronization
-                run.metadata['pending_tool_calls'] = len(tool_calls)
-                logger.info(f"Set pending_tool_calls to {len(tool_calls)} for run_id={run_id}")
+                run.metadata["pending_tool_calls"] = len(tool_calls)
+                logger.info(
+                    f"Set pending_tool_calls to {len(tool_calls)} for run_id={run_id}"
+                )
 
                 # Update run status and increment iteration count
                 run.status = RunStatus.AWAITING_TOOL_RESULT
@@ -434,7 +471,7 @@ class OrchestratorService:
                     owner_key=run.owner_key,
                     role=Role.AI,
                     content=llm_content,
-                    metadata={"tool_calls": tool_calls}
+                    metadata={"tool_calls": tool_calls},
                 )
                 run.history.append(ai_message)
 
@@ -454,11 +491,13 @@ class OrchestratorService:
                         content={
                             "name": tool_call.get("function", {}).get("name"),
                             "args": parsed_args,
-                            "call_id": tool_call.get("id")
-                        }
+                            "call_id": tool_call.get("id"),
+                        },
                     )
                     await self.bus.publish(Topics.TOOLS_REQUESTS, tool_request)
-                    logger.info(f"Published tool request for {tool_call.get('function', {}).get('name')} in run_id={run_id}")
+                    logger.info(
+                        f"Published tool request for {tool_call.get('function', {}).get('name')} in run_id={run_id}"
+                    )
 
             else:
                 # No tool calls, complete the run
@@ -470,7 +509,7 @@ class OrchestratorService:
                     run_id=run_id,
                     owner_key=run.owner_key,
                     event_type=UI_EVENT_RUN_FINISHED,
-                    payload={"status": "completed"}
+                    payload={"status": "completed"},
                 )
                 await self.bus.publish(Topics.UI_EVENTS, run_finished_event)
                 logger.info(f"Published run_finished UI event for run_id={run_id}")
@@ -512,11 +551,13 @@ class OrchestratorService:
                 payload={
                     "tool_name": tool_name,
                     "status": "success" if tool_status == "success" else "error",
-                    "result": tool_result
-                }
+                    "result": tool_result,
+                },
             )
             await self.bus.publish(Topics.UI_EVENTS, tool_finished_event)
-            logger.info(f"Published tool_call_finished UI event for {tool_name} in run_id={run_id}")
+            logger.info(
+                f"Published tool_call_finished UI event for {tool_name} in run_id={run_id}"
+            )
 
             # Record tool result: add the tool message to history
             tool_message = Message(
@@ -524,22 +565,28 @@ class OrchestratorService:
                 owner_key=run.owner_key,
                 role=Role.TOOL,
                 content=tool_result,
-                metadata={"tool_name": tool_name, "status": tool_status, "call_id": call_id}
+                metadata={
+                    "tool_name": tool_name,
+                    "status": tool_status,
+                    "call_id": call_id,
+                },
             )
             run.history.append(tool_message)
 
-
-
             # Synchronization logic: decrement pending tool calls count
-            current_pending_count = run.metadata.get('pending_tool_calls', 0)
+            current_pending_count = run.metadata.get("pending_tool_calls", 0)
             if current_pending_count > 0:
-                run.metadata['pending_tool_calls'] = current_pending_count - 1
-                remaining_tool_calls = run.metadata['pending_tool_calls']
-                logger.info(f"Decremented pending_tool_calls to {remaining_tool_calls} for run_id={run_id}")
+                run.metadata["pending_tool_calls"] = current_pending_count - 1
+                remaining_tool_calls = run.metadata["pending_tool_calls"]
+                logger.info(
+                    f"Decremented pending_tool_calls to {remaining_tool_calls} for run_id={run_id}"
+                )
 
                 # Only proceed to call LLM when all tools have completed
                 if remaining_tool_calls > 0:
-                    logger.info(f"Waiting for {remaining_tool_calls} more tool results for run_id={run_id}")
+                    logger.info(
+                        f"Waiting for {remaining_tool_calls} more tool results for run_id={run_id}"
+                    )
                     return
 
             # All tools completed, proceed with LLM call
@@ -553,7 +600,9 @@ class OrchestratorService:
 
             # When in E2E fake LLM mode (NEXUS_E2E_FAKE_LLM=1), pass empty tool list to avoid loops;
             # Otherwise, retain available tools in normal environment to support continuous tool calls.
-            tools_for_followup = [] if os.getenv("NEXUS_E2E_FAKE_LLM", "0") == "1" else run.tools
+            tools_for_followup = (
+                [] if os.getenv("NEXUS_E2E_FAKE_LLM", "0") == "1" else run.tools
+            )
 
             llm_request = Message(
                 run_id=run_id,
@@ -562,8 +611,10 @@ class OrchestratorService:
                 content={
                     "messages": messages,
                     "tools": tools_for_followup,
-                    "user_profile": run.metadata.get('user_profile', {})  # Pass user_profile for dynamic config
-                }
+                    "user_profile": run.metadata.get(
+                        "user_profile", {}
+                    ),  # Pass user_profile for dynamic config
+                },
             )
 
             await self.bus.publish(Topics.LLM_REQUESTS, llm_request)

@@ -23,10 +23,11 @@ Commands are discovered from nexus.commands.definition modules. Each module
 should export a COMMAND_DEFINITION dict and an execute() async function.
 """
 
-import logging
 import importlib
+import logging
 import pkgutil
-from typing import Dict, Any, Callable, Awaitable, Optional
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from nexus.core.auth import verify_signature
 from nexus.core.bus import NexusBus
@@ -60,10 +61,12 @@ class CommandService:
         self.services = services
 
         # Registry for command execution functions
-        self._command_registry: Dict[str, Callable[[Dict[str, Any]], Awaitable[Dict[str, Any]]]] = {}
+        self._command_registry: dict[
+            str, Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
+        ] = {}
 
         # Registry for command metadata (definitions)
-        self._command_definitions: Dict[str, Dict[str, Any]] = {}
+        self._command_definitions: dict[str, dict[str, Any]] = {}
 
         # Auto-discover and register commands
         self._discover_and_register_commands()
@@ -71,7 +74,9 @@ class CommandService:
         # Subscribe to command requests
         self.bus.subscribe(Topics.SYSTEM_COMMAND, self.handle_command)
 
-        logger.info(f"CommandService initialized with {len(self._command_registry)} commands")
+        logger.info(
+            f"CommandService initialized with {len(self._command_registry)} commands"
+        )
 
     def _discover_and_register_commands(self) -> None:
         """
@@ -83,8 +88,8 @@ class CommandService:
         try:
             logger.info("Starting command discovery in nexus.commands.definition")
 
-            package = importlib.import_module('nexus.commands.definition')
-            if not hasattr(package, '__path__'):
+            package = importlib.import_module("nexus.commands.definition")
+            if not hasattr(package, "__path__"):
                 logger.warning("nexus.commands.definition has no __path__ attribute")
                 return
 
@@ -96,12 +101,14 @@ class CommandService:
 
             # Also process the root module itself
             try:
-                self._process_module_for_commands('nexus.commands.definition')
+                self._process_module_for_commands("nexus.commands.definition")
             except Exception:
                 # Don't fail discovery if root processing has issues
                 pass
 
-            logger.info(f"Command discovery completed. Registered {len(self._command_registry)} commands")
+            logger.info(
+                f"Command discovery completed. Registered {len(self._command_registry)} commands"
+            )
 
         except Exception as e:
             logger.error(f"Error during command discovery: {e}")
@@ -121,12 +128,14 @@ class CommandService:
             command_definitions = self._extract_command_definitions(module)
 
             for cmd_def_name, cmd_definition in command_definitions.items():
-                self._register_command_from_definition(module, module_name, cmd_def_name, cmd_definition)
+                self._register_command_from_definition(
+                    module, module_name, cmd_def_name, cmd_definition
+                )
 
         except Exception as e:
             logger.error(f"Error importing command module {module_name}: {e}")
 
-    def _extract_command_definitions(self, module) -> Dict[str, Dict]:
+    def _extract_command_definitions(self, module) -> dict[str, dict]:
         """
         Extract command definitions from a module.
 
@@ -138,14 +147,16 @@ class CommandService:
         """
         command_definitions = {}
         for attr_name in dir(module):
-            if attr_name == 'COMMAND_DEFINITION' and not attr_name.startswith('_'):
+            if attr_name == "COMMAND_DEFINITION" and not attr_name.startswith("_"):
                 attr_value = getattr(module, attr_name)
                 if isinstance(attr_value, dict):
                     command_definitions[attr_name] = attr_value
                     logger.debug(f"Found command definition: {attr_name}")
         return command_definitions
 
-    def _register_command_from_definition(self, module, module_name: str, cmd_def_name: str, cmd_definition: Dict) -> None:
+    def _register_command_from_definition(
+        self, module, module_name: str, cmd_def_name: str, cmd_definition: dict
+    ) -> None:
         """
         Register a command from its definition and corresponding execute function.
 
@@ -158,7 +169,9 @@ class CommandService:
         try:
             # Validate command definition structure
             if "name" not in cmd_definition:
-                logger.warning(f"Invalid command definition {cmd_def_name}: missing name")
+                logger.warning(
+                    f"Invalid command definition {cmd_def_name}: missing name"
+                )
                 return
 
             command_name = cmd_definition["name"]
@@ -169,24 +182,34 @@ class CommandService:
             if handler_type == "rest":
                 # Register definition only (no executor needed)
                 self._command_definitions[command_name] = cmd_definition
-                logger.info(f"Registered {handler_type} command: {command_name} from {module_name}")
+                logger.info(
+                    f"Registered {handler_type} command: {command_name} from {module_name}"
+                )
                 return
 
             # For server/websocket/client commands, execute function is required
             if hasattr(module, "execute"):
-                execute_function = getattr(module, "execute")
+                execute_function = module.execute
                 if callable(execute_function):
                     # Register both executor and definition
                     self._command_registry[command_name] = execute_function
                     self._command_definitions[command_name] = cmd_definition
-                    logger.info(f"Registered command: {command_name} from {module_name}")
+                    logger.info(
+                        f"Registered command: {command_name} from {module_name}"
+                    )
                 else:
-                    logger.warning(f"Found execute function in {module_name} but it's not callable")
+                    logger.warning(
+                        f"Found execute function in {module_name} but it's not callable"
+                    )
             else:
-                logger.warning(f"Execute function not found in {module_name} for {handler_type} command")
+                logger.warning(
+                    f"Execute function not found in {module_name} for {handler_type} command"
+                )
 
         except Exception as e:
-            logger.error(f"Error processing command definition {cmd_def_name} in {module_name}: {e}")
+            logger.error(
+                f"Error processing command definition {cmd_def_name} in {module_name}: {e}"
+            )
 
     async def handle_command(self, message: Message) -> None:
         """
@@ -211,27 +234,29 @@ class CommandService:
                 # Command not found
                 result = {
                     "status": "error",
-                    "message": f"Unknown command: {command_name}. Type '/help' for available commands."
+                    "message": f"Unknown command: {command_name}. Type '/help' for available commands.",
                 }
                 await self._publish_result(message, result)
                 return
 
             # Check if command requires signature verification
             command_definition = self._command_definitions.get(command_name, {})
-            requires_signature = command_definition.get('requiresSignature', False)
+            requires_signature = command_definition.get("requiresSignature", False)
 
             # Verify signature if required
-            verified_public_key: Optional[str] = None
+            verified_public_key: str | None = None
             if requires_signature:
                 verification_result = self._verify_signature(command_str, auth_data)
-                if verification_result['status'] == 'error':
+                if verification_result["status"] == "error":
                     # Signature verification failed
                     await self._publish_result(message, verification_result)
                     return
-                verified_public_key = verification_result.get('public_key')
+                verified_public_key = verification_result.get("public_key")
 
             # Build execution context
-            context = self._build_execution_context(command_name, command_str, verified_public_key)
+            context = self._build_execution_context(
+                command_name, command_str, verified_public_key
+            )
 
             # Execute the command
             try:
@@ -243,7 +268,7 @@ class CommandService:
                 # Command execution failed
                 error_result = {
                     "status": "error",
-                    "message": f"Command execution failed: {str(e)}"
+                    "message": f"Command execution failed: {str(e)}",
                 }
                 await self._publish_result(message, error_result)
                 logger.error(f"Command '{command_name}' execution failed: {e}")
@@ -252,12 +277,12 @@ class CommandService:
             # General error handling
             error_result = {
                 "status": "error",
-                "message": f"Command processing error: {str(e)}"
+                "message": f"Command processing error: {str(e)}",
             }
             await self._publish_result(message, error_result)
             logger.error(f"Command processing error: {e}")
 
-    def _parse_command_payload(self, content) -> tuple[str, Optional[Dict[str, Any]]]:
+    def _parse_command_payload(self, content) -> tuple[str, dict[str, Any] | None]:
         """
         Parse command payload which can be either a string or a structured object.
 
@@ -269,17 +294,17 @@ class CommandService:
         """
         # Handle structured payload with auth
         if isinstance(content, dict):
-            command_str = content.get('command', '')
-            auth_data = content.get('auth')
+            command_str = content.get("command", "")
+            auth_data = content.get("auth")
             return command_str, auth_data
-        
+
         # Handle legacy string payload
         return str(content), None
 
     def _parse_command_name(self, content: str) -> str:
         """
         Parse the command name from the message content.
-        
+
         For commands with sub-paths (e.g., "/identity/delete"), this returns
         only the base command name (e.g., "identity"). The full command string
         is passed separately in the execution context for internal routing.
@@ -297,18 +322,20 @@ class CommandService:
             raise ValueError("Command content must be a non-empty string")
 
         # Remove leading slash and whitespace
-        command = content.strip().lstrip('/')
+        command = content.strip().lstrip("/")
 
         if not command:
             raise ValueError("Command name cannot be empty")
 
         # For commands with sub-paths (e.g., "identity/delete"), extract only the base command
         # The full command string is passed in context['command'] for internal routing
-        base_command = command.split('/')[0]
+        base_command = command.split("/")[0]
 
         return base_command
 
-    def _verify_signature(self, command_str: str, auth_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def _verify_signature(
+        self, command_str: str, auth_data: dict[str, Any] | None
+    ) -> dict[str, Any]:
         """
         Verify cryptographic signature for a command.
 
@@ -328,7 +355,9 @@ class CommandService:
         # Delegate to shared authentication module
         return verify_signature(command_str, auth_data)
 
-    def _build_execution_context(self, command_name: str, command_str: str, public_key: Optional[str] = None) -> Dict[str, Any]:
+    def _build_execution_context(
+        self, command_name: str, command_str: str, public_key: str | None = None
+    ) -> dict[str, Any]:
         """
         Build the execution context for a command.
 
@@ -341,20 +370,24 @@ class CommandService:
             Dictionary containing all required context for command execution
         """
         context = {
-            'command_name': command_name,
-            'command': command_str,  # Pass the full command string for routing within commands
-            'command_definitions': self._command_definitions,
-            **self.services  # Inject all available services
+            "command_name": command_name,
+            "command": command_str,  # Pass the full command string for routing within commands
+            "command_definitions": self._command_definitions,
+            **self.services,  # Inject all available services
         }
 
         # Inject verified public key if available
         if public_key:
-            context['public_key'] = public_key
+            context["public_key"] = public_key
 
-        logger.debug(f"Built execution context for command '{command_name}' (full: '{command_str}')")
+        logger.debug(
+            f"Built execution context for command '{command_name}' (full: '{command_str}')"
+        )
         return context
 
-    async def _publish_result(self, original_message: Message, result: Dict[str, Any]) -> None:
+    async def _publish_result(
+        self, original_message: Message, result: dict[str, Any]
+    ) -> None:
         """
         Publish the result of command execution to the event bus.
 
@@ -368,10 +401,7 @@ class CommandService:
             owner_key=original_message.owner_key,
             role=Role.SYSTEM,
             content=result,
-            metadata={
-                "command": original_message.content,
-                "source": "CommandService"
-            }
+            metadata={"command": original_message.content, "source": "CommandService"},
         )
 
         # Publish to command result topic
@@ -379,10 +409,10 @@ class CommandService:
 
         logger.info(f"Published command result for run_id={original_message.run_id}")
 
-    def get_all_command_definitions(self) -> list[Dict[str, Any]]:
+    def get_all_command_definitions(self) -> list[dict[str, Any]]:
         """
         Get all registered command definitions as a list.
-        
+
         This method returns command definitions in list format, suitable for
         JSON serialization and REST API responses. Each definition contains
         metadata including name, handler, description, usage, and examples.

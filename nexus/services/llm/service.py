@@ -25,18 +25,19 @@ streaming for the Orchestrator to forward to UI (preserving order). It then send
 result with complete tool calls to LLM_RESULTS as a consolidated message.
 """
 
-import logging
-import os
 import asyncio
 import json
-from typing import Dict
+import logging
+import os
+
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
 from nexus.services.config import ConfigService
+
+from .providers.deepseek import DeepSeekLLMProvider
 from .providers.google import GoogleLLMProvider
 from .providers.openrouter import OpenRouterLLMProvider
-from .providers.deepseek import DeepSeekLLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,6 @@ class LLMService:
 
         # No longer initialize a single provider - providers are created dynamically per request
         logger.info("LLMService initialized (dynamic provider mode)")
-
 
     def subscribe_to_bus(self) -> None:
         """Subscribe to LLM request topics."""
@@ -96,14 +96,16 @@ class LLMService:
 
             # Compose effective configuration (user overrides + defaults)
             effective_config = self._compose_effective_config(user_profile)
-            
+
             # Get final model name (friendly alias or provider id)
-            requested_model = effective_config.get('model')
+            requested_model = effective_config.get("model")
             model_name = self._resolve_model_name(requested_model)
-            temperature = effective_config.get('temperature', DEFAULT_TEMPERATURE)
-            max_tokens = effective_config.get('max_tokens', DEFAULT_MAX_TOKENS)
-            
-            logger.info(f"Using model '{model_name}' with temperature={temperature}, max_tokens={max_tokens} for run_id={run_id}")
+            temperature = effective_config.get("temperature", DEFAULT_TEMPERATURE)
+            max_tokens = effective_config.get("max_tokens", DEFAULT_MAX_TOKENS)
+
+            logger.info(
+                f"Using model '{model_name}' with temperature={temperature}, max_tokens={max_tokens} for run_id={run_id}"
+            )
 
             # Dynamically get provider for this specific model
             provider = self._get_provider_for_model(model_name)
@@ -115,7 +117,13 @@ class LLMService:
             if stream:
                 # Handle streaming response in real-time with dynamic provider
                 await self._execute_streaming_with_provider(
-                    provider, messages, tools, temperature, max_tokens, run_id, message.owner_key
+                    provider,
+                    messages,
+                    tools,
+                    temperature,
+                    max_tokens,
+                    run_id,
+                    message.owner_key,
                 )
             else:
                 # Handle non-streaming response
@@ -124,7 +132,7 @@ class LLMService:
                     tools=tools,
                     temperature=temperature,
                     max_tokens=max_tokens,
-                    stream=False
+                    stream=False,
                 )
                 await self._handle_non_streaming_result(message, result)
 
@@ -137,102 +145,114 @@ class LLMService:
                 role=Role.SYSTEM,
                 content={
                     "content": f"Error processing LLM request: {str(e)}",
-                    "tool_calls": None
-                }
+                    "tool_calls": None,
+                },
             )
             await self.bus.publish(Topics.LLM_RESULTS, error_message)
 
-    def _compose_effective_config(self, user_profile: Dict) -> Dict:
+    def _compose_effective_config(self, user_profile: dict) -> dict:
         """
         Compose effective LLM configuration by merging defaults with user overrides.
-        
+
         Args:
             user_profile: User profile containing config_overrides
-            
+
         Returns:
             Dictionary with effective configuration (model, temperature, max_tokens)
         """
         # Get default configuration from ConfigService
         user_defaults = self.config_service.get_user_defaults()
-        default_config = user_defaults.get('config', {})
-        
+        default_config = user_defaults.get("config", {})
+
         # Get user overrides
-        config_overrides = user_profile.get('config_overrides', {})
-        
+        config_overrides = user_profile.get("config_overrides", {})
+
         # Merge (overrides take precedence)
         effective_config = {
-            'model': config_overrides.get('model', default_config.get('model', 'gemini-2.5-flash')),
-            'temperature': config_overrides.get('temperature', default_config.get('temperature', DEFAULT_TEMPERATURE)),
-            'max_tokens': config_overrides.get('max_tokens', default_config.get('max_tokens', DEFAULT_MAX_TOKENS))
+            "model": config_overrides.get(
+                "model", default_config.get("model", "gemini-2.5-flash")
+            ),
+            "temperature": config_overrides.get(
+                "temperature", default_config.get("temperature", DEFAULT_TEMPERATURE)
+            ),
+            "max_tokens": config_overrides.get(
+                "max_tokens", default_config.get("max_tokens", DEFAULT_MAX_TOKENS)
+            ),
         }
-        
-        logger.info(f"Composed effective config with overrides: {list(config_overrides.keys())}")
+
+        logger.info(
+            f"Composed effective config with overrides: {list(config_overrides.keys())}"
+        )
         return effective_config
 
     def _get_provider_for_model(self, model_name: str):
         """
         Dynamically instantiate the appropriate provider for a given model name.
-        
+
         Args:
             model_name: Name of the model to use
-            
+
         Returns:
             Instance of the appropriate LLM provider
-            
+
         Raises:
             ValueError: If provider is not supported
         """
         # Get model catalog from ConfigService
         catalog = self.config_service.get_llm_catalog()
-        
+
         # Check if model exists in catalog
         if model_name not in catalog:
-            logger.warning(f"Model '{model_name}' not in catalog, falling back to default")
+            logger.warning(
+                f"Model '{model_name}' not in catalog, falling back to default"
+            )
             # Fallback to default model
             user_defaults = self.config_service.get_user_defaults()
-            model_name = user_defaults.get('config', {}).get('model', 'gemini-2.5-flash')
-        
+            model_name = user_defaults.get("config", {}).get(
+                "model", "gemini-2.5-flash"
+            )
+
         # Get provider name for this model
-        provider_name = catalog.get(model_name, {}).get('provider', 'google')
+        provider_name = catalog.get(model_name, {}).get("provider", "google")
         logger.info(f"Using provider: {provider_name} for model: {model_name}")
-        
+
         # Get provider configuration
         provider_config = self.config_service.get_provider_config(provider_name)
-        
+
         if not provider_config:
             raise ValueError(f"No configuration found for provider: {provider_name}")
-        
+
         # Get timeout from user_defaults config
         user_defaults = self.config_service.get_user_defaults()
-        default_config = user_defaults.get('config', {})
-        timeout = default_config.get('timeout', DEFAULT_TIMEOUT)
-        
+        default_config = user_defaults.get("config", {})
+        timeout = default_config.get("timeout", DEFAULT_TIMEOUT)
+
         # Instantiate the appropriate provider
         if provider_name == "google":
             return GoogleLLMProvider(
-                api_key=provider_config['api_key'],
-                base_url=provider_config['base_url'],
-                model=catalog.get(model_name, {}).get('id', model_name),
-                timeout=timeout
+                api_key=provider_config["api_key"],
+                base_url=provider_config["base_url"],
+                model=catalog.get(model_name, {}).get("id", model_name),
+                timeout=timeout,
             )
         elif provider_name == "deepseek":
             return DeepSeekLLMProvider(
-                api_key=provider_config['api_key'],
-                base_url=provider_config['base_url'],
-                model=catalog.get(model_name, {}).get('id', model_name),
-                timeout=timeout
+                api_key=provider_config["api_key"],
+                base_url=provider_config["base_url"],
+                model=catalog.get(model_name, {}).get("id", model_name),
+                timeout=timeout,
             )
         elif provider_name == "openrouter":
             return OpenRouterLLMProvider(
-                api_key=provider_config['api_key'],
-                base_url=provider_config['base_url'],
-                model=catalog.get(model_name, {}).get('id', model_name),
-                timeout=timeout
+                api_key=provider_config["api_key"],
+                base_url=provider_config["base_url"],
+                model=catalog.get(model_name, {}).get("id", model_name),
+                timeout=timeout,
             )
         else:
             raise ValueError(f"Unsupported provider: {provider_name}")
 
-    def _resolve_model_name(self, requested: str) -> str:
+    def _resolve_model_name(self, requested: str | None) -> str:
         """Resolve a friendly model alias to catalog key/provider id.
 
         Resolution order:
@@ -241,18 +261,20 @@ class LLMService:
         3) If matches any entry's 'id' (provider id), normalize to that entry's key
         4) Otherwise return as is
         """
+        if not requested:
+            return ""
         try:
             catalog = self.config_service.get_llm_catalog() or {}
             if requested in catalog:
                 return requested
 
             for key, meta in catalog.items():
-                aliases = (meta or {}).get('aliases') or []
+                aliases = (meta or {}).get("aliases") or []
                 if isinstance(aliases, list) and requested in aliases:
                     return key
 
             for key, meta in catalog.items():
-                provider_id = (meta or {}).get('id') or key
+                provider_id = (meta or {}).get("id") or key
                 if requested == provider_id:
                     return key
         except Exception:
@@ -264,7 +286,7 @@ class LLMService:
     ):
         """
         Execute streaming LLM call with a specific provider instance.
-        
+
         Args:
             provider: LLM provider instance to use
             messages: List of messages for the conversation
@@ -280,12 +302,18 @@ class LLMService:
         )
 
         # Process streaming chunks and collect results
-        content_chunks, tool_calls = await self._process_streaming_chunks(response, run_id, owner_key)
+        content_chunks, tool_calls = await self._process_streaming_chunks(
+            response, run_id, owner_key
+        )
 
         # Send final result
-        await self._send_final_streaming_result(run_id, owner_key, content_chunks, tool_calls)
+        await self._send_final_streaming_result(
+            run_id, owner_key, content_chunks, tool_calls
+        )
 
-    async def _create_streaming_response_with_provider(self, provider, messages, tools, temperature, max_tokens):
+    async def _create_streaming_response_with_provider(
+        self, provider, messages, tools, temperature, max_tokens
+    ):
         """Create streaming response from a specific LLM provider."""
         # Normalize messages to satisfy provider requirements
         normalized_messages = self._normalize_messages_for_provider(messages)
@@ -296,9 +324,8 @@ class LLMService:
             temperature=temperature,
             max_tokens=max_tokens,
             tools=tools if tools else None,
-            stream=True
+            stream=True,
         )
-
 
     def _normalize_messages_for_provider(self, messages: list[dict]) -> list[dict]:
         """Normalize messages to be compatible across providers.
@@ -349,7 +376,10 @@ class LLMService:
                     if not isinstance(content_val, str):
                         try:
                             import json as _json
-                            tool_msg["content"] = _json.dumps(content_val, ensure_ascii=False)
+
+                            tool_msg["content"] = _json.dumps(
+                                content_val, ensure_ascii=False
+                            )
                         except Exception:
                             tool_msg["content"] = str(content_val)
 
@@ -359,7 +389,9 @@ class LLMService:
                     non_tool_msg = dict(msg)
                     content_val = non_tool_msg.get("content")
                     if not isinstance(content_val, str):
-                        non_tool_msg["content"] = "" if content_val is None else str(content_val)
+                        non_tool_msg["content"] = (
+                            "" if content_val is None else str(content_val)
+                        )
                     normalized.append(non_tool_msg)
 
             return normalized
@@ -384,20 +416,20 @@ class LLMService:
             delta = chunk.choices[0].delta
 
             # Handle content chunks - publish immediately for real-time streaming
-            if hasattr(delta, 'content') and delta.content:
+            if hasattr(delta, "content") and delta.content:
                 content_chunks.append(delta.content)
                 await self._publish_text_chunk(run_id, owner_key, delta.content)
 
             # Collect and accumulate tool call deltas
-            if hasattr(delta, 'tool_calls') and delta.tool_calls:
+            if hasattr(delta, "tool_calls") and delta.tool_calls:
                 for tc in delta.tool_calls:
                     # Determine index (primary) for accumulation
                     try:
-                        idx = getattr(tc, 'index', None)
+                        idx = getattr(tc, "index", None)
                     except Exception:
                         idx = None
                     if idx is None and isinstance(tc, dict):
-                        idx = tc.get('index')
+                        idx = tc.get("index")
                     if idx is None:
                         # Fallback to single-call index 0
                         idx = 0
@@ -405,36 +437,64 @@ class LLMService:
                     entry = aggregated_tool_calls.get(idx)
                     if entry is None:
                         # Initialize entry
-                        tc_id = getattr(tc, 'id', '') if not isinstance(tc, dict) else tc.get('id', '')
-                        tc_type = getattr(tc, 'type', 'function') if not isinstance(tc, dict) else tc.get('type', 'function')
+                        tc_id = (
+                            getattr(tc, "id", "")
+                            if not isinstance(tc, dict)
+                            else tc.get("id", "")
+                        )
+                        tc_type = (
+                            getattr(tc, "type", "function")
+                            if not isinstance(tc, dict)
+                            else tc.get("type", "function")
+                        )
                         entry = {
                             "id": tc_id,
                             "type": tc_type or "function",
-                            "function": {"name": "", "arguments": ""}
+                            "function": {"name": "", "arguments": ""},
                         }
                         aggregated_tool_calls[idx] = entry
 
                     # Update id/type if provided later
                     try:
                         if not entry.get("id"):
-                            entry["id"] = getattr(tc, 'id', '') if not isinstance(tc, dict) else tc.get('id', '')
+                            entry["id"] = (
+                                getattr(tc, "id", "")
+                                if not isinstance(tc, dict)
+                                else tc.get("id", "")
+                            )
                         if not entry.get("type"):
-                            entry["type"] = getattr(tc, 'type', 'function') if not isinstance(tc, dict) else tc.get('type', 'function')
+                            entry["type"] = (
+                                getattr(tc, "type", "function")
+                                if not isinstance(tc, dict)
+                                else tc.get("type", "function")
+                            )
                     except Exception:
                         pass
 
                     # Merge function name and arguments (arguments arrive in parts)
-                    fn = getattr(tc, 'function', None) if not isinstance(tc, dict) else tc.get('function', {})
+                    fn = (
+                        getattr(tc, "function", None)
+                        if not isinstance(tc, dict)
+                        else tc.get("function", {})
+                    )
                     if fn is not None:
                         try:
-                            name_piece = getattr(fn, 'name', None) if not isinstance(tc, dict) else fn.get('name')
+                            name_piece = (
+                                getattr(fn, "name", None)
+                                if not isinstance(tc, dict)
+                                else fn.get("name")
+                            )
                         except Exception:
                             name_piece = None
                         if name_piece:
                             entry["function"]["name"] = name_piece
 
                         try:
-                            args_piece = getattr(fn, 'arguments', None) if not isinstance(tc, dict) else fn.get('arguments')
+                            args_piece = (
+                                getattr(fn, "arguments", None)
+                                if not isinstance(tc, dict)
+                                else fn.get("arguments")
+                            )
                         except Exception:
                             args_piece = None
                         if args_piece is not None:
@@ -443,21 +503,32 @@ class LLMService:
                             else:
                                 try:
                                     import json as _json
-                                    entry["function"]["arguments"] += _json.dumps(args_piece, ensure_ascii=False)
+
+                                    entry["function"]["arguments"] += _json.dumps(
+                                        args_piece, ensure_ascii=False
+                                    )
                                 except Exception:
                                     entry["function"]["arguments"] += str(args_piece)
 
         # Convert aggregated tool calls to ordered list by index
-        aggregated_list = [aggregated_tool_calls[i] for i in sorted(aggregated_tool_calls.keys())] if aggregated_tool_calls else None
+        aggregated_list = (
+            [aggregated_tool_calls[i] for i in sorted(aggregated_tool_calls.keys())]
+            if aggregated_tool_calls
+            else None
+        )
 
         # After all content chunks are streamed, publish tool_call_started events with aggregated calls
         if aggregated_list:
-            logger.info(f"All text chunks streamed for run_id={run_id}, now publishing tool_call_started events")
+            logger.info(
+                f"All text chunks streamed for run_id={run_id}, now publishing tool_call_started events"
+            )
             await self._publish_tool_call_events(run_id, owner_key, aggregated_list)
 
         return content_chunks, aggregated_list
 
-    async def _publish_text_chunk(self, run_id: str, owner_key: str, chunk: str) -> None:
+    async def _publish_text_chunk(
+        self, run_id: str, owner_key: str, chunk: str
+    ) -> None:
         """Publish a single text chunk via LLM_RESULTS for Orchestrator forwarding."""
         chunk_event = Message(
             run_id=run_id,
@@ -466,17 +537,21 @@ class LLMService:
             content={
                 "event": "text_chunk",
                 "run_id": run_id,
-                "payload": {"chunk": chunk}
-            }
+                "payload": {"chunk": chunk},
+            },
         )
         # Publish to LLM_RESULTS so Orchestrator can forward to UI preserving order
         await self.bus.publish(Topics.LLM_RESULTS, chunk_event)
-        logger.info(f"Published text chunk (LLM_RESULTS) for run_id={run_id}: '{chunk[:50]}...'")
+        logger.info(
+            f"Published text chunk (LLM_RESULTS) for run_id={run_id}: '{chunk[:50]}...'"
+        )
 
         # Add delay for realistic streaming
         await asyncio.sleep(STREAMING_CHUNK_DELAY)
 
-    async def _publish_tool_call_events(self, run_id: str, owner_key: str, tool_calls) -> None:
+    async def _publish_tool_call_events(
+        self, run_id: str, owner_key: str, tool_calls
+    ) -> None:
         """Publish tool_call_started events via LLM_RESULTS after text chunks.
 
         Supports both provider objects (with attributes) and dict structures.
@@ -486,18 +561,22 @@ class LLMService:
             tool_args = {}
 
             # Handle object-like tool call (provider SDK)
-            if hasattr(tool_call, 'function'):
+            if hasattr(tool_call, "function"):
                 function_info = tool_call.function
-                if hasattr(function_info, 'name'):
+                if hasattr(function_info, "name"):
                     tool_name = function_info.name
-                if hasattr(function_info, 'arguments'):
+                if hasattr(function_info, "arguments"):
                     try:
                         if isinstance(function_info.arguments, str):
                             tool_args = json.loads(function_info.arguments)
                         else:
                             tool_args = function_info.arguments
                     except (json.JSONDecodeError, AttributeError):
-                        tool_args = {"raw_arguments": str(getattr(function_info, 'arguments', ''))}
+                        tool_args = {
+                            "raw_arguments": str(
+                                getattr(function_info, "arguments", "")
+                            )
+                        }
             # Handle dict-based tool call (our fake path)
             elif isinstance(tool_call, dict):
                 function_info = tool_call.get("function", {})
@@ -521,37 +600,39 @@ class LLMService:
                 content={
                     "event": "tool_call_started",
                     "run_id": run_id,
-                    "payload": {
-                        "tool_name": tool_name,
-                        "args": tool_args
-                    }
-                }
+                    "payload": {"tool_name": tool_name, "args": tool_args},
+                },
             )
             # Publish to LLM_RESULTS so Orchestrator forwards after chunks
             await self.bus.publish(Topics.LLM_RESULTS, tool_event)
-            logger.info(f"Published tool_call_started (LLM_RESULTS) for run_id={run_id}, tool={tool_name}")
+            logger.info(
+                f"Published tool_call_started (LLM_RESULTS) for run_id={run_id}, tool={tool_name}"
+            )
 
         # Add a small delay to ensure proper event ordering
         await asyncio.sleep(TOOL_EVENT_ORDERING_DELAY)
 
-    async def _send_final_streaming_result(self, run_id: str, owner_key: str, content_chunks: list, tool_calls) -> None:
+    async def _send_final_streaming_result(
+        self, run_id: str, owner_key: str, content_chunks: list, tool_calls
+    ) -> None:
         """Send the final streaming result with tool calls."""
-        full_content = ''.join(content_chunks) if content_chunks else None
-        formatted_tool_calls = self._format_tool_calls(tool_calls) if tool_calls else None
+        full_content = "".join(content_chunks) if content_chunks else None
+        formatted_tool_calls = (
+            self._format_tool_calls(tool_calls) if tool_calls else None
+        )
 
         result_message = Message(
             run_id=run_id,
             owner_key=owner_key,
             role=Role.AI,
-            content={
-                "content": full_content,
-                "tool_calls": formatted_tool_calls
-            }
+            content={"content": full_content, "tool_calls": formatted_tool_calls},
         )
         await self.bus.publish(Topics.LLM_RESULTS, result_message)
         logger.info(f"Published real-time streaming LLM result for run_id={run_id}")
 
-    async def _handle_fake_llm_flow(self, original_message: Message, messages, tools) -> None:
+    async def _handle_fake_llm_flow(
+        self, original_message: Message, messages, tools
+    ) -> None:
         """Simulate streaming, optional tool call, and final result for E2E tests.
 
         This avoids reliance on external LLM providers and ensures deterministic UI events
@@ -566,7 +647,9 @@ class LLMService:
 
         # 2) Optionally emit a single web_search tool call if tools include it
         has_web_search = any(
-            (t.get("function", {}).get("name") == "web_search") if isinstance(t, dict) else False
+            (t.get("function", {}).get("name") == "web_search")
+            if isinstance(t, dict)
+            else False
             for t in (tools or [])
         )
         tool_calls = None
@@ -575,46 +658,76 @@ class LLMService:
             await self._publish_tool_call_events(
                 run_id,
                 owner_key,
-                [{
+                [
+                    {
+                        "id": "call_fake_1",
+                        "type": "function",
+                        "function": {
+                            "name": "web_search",
+                            "arguments": json.dumps(
+                                {"query": "artificial intelligence news"}
+                            ),
+                        },
+                    }
+                ],
+            )
+            tool_calls = [
+                {
                     "id": "call_fake_1",
                     "type": "function",
-                    "function": {"name": "web_search", "arguments": json.dumps({"query": "artificial intelligence news"})}
-                }]
-            )
-            tool_calls = [{
-                "id": "call_fake_1",
-                "type": "function",
-                "function": {"name": "web_search", "arguments": json.dumps({"query": "artificial intelligence news"})}
-            }]
+                    "function": {
+                        "name": "web_search",
+                        "arguments": json.dumps(
+                            {"query": "artificial intelligence news"}
+                        ),
+                    },
+                }
+            ]
 
         # 3) Send final result (no actual provider call)
-        await self._send_final_streaming_result(run_id, owner_key, [" Here is a concise summary."], tool_calls)
+        await self._send_final_streaming_result(
+            run_id, owner_key, [" Here is a concise summary."], tool_calls
+        )
 
     def _format_tool_calls(self, tool_calls) -> list:
         """Format tool calls to expected structure; supports object or dict."""
         formatted_tool_calls = []
         for tool_call in tool_calls:
-            if hasattr(tool_call, 'id') and hasattr(tool_call, 'type') and hasattr(tool_call, 'function'):
-                formatted_tool_calls.append({
-                    "id": tool_call.id,
-                    "type": tool_call.type,
-                    "function": {
-                        "name": getattr(tool_call.function, 'name', 'unknown'),
-                        "arguments": getattr(tool_call.function, 'arguments', {})
+            if (
+                hasattr(tool_call, "id")
+                and hasattr(tool_call, "type")
+                and hasattr(tool_call, "function")
+            ):
+                formatted_tool_calls.append(
+                    {
+                        "id": tool_call.id,
+                        "type": tool_call.type,
+                        "function": {
+                            "name": getattr(tool_call.function, "name", "unknown"),
+                            "arguments": getattr(tool_call.function, "arguments", {}),
+                        },
                     }
-                })
+                )
             elif isinstance(tool_call, dict):
-                formatted_tool_calls.append({
-                    "id": tool_call.get("id", ""),
-                    "type": tool_call.get("type", "function"),
-                    "function": {
-                        "name": tool_call.get("function", {}).get("name", "unknown"),
-                        "arguments": tool_call.get("function", {}).get("arguments", {})
+                formatted_tool_calls.append(
+                    {
+                        "id": tool_call.get("id", ""),
+                        "type": tool_call.get("type", "function"),
+                        "function": {
+                            "name": tool_call.get("function", {}).get(
+                                "name", "unknown"
+                            ),
+                            "arguments": tool_call.get("function", {}).get(
+                                "arguments", {}
+                            ),
+                        },
                     }
-                })
+                )
         return formatted_tool_calls
 
-    async def _handle_non_streaming_result(self, original_message: Message, result: Dict) -> None:
+    async def _handle_non_streaming_result(
+        self, original_message: Message, result: dict
+    ) -> None:
         """Handle non-streaming LLM result."""
         run_id = original_message.run_id
         owner_key = original_message.owner_key
@@ -624,10 +737,7 @@ class LLMService:
             run_id=run_id,
             owner_key=owner_key,
             role=Role.AI,
-            content={
-                "content": result["content"],
-                "tool_calls": result["tool_calls"]
-            }
+            content={"content": result["content"], "tool_calls": result["tool_calls"]},
         )
 
         # Publish the result

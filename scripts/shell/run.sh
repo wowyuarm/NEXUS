@@ -54,28 +54,26 @@ trap "echo -e '\n${C_YELLOW}Shutting down services...${C_NC}'; kill 0 2>/dev/nul
 
 print_header "NEXUS Backend Startup"
 
-# Check for Python virtual environment
-if [ ! -d ".venv" ]; then
-    echo -e "${C_YELLOW}Python virtual environment not found. Creating...${C_NC}"
-    python3 -m venv .venv
+# Check for Poetry
+if ! command_exists poetry; then
+    echo -e "${C_YELLOW}Poetry not found. Installing...${C_NC}"
+    curl -sSL https://install.python-poetry.org | python3 -
+    export PATH="$HOME/.local/bin:$PATH"
 fi
 
-# Activate virtual environment
-source .venv/bin/activate
-
-# Check and install Python dependencies
-if [ -f "requirements.txt" ]; then
-    echo "Checking Python dependencies..."
-    pip install -r requirements.txt --quiet
+# Install Python dependencies via Poetry
+if [ -f "pyproject.toml" ]; then
+    echo "Installing Python dependencies via Poetry..."
+    poetry install --only main --quiet
 else
-    echo -e "${C_RED}Error: requirements.txt not found!${C_NC}"
+    echo -e "${C_RED}Error: pyproject.toml not found!${C_NC}"
     exit 1
 fi
 
 # Clean port and start backend in the background
 kill_on_port 8000
 echo -e "${C_GREEN}Starting NEXUS backend server in the background...${C_NC}"
-python -m nexus.main &
+poetry run python -m nexus.main &
 BACKEND_PID=$!
 echo -e "Backend PID: ${C_BLUE}$BACKEND_PID${C_NC}"
 sleep 3 # Give backend a moment to start
