@@ -18,8 +18,10 @@ COPY pyproject.toml poetry.lock ./
 # Export dependencies to requirements.txt (no Poetry in runtime image)
 RUN poetry export -f requirements.txt --output requirements.txt --without-hashes --only main
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Create virtual environment and install dependencies
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY nexus/ ./nexus/
@@ -38,14 +40,14 @@ RUN apt-get update && apt-get install -y \
 # Create non-root user for security
 RUN adduser --disabled-password --gecos "" nexususer
 
-# Copy installed Python packages from builder stage
-COPY --from=builder /root/.local /home/nexususer/.local
+# Copy virtual environment from builder stage
+COPY --from=builder /opt/venv /opt/venv
 
 # Copy application code
 COPY --from=builder /app/nexus ./nexus
 
 # Set environment variables
-ENV PATH="/home/nexususer/.local/bin:${PATH}"
+ENV PATH="/opt/venv/bin:${PATH}"
 ENV PYTHONPATH="/app"
 
 # Change ownership of the app directory to nexususer
