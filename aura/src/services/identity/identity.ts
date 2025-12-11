@@ -41,7 +41,7 @@ export const IdentityService = {
         // Save mnemonic phrase separately for backup/export
         if (wallet.mnemonic && typeof wallet.mnemonic === 'object' && 'phrase' in wallet.mnemonic) {
           localStorage.setItem(MNEMONIC_KEY, (wallet.mnemonic as { phrase: string }).phrase);
-          console.log('✅ Mnemonic saved to localStorage');
+          console.log('Mnemonic saved to localStorage');
         }
 
         return {
@@ -79,7 +79,7 @@ export const IdentityService = {
     try {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(MNEMONIC_KEY);
-      console.log('🧹 Identity cleared (private key and mnemonic)');
+      console.log('Identity cleared (private key and mnemonic)');
     } catch (error) {
       console.warn('Failed to clear identity from localStorage:', error);
     }
@@ -199,7 +199,7 @@ export const IdentityService = {
         throw new Error('No mnemonic found. This identity was created with an older version. Please clear and recreate your identity.');
       }
       
-      console.log('✅ Mnemonic exported successfully');
+      console.log('Mnemonic exported successfully');
       return mnemonic;
     } catch (error) {
       console.error('Failed to export mnemonic:', error);
@@ -229,8 +229,8 @@ export const IdentityService = {
       localStorage.setItem(STORAGE_KEY, wallet.privateKey);
       localStorage.setItem(MNEMONIC_KEY, mnemonic.trim());
       
-      console.log('✅ Identity imported successfully:', wallet.address);
-      console.log('✅ Mnemonic saved to localStorage');
+      console.log('Identity imported successfully:', wallet.address);
+      console.log('Mnemonic saved to localStorage');
       
       return wallet.address;
     } catch (error) {

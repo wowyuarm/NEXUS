@@ -264,7 +264,7 @@ export const ResetMode: React.FC<{
 
         <div className="px-4 py-2.5 bg-muted/20 rounded-lg border border-border/30">
           <p className="text-xs text-muted-foreground leading-relaxed text-center">
-            ⚠️ 此操作不可逆。请确保您已备份助记词。
+            此操作不可逆。请确保您已备份助记词。
           </p>
         </div>
       </div>

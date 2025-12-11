@@ -16,7 +16,7 @@ services:
     networks:
       - nexus-net
     healthcheck:
-      # Checks the health endpoint defined in websocket.py
+      # Checks the health endpoint defined in main.py
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
       timeout: 10s
@@ -45,7 +45,7 @@ services:
   #     nexus-backend:
   #       condition: service_healthy
   #   environment:
-  #     - VITE_WS_URL=ws://nexus-backend:8000/api/v1/ws
+  #     - VITE_AURA_API_URL=http://nexus-backend:8000/api/v1
 
 #--------------------------------
 # Shared Network

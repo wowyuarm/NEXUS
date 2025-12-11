@@ -6,7 +6,6 @@ import type { Command } from '../command.types';
 vi.mock('@/config/nexus', () => ({
   getNexusConfig: vi.fn(() => ({
     env: 'development',
-    wsUrl: 'ws://localhost:8000/api/v1/ws',
     apiUrl: 'http://localhost:8000/api/v1'
   }))
 }));
@@ -26,14 +25,14 @@ describe('Command API', () => {
           name: 'ping',
           description: 'Test connectivity',
           usage: '/ping',
-          handler: 'websocket',
+          handler: 'server',
           examples: ['/ping']
         },
         {
           name: 'help',
           description: 'Display available commands',
           usage: '/help',
-          handler: 'websocket',
+          handler: 'server',
           examples: ['/help']
         },
         {
@@ -47,7 +46,7 @@ describe('Command API', () => {
           name: 'identity',
           description: 'Identity verification',
           usage: '/identity',
-          handler: 'websocket',
+          handler: 'server',
           requiresSignature: true,
           examples: ['/identity']
         }
@@ -188,14 +187,14 @@ describe('Command API', () => {
           name: 'ping',
           description: 'Test connectivity',
           usage: '/ping',
-          handler: 'websocket',
+          handler: 'server',
           examples: ['/ping']
         },
         {
           name: 'help',
           description: 'Display available commands',
           usage: '/help',
-          handler: 'websocket',
+          handler: 'server',
           examples: ['/help']
         }
       ];
@@ -220,7 +219,7 @@ describe('Command API', () => {
           name: 'ping',
           description: 'Test connectivity',
           usage: '/ping',
-          handler: 'websocket',
+          handler: 'server',
           examples: ['/ping']
         }
       ];

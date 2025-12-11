@@ -2,16 +2,27 @@
 REST interface for NEXUS.
 
 Provides HTTP REST API endpoints for querying system information,
-command definitions, and other stateless operations. This interface
-is separate from the WebSocket interface which handles real-time
-communication and stateful sessions.
+command definitions, and other stateless operations. Also provides
+SSE (Server-Sent Events) endpoints for real-time streaming communication.
+
+Key endpoints:
+- GET /commands - List available commands
+- POST /chat - Chat with SSE streaming response
+- POST /commands/execute - Execute command synchronously
+- GET /stream/{public_key} - Persistent SSE stream for connection state
+- GET/POST /config - User configuration
+- GET/POST /prompts - User prompt overrides
+- GET /messages - Message history
 """
 
+import asyncio
 import json
 import logging
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from nexus.core.auth import verify_signature
@@ -27,6 +38,7 @@ _command_service_instance: Any | None = None
 _identity_service_instance: Any | None = None
 _persistence_service_instance: Any | None = None
 _config_service_instance: Any | None = None
+_sse_interface_instance: Any | None = None
 
 
 def get_command_service():
@@ -81,6 +93,16 @@ def get_config_service():
             status_code=503, detail="Service unavailable: ConfigService not initialized"
         )
     return _config_service_instance
+
+
+def get_sse_interface():
+    """Dependency injection for SSEInterface."""
+    if _sse_interface_instance is None:
+        logger.error("SSEInterface not injected into REST interface")
+        raise HTTPException(
+            status_code=503, detail="Service unavailable: SSEInterface not initialized"
+        )
+    return _sse_interface_instance
 
 
 async def verify_bearer_token(authorization: str | None = Header(None)) -> str:
@@ -413,3 +435,299 @@ async def get_messages(
     except Exception as e:
         logger.error(f"Error retrieving messages for {owner_key}: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# =============================================================================
+# SSE Endpoints for Real-time Communication
+# =============================================================================
+
+
+class ChatRequest(BaseModel):
+    """Request model for chat messages."""
+
+    content: str
+    client_timestamp_utc: str = ""
+    client_timezone_offset: int = 0
+
+
+class CommandExecuteRequest(BaseModel):
+    """Request model for command execution."""
+
+    command: str
+    args: list[str] = []
+    auth: dict[str, str] | None = None
+
+
+@router.post("/chat")
+async def chat(
+    request: ChatRequest,
+    owner_key: str = Depends(verify_bearer_token),
+    sse_interface=Depends(get_sse_interface),
+) -> StreamingResponse:
+    """
+    Send a chat message and receive streaming response via SSE.
+
+    Authentication:
+        Requires Authorization header: Bearer <owner_key>
+
+    Request Body:
+        {
+            "content": "Hello, how are you?",
+            "client_timestamp_utc": "2025-12-11T03:00:00Z",
+            "client_timezone_offset": -480
+        }
+
+    Returns:
+        StreamingResponse with content-type text/event-stream
+
+    SSE Events:
+        - run_started: {"owner_key": "...", "user_input": "..."}
+        - text_chunk: {"chunk": "...", "is_final": false}
+        - tool_call_started: {"tool_name": "...", "args": {...}}
+        - tool_call_finished: {"tool_name": "...", "status": "...", "result": "..."}
+        - run_finished: {"status": "completed|error"}
+        - error: {"message": "..."}
+    """
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        run_id = None
+        queue = None
+        try:
+            # Create run and publish to bus
+            run_id = await sse_interface.create_run_and_publish(
+                owner_key=owner_key,
+                user_input=request.content,
+                client_timestamp_utc=request.client_timestamp_utc,
+                client_timezone_offset=request.client_timezone_offset,
+            )
+
+            # Register this stream to receive UI events
+            queue = sse_interface.register_chat_stream(run_id)
+
+            logger.info(f"SSE: Started chat stream for run_id={run_id}")
+
+            # Stream events until run completes
+            while True:
+                try:
+                    # Wait for events with timeout for keepalive
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+
+                    # Event is the UI event dict from orchestrator
+                    event_type = event.get("event", "message")
+                    yield sse_interface.format_sse_event(event_type, event)
+
+                    # Check if this is a terminal event
+                    if event_type in ("run_finished", "error"):
+                        logger.info(f"SSE: Chat stream ended for run_id={run_id}")
+                        break
+
+                except TimeoutError:
+                    # Send keepalive comment
+                    yield sse_interface.format_sse_keepalive()
+
+        except Exception as e:
+            logger.error(f"SSE: Error in chat stream: {e}")
+            error_event = {"event": "error", "payload": {"message": str(e)}}
+            yield sse_interface.format_sse_event("error", error_event)
+
+        finally:
+            # Cleanup
+            if run_id:
+                sse_interface.unregister_chat_stream(run_id)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable Nginx buffering
+        },
+    )
+
+
+@router.post("/commands/execute")
+async def execute_command(
+    request: CommandExecuteRequest,
+    owner_key: str = Depends(verify_bearer_token),
+    cmd_svc=Depends(get_command_service),
+    identity_svc=Depends(get_identity_service),
+) -> dict[str, Any]:
+    """
+    Execute a system command synchronously.
+
+    This endpoint executes commands that don't require streaming responses.
+    For commands requiring signature verification, include the auth field.
+
+    Authentication:
+        Requires Authorization header: Bearer <owner_key>
+
+    Request Body:
+        {
+            "command": "/ping",
+            "args": [],
+            "auth": {"publicKey": "0x...", "signature": "0x..."} // optional
+        }
+
+    Returns:
+        {
+            "status": "success" | "error",
+            "message": "...",
+            "data": {...}  // optional
+        }
+    """
+    try:
+        command_str = request.command.strip()
+        if not command_str.startswith("/"):
+            command_str = "/" + command_str
+
+        logger.info(
+            f"Executing command '{command_str}' for owner_key={owner_key[:10]}..."
+        )
+
+        # Parse command name
+        command_name = command_str.lstrip("/").split("/")[0].split()[0]
+
+        # Get command definition to check if signature is required
+        command_definitions = cmd_svc.get_all_command_definitions()
+        command_def = next(
+            (c for c in command_definitions if c.get("name") == command_name), None
+        )
+
+        if command_def is None:
+            return {
+                "status": "error",
+                "message": f"Unknown command: {command_name}. Type '/help' for available commands.",
+            }
+
+        # Check if command requires signature
+        requires_signature = command_def.get("requiresSignature", False)
+
+        verified_public_key: str | None = None
+        if requires_signature:
+            if not request.auth:
+                return {
+                    "status": "error",
+                    "message": f"Command '{command_name}' requires signature verification.",
+                }
+            # Verify signature
+            result = verify_signature(command_str, request.auth)
+            if result["status"] == "error":
+                return result
+            verified_public_key = result.get("public_key")
+
+        # Build execution context
+        context = {
+            "command_name": command_name,
+            "command": command_str,
+            "command_definitions": {c["name"]: c for c in command_definitions},
+            "database_service": cmd_svc.services.get("database_service"),
+            "identity_service": identity_svc,
+        }
+        if verified_public_key:
+            context["public_key"] = verified_public_key
+
+        # Get executor and execute
+        executor = cmd_svc._command_registry.get(command_name)
+        if executor is None:
+            # Check if it's a REST-only command
+            if command_def.get("handler") == "rest":
+                return {
+                    "status": "error",
+                    "message": f"Command '{command_name}' should be accessed via its dedicated REST endpoint.",
+                }
+            return {
+                "status": "error",
+                "message": f"No executor found for command: {command_name}",
+            }
+
+        result = await executor(context)
+        return result if isinstance(result, dict) else {"status": "success", "data": result}
+
+    except Exception as e:
+        logger.error(f"Error executing command: {e}")
+        return {"status": "error", "message": f"Command execution failed: {str(e)}"}
+
+
+@router.get("/stream/{public_key}")
+async def event_stream(
+    public_key: str,
+    identity_svc=Depends(get_identity_service),
+    sse_interface=Depends(get_sse_interface),
+) -> StreamingResponse:
+    """
+    Persistent SSE stream for connection state and proactive events.
+
+    This endpoint establishes a long-lived SSE connection that:
+    1. Immediately sends a connection_state event with visitor status
+    2. Keeps the connection alive with periodic keepalive comments
+    3. Can receive proactive events (command results, etc.)
+
+    Path Parameters:
+        public_key: The user's public key (used for identity lookup)
+
+    Returns:
+        StreamingResponse with content-type text/event-stream
+
+    SSE Events:
+        - connection_state: {"visitor": true|false} (first event)
+        - command_result: {"command": "...", "result": {...}}
+        - keepalive: (comment, not an event)
+    """
+
+    async def stream_generator() -> AsyncGenerator[str, None]:
+        queue = None
+        try:
+            # Check visitor status
+            identity = await identity_svc.get_identity(public_key)
+            is_visitor = identity is None
+
+            # Send connection_state as first event
+            connection_state = {"visitor": is_visitor}
+            yield sse_interface.format_sse_event("connection_state", connection_state)
+
+            logger.info(
+                f"SSE: Persistent stream started for public_key={public_key[:10]}... (visitor={is_visitor})"
+            )
+
+            # Register persistent stream
+            queue = sse_interface.register_persistent_stream(public_key)
+
+            # Keep connection alive
+            while True:
+                try:
+                    # Wait for events with timeout for keepalive
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+
+                    event_type = event.get("event", "message")
+                    yield sse_interface.format_sse_event(event_type, event)
+
+                except TimeoutError:
+                    # Send keepalive comment
+                    yield sse_interface.format_sse_keepalive()
+
+        except asyncio.CancelledError:
+            logger.info(
+                f"SSE: Persistent stream cancelled for public_key={public_key[:10]}..."
+            )
+            raise
+
+        except Exception as e:
+            logger.error(f"SSE: Error in persistent stream: {e}")
+            error_event = {"event": "error", "payload": {"message": str(e)}}
+            yield sse_interface.format_sse_event("error", error_event)
+
+        finally:
+            # Cleanup
+            if queue:
+                sse_interface.unregister_persistent_stream(public_key)
+
+    return StreamingResponse(
+        stream_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

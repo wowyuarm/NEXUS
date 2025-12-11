@@ -104,7 +104,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
         )}
       >
         <div className="mb-4 text-destructive text-2xl">
-          {icon || '⚠'}
+          {icon || '!'}
         </div>
         
         <h3 className="text-base font-medium text-destructive mb-2">

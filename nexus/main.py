@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from nexus.core.bus import NexusBus
 from nexus.interfaces import rest
-from nexus.interfaces.websocket import WebsocketInterface
+from nexus.interfaces.sse import SSEInterface
 from nexus.services.command import CommandService
 from nexus.services.config import ConfigService
 from nexus.services.context import ContextBuilder
@@ -112,7 +112,9 @@ async def main() -> None:
     orchestrator_service = OrchestratorService(
         bus, config_service, identity_service=identity_service
     )
-    websocket_interface = WebsocketInterface(bus, database_service, identity_service)
+
+    # SSE interface for HTTP + SSE communication
+    sse_interface = SSEInterface(bus, database_service, identity_service)
 
     services: list[object] = [
         database_service,
@@ -122,7 +124,7 @@ async def main() -> None:
         context_builder,
         command_service,
         orchestrator_service,
-        websocket_interface,
+        sse_interface,
     ]
 
     # 7) Wire subscriptions
@@ -177,7 +179,7 @@ async def main() -> None:
     async def basic_health():
         return {
             "status": "healthy",
-            "connections": len(websocket_interface.connections),
+            "sse_streams": len(sse_interface.active_persistent_streams),
         }
 
     @app.get("/api/v1/health")
@@ -211,19 +213,16 @@ async def main() -> None:
     app.dependency_overrides[rest.get_identity_service] = lambda: identity_service
     app.dependency_overrides[rest.get_persistence_service] = lambda: persistence_service
     app.dependency_overrides[rest.get_config_service] = lambda: config_service
+    app.dependency_overrides[rest.get_sse_interface] = lambda: sse_interface
     logger.info(
-        "Configured dependency injection for REST interface (command, identity, persistence, config services)"
+        "Configured dependency injection for REST interface (command, identity, persistence, config, sse services)"
     )
 
     # 12) Add REST API routes
     app.include_router(rest.router, prefix="/api/v1", tags=["commands"])
     logger.info("Added REST API routes")
 
-    # 13) Add WebSocket routes
-    websocket_interface.add_websocket_routes(app)
-    logger.info("Added WebSocket routes")
-
-    # 14) Long-running tasks (bus listeners)
+    # 13) Long-running tasks (bus listeners)
     bus_task = asyncio.create_task(bus.run_forever(), name="nexusbus.run_forever")
 
     logger.info(

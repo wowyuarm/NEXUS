@@ -54,9 +54,9 @@ vi.mock('@/services/identity/identity', () => ({
   }
 }));
 
-vi.mock('@/services/websocket/manager', () => ({
-  websocketManager: {
-    sendCommand: vi.fn(),
+vi.mock('@/services/stream/manager', () => ({
+  streamManager: {
+    sendCommand: vi.fn().mockResolvedValue({ status: 'success', message: 'ok' }),
     reconnect: vi.fn().mockResolvedValue(undefined),
     disconnect: vi.fn()
   }

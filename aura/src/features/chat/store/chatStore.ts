@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { websocketManager } from '@/services/websocket/manager';
+import { streamManager } from '@/services/stream/manager';
 import type { Command, CommandExecutionOptions } from '@/features/command/command.types';
 import type { Message, ToolCall } from '../types';
 import type {
@@ -11,7 +11,7 @@ import type {
   RunFinishedPayload,
   ErrorPayload,
   CommandResultPayload
-} from '@/services/websocket/protocol';
+} from '@/services/stream/protocol';
 
 export type RunStatus = 'idle' | 'thinking' | 'tool_running' | 'streaming_text' | 'completed' | 'error';
 
@@ -481,7 +481,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   sendMessage: (content: string) => {
-    if (!websocketManager.connected) {
+    if (!streamManager.connected) {
       console.error('Cannot send message: not connected to NEXUS');
       return;
     }
@@ -498,7 +498,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       lastError: null
     }));
 
-    websocketManager.sendMessage(content);
+    // Send message via HTTP+SSE
+    streamManager.sendMessage(content).catch((error) => {
+      console.error('Failed to send message:', error);
+      set({ lastError: String(error) });
+    });
   },
 
   clearMessages: () => {

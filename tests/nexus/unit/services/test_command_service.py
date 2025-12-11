@@ -86,7 +86,7 @@ class TestCommandServiceUnit:
 
             # Verify handler has valid value
             assert cmd["handler"] in [
-                "websocket",
+                "server",
                 "client",
                 "rest",
             ], f"Command {cmd['name']} has invalid handler: {cmd['handler']}"
@@ -95,19 +95,19 @@ class TestCommandServiceUnit:
         """
         Test that specific commands have correct handler field values.
 
-        - ping, identity: handler = "websocket"
+        - ping, identity: handler = "server"
         - help, clear: handler = "client"
         """
         result = command_service.get_all_command_definitions()
         commands_by_name = {cmd["name"]: cmd for cmd in result}
 
-        # WebSocket commands
+        # Server commands (executed via HTTP POST)
         assert (
-            commands_by_name["ping"]["handler"] == "websocket"
-        ), "ping command should have handler='websocket'"
+            commands_by_name["ping"]["handler"] == "server"
+        ), "ping command should have handler='server'"
         assert (
-            commands_by_name["identity"]["handler"] == "websocket"
-        ), "identity command should have handler='websocket'"
+            commands_by_name["identity"]["handler"] == "server"
+        ), "identity command should have handler='server'"
 
         # Client-side commands
         assert (

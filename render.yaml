@@ -18,7 +18,7 @@ services:
     envVars:
       # Python configuration
       - key: PYTHON_VERSION
-        value: "3.11"
+        value: "3.12"
       - key: PYTHONPATH
         value: "/app"
       - key: PYTHONUNBUFFERED

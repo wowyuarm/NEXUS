@@ -13,14 +13,14 @@ import type {
   ToolCallFinishedPayload, 
   TextChunkPayload, 
   RunFinishedPayload 
-} from '@/services/websocket/protocol';
+} from '@/services/stream/protocol';
 
-// Mock websocket manager to avoid actual connections
-vi.mock('@/services/websocket/manager', () => ({
-  websocketManager: {
+// Mock stream manager to avoid actual connections
+vi.mock('@/services/stream/manager', () => ({
+  streamManager: {
     connected: true,
-    sendMessage: vi.fn(),
-    sendCommand: vi.fn(),
+    sendMessage: vi.fn().mockResolvedValue(undefined),
+    sendCommand: vi.fn().mockResolvedValue({ status: 'success', message: 'ok' }),
     on: vi.fn(),
     off: vi.fn()
   }

@@ -30,7 +30,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return this.props.fallback || (
         <div className="flex flex-col items-center justify-center min-h-[200px] text-center p-6">
           <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
-            <div className="text-secondary-foreground text-lg">⚠</div>
+            <div className="text-secondary-foreground text-lg">!</div>
           </div>
           <div className="text-base text-foreground mb-2">
             出现了一些问题

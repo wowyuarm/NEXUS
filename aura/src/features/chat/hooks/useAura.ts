@@ -1,19 +1,19 @@
 /**
  * useAura Hook - The Neural Bridge
  * 
- * This hook serves as the "controller" layer that connects WebSocket communication,
+ * This hook serves as the "controller" layer that connects SSE/HTTP communication,
  * Zustand state management, and UI components. It orchestrates the complete data flow
  * and provides a clean interface for React components.
  * 
  * Architecture:
- * - Subscribes to WebSocket events and routes them to store actions
+ * - Subscribes to SSE stream events and routes them to store actions
  * - Manages connection lifecycle and error handling
  * - Exposes state and actions to UI components
  * - Handles initialization and cleanup
  */
 
 import { useEffect, useCallback, useMemo } from 'react';
-import { websocketManager } from '../../../services/websocket/manager';
+import { streamManager } from '../../../services/stream/manager';
 import { useChatStore } from '../store/chatStore';
 import { useCommandStore } from '@/features/command/store/commandStore';
 import { useCommandLoader } from '@/features/command/hooks/useCommandLoader';
@@ -28,7 +28,7 @@ import type {
   RunFinishedPayload,
   ErrorPayload,
   CommandResultPayload
-} from '../../../services/websocket/protocol';
+} from '../../../services/stream/protocol';
 
 // ===== Hook Return Type =====
 
@@ -111,7 +111,7 @@ export function useAura(): UseAuraReturn {
   // Load commands from backend REST API (no longer depends on WebSocket connection)
   useCommandLoader();  
 
-  // ===== WebSocket Event Handlers =====
+  // ===== SSE Event Handlers =====
 
   const onRunStarted = useCallback((payload: RunStartedPayload) => {
     handleRunStarted(payload);
@@ -159,37 +159,37 @@ export function useAura(): UseAuraReturn {
     handleError({ message: 'Failed to reconnect to NEXUS after multiple attempts' });
   }, [handleError]);
 
-  // ===== WebSocket Subscription Effect =====
+  // ===== SSE Subscription Effect =====
 
   useEffect(() => {
-    // Subscribe to all WebSocket events
-    websocketManager.on('run_started', onRunStarted);
-    websocketManager.on('tool_call_started', onToolCallStarted);
-    websocketManager.on('tool_call_finished', onToolCallFinished);
-    websocketManager.on('text_chunk', onTextChunk);
-    websocketManager.on('run_finished', onRunFinished);
-    websocketManager.on('error', onError);
-    websocketManager.on('command_result', onCommandResult);
-    websocketManager.on('connected', onConnected);
-    websocketManager.on('connection_state', onConnectionState);
-    websocketManager.on('disconnected', onDisconnected);
+    // Subscribe to all SSE events
+    streamManager.on('run_started', onRunStarted);
+    streamManager.on('tool_call_started', onToolCallStarted);
+    streamManager.on('tool_call_finished', onToolCallFinished);
+    streamManager.on('text_chunk', onTextChunk);
+    streamManager.on('run_finished', onRunFinished);
+    streamManager.on('error', onError);
+    streamManager.on('command_result', onCommandResult);
+    streamManager.on('connected', onConnected);
+    streamManager.on('connection_state', onConnectionState);
+    streamManager.on('disconnected', onDisconnected);
 
-    websocketManager.on('reconnect_failed', onReconnectFailed);
+    streamManager.on('reconnect_failed', onReconnectFailed);
 
     // Cleanup subscriptions on unmount
     return () => {
-      websocketManager.off('run_started', onRunStarted);
-      websocketManager.off('tool_call_started', onToolCallStarted);
-      websocketManager.off('tool_call_finished', onToolCallFinished);
-      websocketManager.off('text_chunk', onTextChunk);
-      websocketManager.off('run_finished', onRunFinished);
-      websocketManager.off('error', onError);
-      websocketManager.off('command_result', onCommandResult);
-      websocketManager.off('connected', onConnected);
-      websocketManager.off('connection_state', onConnectionState);
-      websocketManager.off('disconnected', onDisconnected);
+      streamManager.off('run_started', onRunStarted);
+      streamManager.off('tool_call_started', onToolCallStarted);
+      streamManager.off('tool_call_finished', onToolCallFinished);
+      streamManager.off('text_chunk', onTextChunk);
+      streamManager.off('run_finished', onRunFinished);
+      streamManager.off('error', onError);
+      streamManager.off('command_result', onCommandResult);
+      streamManager.off('connected', onConnected);
+      streamManager.off('connection_state', onConnectionState);
+      streamManager.off('disconnected', onDisconnected);
 
-      websocketManager.off('reconnect_failed', onReconnectFailed);
+      streamManager.off('reconnect_failed', onReconnectFailed);
     };
   }, [
     onRunStarted,
@@ -210,7 +210,7 @@ export function useAura(): UseAuraReturn {
 
   const connect = useCallback(async () => {
     try {
-      await websocketManager.connect();
+      await streamManager.connect();
     } catch (error) {
       console.error('Failed to connect to NEXUS:', error);
       handleError({ 
@@ -220,7 +220,7 @@ export function useAura(): UseAuraReturn {
   }, [handleError]);
 
   const disconnect = useCallback(() => {
-    websocketManager.disconnect();
+    streamManager.disconnect();
   }, []);
 
   // ===== Auto-connect Effect =====

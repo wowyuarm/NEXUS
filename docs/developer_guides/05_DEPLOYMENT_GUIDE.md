@@ -1,6 +1,6 @@
 # 05: Deployment Guide - Vercel + Render
 
-**Last Updated:** 2025-10-26
+**Last Updated:** 2025-12-11
 
 This guide covers deploying NEXUS using a hybrid architecture:
 - **Frontend (AURA)**: Vercel (global CDN, instant serving)
@@ -13,7 +13,7 @@ This guide covers deploying NEXUS using a hybrid architecture:
 ### Architecture Diagram
 
 ```
-┌─────────────┐     HTTPS/WSS      ┌──────────────┐     ┌──────────────┐
+┌─────────────┐     HTTPS/SSE      ┌──────────────┐     ┌──────────────┐
 │   Browser   │ ──────────────────> │ Render       │ ──> │ MongoDB      │
 │             │                     │ Backend      │     │ Atlas        │
 └─────────────┘                     │ (FastAPI)    │     └──────────────┘
@@ -34,10 +34,10 @@ This guide covers deploying NEXUS using a hybrid architecture:
 - Serves static React build from global edge network
 - No server-side logic (pure static files)
 - Handles SPA routing via rewrites
-- Connects directly to Render backend via HTTPS/WSS
+- Connects directly to Render backend via HTTPS (REST + SSE streaming)
 
 **Render Backend:**
-- Runs FastAPI application with WebSocket support
+- Runs FastAPI application with SSE streaming support
 - Connects to MongoDB Atlas
 - Handles LLM orchestration and tool execution
 - Protected by CORS (only allows specific frontend origins)
@@ -59,7 +59,7 @@ This guide covers deploying NEXUS using a hybrid architecture:
 - **Instant frontend**: Vercel CDN serves static files with <2s load time globally
 - **Warm backend**: GitHub Actions keepalive prevents most cold starts
 - **Cost-effective**: All services free tier (Vercel unlimited, Render 750 hours/month, GitHub Actions 2000 min/month)
-- **Simple architecture**: No nginx reverse proxy needed, direct HTTPS/WSS connections
+- **Simple architecture**: No nginx reverse proxy needed, direct HTTPS connections (REST + SSE)
 
 ---
 
@@ -228,13 +228,11 @@ After deployment completes, note the URL:
 
 | Variable | Value | Environment |
 |----------|-------|-------------|
-| `VITE_AURA_WS_URL` | `wss://nexus-backend-xxx.onrender.com/api/v1/ws` | Production, Preview |
 | `VITE_AURA_API_URL` | `https://nexus-backend-xxx.onrender.com/api/v1` | Production, Preview |
 | `VITE_AURA_ENV` | `production` | Production |
 | `VITE_APP_NAME` | `AURA` | Production, Preview |
 
 **Important:** 
-- Use `wss://` (not `https://`) for WebSocket URL
 - Use `https://` (not `http://`) for API URL
 - Environment should be "Production" and optionally "Preview"
 
@@ -254,7 +252,7 @@ Or in Vercel Dashboard:
 Check build logs in Vercel Dashboard:
 - Should complete in <3 minutes
 - No errors about missing environment variables
-- Console output should show: `NEXUS Configuration: { env: 'production', wsUrl: 'wss://...', apiUrl: 'https://...' }`
+- Console output should show: `NEXUS Configuration: { env: 'production', apiUrl: 'https://...' }`
 
 ---
 
@@ -300,16 +298,16 @@ Check deployment status:
    ```
    NEXUS Configuration: {
      env: "production",
-     wsUrl: "wss://nexus-backend-xxx.onrender.com/api/v1/ws",
      apiUrl: "https://nexus-backend-xxx.onrender.com/api/v1"
    }
    ```
 
-**5.2. Test WebSocket Connection**
+**5.2. Test SSE Connection**
 
-1. Open browser DevTools > Network tab > WS filter
-2. Should see WebSocket connection to `wss://nexus-backend-xxx.onrender.com/api/v1/ws`
-3. Status: 101 Switching Protocols (success)
+1. Open browser DevTools > Network tab
+2. Send a chat message
+3. Should see POST request to `/api/v1/chat` with `text/event-stream` response
+4. SSE events should stream in the response
 
 **5.3. Test Message Streaming**
 
@@ -392,7 +390,7 @@ Manually trigger deployments to Render and/or Vercel from GitHub Actions UI, wit
 
 #### "Missing environment variables"
 
-**Symptom:** Vercel build fails with error about missing `VITE_AURA_WS_URL` or `VITE_AURA_API_URL`.
+**Symptom:** Vercel build fails with error about missing `VITE_AURA_API_URL`.
 
 **Solution:**
 1. Go to Vercel Dashboard > Settings > Environment Variables
@@ -430,28 +428,30 @@ from origin 'https://nexus.vercel.app' has been blocked by CORS policy
 3. Ensure no typos (e.g., `http` vs `https`, trailing slashes)
 4. Redeploy backend if changed
 
-#### WebSocket Connection Failed
+#### SSE Connection Failed
 
-**Symptom:** DevTools Network tab shows WebSocket connection fails (status 400 or timeout).
+**Symptom:** DevTools Network tab shows POST /chat request fails or no streaming response.
 
 **Solution:**
-1. Verify backend URL in Vercel environment variables uses `wss://` (not `https://`)
+1. Verify backend URL in Vercel environment variables uses `https://`
 2. Check backend logs in Render Dashboard for errors
-3. Test WebSocket directly with `wscat`:
+3. Test API directly with curl:
    ```bash
-   npm install -g wscat
-   wscat -c "wss://nexus-backend-xxx.onrender.com/api/v1/ws"
+   curl -X POST "https://nexus-backend-xxx.onrender.com/api/v1/chat" \
+     -H "Authorization: Bearer YOUR_PUBLIC_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"content": "hello"}'
    ```
 4. If timeout, check if backend is sleeping (wait for keepalive to wake it, or trigger GitHub Actions workflow manually)
 
 #### "Backend URLs not configured" Warning
 
-**Symptom:** Frontend loads but console shows: `⚠️ Backend URLs not configured. WebSocket connection will fail.`
+**Symptom:** Frontend loads but console shows: `⚠️ Backend URL not configured. API requests will fail.`
 
 **Solution:**
 1. This means environment variables were not set during build
 2. Vercel Dashboard > Settings > Environment Variables
-3. Add `VITE_AURA_WS_URL` and `VITE_AURA_API_URL`
+3. Add `VITE_AURA_API_URL`
 4. Redeploy: `vercel --prod`
 
 ---
@@ -524,14 +524,15 @@ from origin 'https://nexus.vercel.app' has been blocked by CORS policy
 **Access:** Render Dashboard > `nexus-backend` > Logs
 
 **What to Monitor:**
-- WebSocket connection logs
+- SSE stream connections
 - Tool execution errors
 - Database connection issues
 
 **Useful Log Filters:**
 ```
-# WebSocket connections
-/ws
+# SSE connections
+/chat
+/stream
 
 # Errors only
 ERROR
@@ -759,7 +760,7 @@ Add to `render.yaml`:
 
 **External Tools:**
 - [Webpage Test](https://www.webpagetest.org/) - Test global load times
-- [wscat](https://www.npmjs.com/package/wscat) - WebSocket debugging CLI
+- [curl](https://curl.se/) - HTTP/SSE debugging CLI
 
 ---
 

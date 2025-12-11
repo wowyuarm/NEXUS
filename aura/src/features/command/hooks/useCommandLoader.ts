@@ -11,7 +11,7 @@ const FALLBACK_COMMANDS: Command[] = [
     name: 'ping',
     description: 'Check connection to the NEXUS core.',
     usage: '/ping',
-    handler: 'websocket',
+    handler: 'server',
     examples: ['/ping']
   },
   {
@@ -62,15 +62,15 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
     
     try {
       // Fetch commands from REST API
-      console.log('🔄 Loading commands from REST API...');
+      console.log('Loading commands from REST API...');
       const commands = await fetchCommands();
       // Restrict commands in visitor mode to only /identity
       const filtered = visitorMode ? commands.filter((c: Command) => c.name === 'identity') : commands;
       setCommands(filtered);
-      console.log(`✅ Successfully loaded ${commands.length} commands from backend`);
+      console.log(`Successfully loaded ${commands.length} commands from backend`);
       
     } catch (error) {
-      console.warn('⚠️ Failed to load commands from backend, using fallback:', error);
+      console.warn('Failed to load commands from backend, using fallback:', error);
       // Use fallback commands to ensure basic functionality
       const filteredFallback = visitorMode ? FALLBACK_COMMANDS.filter(c => c.name === 'identity') : FALLBACK_COMMANDS;
       setCommands(filteredFallback);
@@ -82,7 +82,7 @@ export const useCommandLoader = (options?: UseCommandLoaderOptions) => {
   // Auto-load commands on mount
   useEffect(() => {
     if (autoLoad) {
-      console.log('🚀 Auto-loading commands from REST API');
+      console.log('Auto-loading commands from REST API');
       loadCommands();
     }
   }, [autoLoad, loadCommands, visitorMode]);

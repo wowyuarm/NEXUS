@@ -2,17 +2,19 @@
  * Command Executor
  * 
  * Central command execution engine that intelligently routes commands
- * to the appropriate handler (client, websocket, or REST) based on
+ * to the appropriate handler (client, server, or REST) based on
  * the command's handler type.
  * 
  * This module is the core of the new architecture, implementing the
  * separation of concerns between command execution and state management.
+ * 
+ * Server commands are now executed via HTTP POST instead of WebSocket.
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import type { Command, CommandResult, CommandExecutionOptions } from './command.types';
-import { isClientCommand, isWebSocketCommand, isRestCommand, isGUICommand } from './command.types';
-import { websocketManager } from '@/services/websocket/manager';
+import { isClientCommand, isServerCommand, isRestCommand, isGUICommand } from './command.types';
+import { streamManager } from '@/services/stream/manager';
 import { IdentityService } from '@/services/identity/identity';
 import { useChatStore } from '@/features/chat/store/chatStore';
 import { useCommandStore } from './store/commandStore';
@@ -166,16 +168,16 @@ async function executeClientCommand(
 }
 
 /**
- * Execute a WebSocket command
+ * Execute a server command
  *
- * Handles commands that require real-time server communication
- * via WebSocket (e.g., /identity).
+ * Handles commands that require server communication via HTTP POST.
+ * Previously used WebSocket, now uses HTTP+SSE architecture.
  */
-async function executeWebSocketCommand(
+async function executeServerCommand(
   command: Command,
   options?: CommandExecutionOptions
 ): Promise<CommandResult> {
-  if (!websocketManager.connected) {
+  if (!streamManager.connected) {
     const error = 'Cannot execute server command: not connected to NEXUS';
     console.error(error);
     return {
@@ -214,7 +216,8 @@ async function executeWebSocketCommand(
     messages: [...state.messages, pendingMsg],
   }));
 
-  websocketManager.sendCommand(commandText, auth);
+  // Execute command via HTTP POST and emit result
+  streamManager.sendCommand(commandText, auth);
 
   return {
     status: 'pending',
@@ -289,8 +292,8 @@ export async function executeCommand(
       return await executeClientCommand(command, options);
     }
 
-    if (isWebSocketCommand(command)) {
-      return await executeWebSocketCommand(command, options);
+    if (isServerCommand(command)) {
+      return await executeServerCommand(command, options);
     }
 
     if (isRestCommand(command)) {

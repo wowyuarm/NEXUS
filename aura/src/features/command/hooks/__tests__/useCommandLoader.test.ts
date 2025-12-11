@@ -47,14 +47,14 @@ describe('useCommandLoader', () => {
         name: 'ping',
         description: 'Test connectivity',
         usage: '/ping',
-        handler: 'websocket',
+        handler: 'server',
         examples: ['/ping']
       },
       {
         name: 'help',
         description: 'Display available commands',
         usage: '/help',
-        handler: 'websocket',
+        handler: 'server',
         examples: ['/help']
       },
       {
@@ -94,7 +94,7 @@ describe('useCommandLoader', () => {
     // Verify fallback commands use 'handler' field correctly
     result.current.fallbackCommands.forEach(cmd => {
       expect(cmd).toHaveProperty('handler');
-      expect(['client', 'websocket']).toContain(cmd.handler);
+      expect(['client', 'server']).toContain(cmd.handler);
     });
   });
 

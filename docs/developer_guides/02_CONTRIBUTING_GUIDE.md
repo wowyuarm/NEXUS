@@ -126,7 +126,7 @@ Choose the appropriate workflow based on task complexity:
 - **Simple changes can be committed directly to `main`** (documentation updates, minor fixes).
 - Branch from `main`; use descriptive names following these patterns:
   - `feat/[feature-name]` for new features (e.g., `feat/llm-dynamic-temperature`)
-  - `fix/[bug-description]` for bug fixes (e.g., `fix/websocket-timeout`)
+  - `fix/[bug-description]` for bug fixes (e.g., `fix/sse-stream-timeout`)
   - `refactor/[scope]` for refactoring (e.g., `refactor/ui-tool-card`)
   - `docs/[topic]` for documentation (e.g., `docs/api-reference`)
   - `test/[scope]` for test additions (e.g., `test/orchestrator-service`)
@@ -136,7 +136,7 @@ Choose the appropriate workflow based on task complexity:
 ### Commit Guidelines
 - Follow Conventional Commits (English only). Examples:
   - `feat: add tool execution audit log`
-  - `fix: respect websocket retry delay`
+  - `fix: respect sse stream retry delay`
   - `refactor(ui): simplify tool card motion`
   - `docs: update AI collaboration charter`
   - `test: add integration tests for orchestrator`
@@ -167,10 +167,10 @@ Choose the appropriate workflow based on task complexity:
 4. Add unit or integration tests under `tests/nexus/unit/` or `tests/nexus/integration/` to verify registry behavior.
 5. Update documentation or examples if the tool impacts user-facing behavior.
 
-### 2. Extending WebSocket Protocol
+### 2. Extending SSE Protocol
 1. Add or update topics in `nexus/core/topics.py` if a new channel is required.
 2. Publish the new event inside the relevant service (`OrchestratorService`, etc.), ensuring payload structure matches existing conventions.
-3. Update `aura/src/services/websocket/protocol.ts` with the new TypeScript types and type guard.
+3. Update `aura/src/services/stream/protocol.ts` with the new TypeScript types and type guard.
 4. Wire the event into Zustand stores (`aura/src/features/chat/store/auraStore.ts`) and surface it through hooks/components.
 5. Cover backend publishing with integration tests and frontend handling with Vitest suites under `__tests__/`.
 
@@ -184,7 +184,7 @@ Choose the appropriate workflow based on task complexity:
 1. Understand existing contracts by reviewing the service module, its tests, and dependent subscribers.
 2. Update or add integration tests (`tests/nexus/integration/`) that assert bus interactions and side effects.
 3. Ensure configuration dependencies are documented if new settings are introduced (`config.example.yml`).
-4. If behavior surfaces in the UI, extend WebSocket or REST tests accordingly.
+4. If behavior surfaces in the UI, extend SSE or REST tests accordingly.
 
 ## Definition of Done Checklist
 - [ ] All phases in the task file's Implementation Plan are executed.

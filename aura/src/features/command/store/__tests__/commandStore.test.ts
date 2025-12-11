@@ -12,14 +12,14 @@ describe('commandStore', () => {
           name: 'ping', 
           description: 'Check connection to the NEXUS core.',
           usage: '/ping',
-          handler: 'websocket' as const,
+          handler: 'server' as const,
           examples: ['/ping']
         },
         { 
           name: 'help', 
           description: 'Display information about available commands.',
           usage: '/help',
-          handler: 'websocket' as const,
+          handler: 'server' as const,
           examples: ['/help']
         },
         { 

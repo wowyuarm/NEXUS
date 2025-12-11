@@ -18,7 +18,7 @@ COMMAND_DEFINITION = {
     "name": "identity",
     "description": "Manage your identity (create, verify, or delete)",
     "usage": "/identity [delete]",
-    "handler": "websocket",
+    "handler": "server",
     "requiresSignature": True,  # This command requires cryptographic signature
     "requiresGUI": True,  # This command opens a GUI modal panel in the frontend
     "examples": ["/identity", "/identity/delete"],

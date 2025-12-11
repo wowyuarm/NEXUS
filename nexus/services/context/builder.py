@@ -241,9 +241,7 @@ class ContextBuilder:
             # Filter out current run messages to prevent duplication
             if current_run_id:
                 history_list = [
-                    msg
-                    for msg in history_list
-                    if msg.get("run_id") != current_run_id
+                    msg for msg in history_list if msg.get("run_id") != current_run_id
                 ]
 
             logger.info(

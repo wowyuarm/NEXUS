@@ -9,10 +9,10 @@
  * Command handler type determines where and how a command is executed.
  * 
  * - 'client': Executed entirely on the client side (e.g., /clear)
- * - 'websocket': Executed on server, communicated via WebSocket (e.g., /identity)
+ * - 'server': Executed on server via HTTP POST (e.g., /identity, /ping)
  * - 'rest': Executed on server, communicated via REST API (future use)
  */
-export type CommandHandler = 'client' | 'websocket' | 'rest';
+export type CommandHandler = 'client' | 'server' | 'rest';
 
 /**
  * REST-specific configuration for commands that use HTTP REST API
@@ -92,10 +92,10 @@ export function isRestCommand(command: Command): boolean {
 }
 
 /**
- * Type guard to check if a command uses WebSocket handler
+ * Type guard to check if a command uses server handler
  */
-export function isWebSocketCommand(command: Command): boolean {
-  return command.handler === 'websocket';
+export function isServerCommand(command: Command): boolean {
+  return command.handler === 'server';
 }
 
 /**

@@ -8,7 +8,7 @@ This document provides **exhaustive implementation details** for understanding, 
 
 **Key Characteristics:**
 - **Auto-discovery**: Backend automatically discovers commands from `nexus/commands/definition/`
-- **Tri-modal execution**: Commands can be client-side, WebSocket-based, or REST-based
+- **Tri-modal execution**: Commands can be client-side, REST-based (HTTP POST), or advanced REST-based (custom HTTP methods)
 - **Typed contracts**: Strong TypeScript/Python type definitions ensure frontend-backend alignment
 - **Signature support**: Optional cryptographic signing for authenticated commands
 - **Graceful degradation**: Fallback commands ensure basic functionality when backend is unavailable
@@ -27,22 +27,24 @@ This document provides **exhaustive implementation details** for understanding, 
 │       ↓                                                      │
 │  CommandPalette (UI) → commandExecutor (routing logic)      │
 │       ↓                          ↓                  ↓        │
-│   client handler         websocket handler    rest handler  │
-│   (local exec)           (WS to backend)      (HTTP API)    │
+│   client handler         rest handler         rest handler  │
+│   (local exec)      (HTTP POST sync)      (HTTP API)        │
 └──────────────┬──────────────────┬──────────────────┬────────┘
                │                  │                  │
                │         ┌────────▼──────────────────▼────────┐
                │         │       NEXUS Backend               │
                │         ├───────────────────────────────────┤
-               │         │  WebSocket Interface              │
-               │         │       ↓                            │
-               │         │  NexusBus (Topics.SYSTEM_COMMAND) │
+               │         │  REST Interface                   │
+               │         │  POST /commands/execute           │
                │         │       ↓                            │
                │         │  CommandService (execution)       │
                │         │       ↓                            │
-               │         │  NexusBus (Topics.COMMAND_RESULT) │
+               │         │  JSON Response                    │
+               │         │                                    │
+               │         │  SSE Interface (persistent)       │
+               │         │  GET /stream/{public_key}         │
                │         │       ↓                            │
-               │         │  WebSocket Interface              │
+               │         │  command_result events            │
                │         └────────┬──────────────────────────┘
                │                  │
                └──────────────────▼
@@ -54,7 +56,8 @@ This document provides **exhaustive implementation details** for understanding, 
 1. **Separation of Concerns**: Commands are **deterministic actions**, AI interactions are **generative responses**
 2. **Channel Purity**: 
    - REST API (`/api/v1/commands`) - metadata discovery (one-time, on app start)
-   - WebSocket - real-time command execution and results
+   - HTTP POST (`/api/v1/commands/execute`) - synchronous command execution
+   - SSE (`/api/v1/stream/{public_key}`) - persistent connection for command results and proactive events
    - Client-side - local operations without network round-trip
 3. **Fail-Safe**: Fallback commands ensure critical operations (like `/help`) work offline
 
@@ -85,7 +88,7 @@ for _, modname, ispkg in pkgutil.iter_modules(package.__path__):
    - `name` (str): Unique command identifier **without `/` prefix** (internal state)
    - `description` (str): Human-readable purpose
    - `usage` (str): Display string **with `/` prefix** (external presentation)
-   - `handler` (str): One of `"client"`, `"websocket"`, `"rest"`
+   - `handler` (str): One of `"client"`, `"rest"` (HTTP POST to `/commands/execute`), or `"rest"` (custom HTTP methods)
    - `examples` (list[str]): Usage examples **with `/` prefix**
    - `requiresSignature` (bool, optional): Triggers signature verification
 
@@ -97,7 +100,7 @@ COMMAND_DEFINITION = {
     "name": "ping",  # Internal name without / prefix
     "description": "Test system connectivity",
     "usage": "/ping",  # UI display format with / prefix
-    "handler": "websocket",
+    "handler": "rest",
     "examples": ["/ping"]
 }
 
@@ -111,8 +114,8 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
 
 #### Command Execution Flow
 
-1. **Receive**: WebSocket message with `type: "system_command"`, `payload.command: "/ping"`
-2. **Parse**: Extract command name (`ping`), optional `auth` data
+1. **Receive**: HTTP POST request to `/api/v1/commands/execute` with command and optional auth
+2. **Parse**: Extract command name from payload, optional `auth` data
 3. **Verify Signature** (if `requiresSignature: true`):
    - Hash command with keccak256
    - Recover public key from signature
@@ -127,7 +130,7 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
    }
    ```
 5. **Execute**: `result = await executor(context)`
-6. **Publish**: Send to `Topics.COMMAND_RESULT` → WebSocket → frontend
+6. **Return**: Send JSON response directly to client (synchronous)
 
 ---
 
@@ -146,7 +149,7 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
     "name": "ping",
     "description": "Test system connectivity",
     "usage": "/ping",
-    "handler": "websocket",
+    "handler": "rest",
     "examples": ["/ping"]
   },
   {
@@ -181,7 +184,7 @@ useEffect(() => {
 **Fallback Commands** (used when backend is unreachable):
 ```typescript
 const FALLBACK_COMMANDS = [
-  { name: 'ping', handler: 'websocket', ... },
+  { name: 'ping', handler: 'rest', ... },
   { name: 'help', handler: 'client', ... },
   { name: 'clear', handler: 'client', ... }
 ];
@@ -204,8 +207,6 @@ const FALLBACK_COMMANDS = [
 export async function executeCommand(command: Command): Promise<CommandResult> {
   if (isClientCommand(command)) {
     return await executeClientCommand(command);
-  } else if (isWebSocketCommand(command)) {
-    return await executeWebSocketCommand(command);
   } else if (isRestCommand(command)) {
     return await executeRestCommand(command);
   }
@@ -241,11 +242,11 @@ case 'help': {
 }
 ```
 
-**No Network Traffic**: Client commands do not trigger WebSocket or HTTP requests
+**No Network Traffic**: Client commands do not trigger HTTP requests
 
 ---
 
-#### Handler Type 2: WebSocket
+#### Handler Type 2: REST (Server-side Execution)
 
 **When**: Command requires backend execution (e.g., `/ping`, `/identity`)
 
@@ -268,42 +269,37 @@ case 'help': {
    // auth = { publicKey: '0x...', signature: '0x...' }
    ```
 
-3. **Send via WebSocket**:
+3. **Send via HTTP POST**:
    ```typescript
-   websocketManager.sendCommand(commandText, auth);
+   const result = await streamManager.executeCommand(commandText, auth);
    ```
 
-4. **Backend Processing**: CommandService executes, publishes result
+4. **Backend Processing**: CommandService executes synchronously, returns JSON response
 
-5. **Receive Result**: `chatStore.handleCommandResult` updates the pending message:
+5. **Update Pending Message**: Frontend updates the pending message with result:
    ```typescript
    // Find pending message by command text
    // Update content.result and metadata.status = 'completed'
    ```
 
-**Result Payload Contract** (as of latest refactor):
+**Result Response Contract** (HTTP POST response):
 ```typescript
 {
-  event: "command_result",
-  run_id: "...",
-  payload: {
-    command: "/ping",      // Command echo (prevents race mis-assignment)
-    result: {              // Actual result
-      status: "success",
-      message: "pong",
-      data: { latency_ms: 0.5 }
-    }
-  }
+  status: "success",
+  message: "pong",
+  data: { latency_ms: 0.5 }
 }
 ```
 
+**Note**: Command results are returned synchronously in the HTTP response, not via SSE stream.
+
 ---
 
-#### Handler Type 2.5: WebSocket with GUI (Modal-based Commands)
+#### Handler Type 2.5: REST with GUI (Modal-based Commands)
 
 **When**: Command requires both backend execution AND interactive UI panel (e.g., `/identity`)
 
-**Architectural Pattern**: GUI commands are **WebSocket commands with an additional presentation layer**. They follow the same pending → completed message flow but open a modal panel for rich user interaction.
+**Architectural Pattern**: GUI commands are **REST commands with an additional presentation layer**. They follow the same pending → completed message flow but open a modal panel for rich user interaction.
 
 **Key Design Principle**: 
 > **"Dual Feedback Mechanism"** - GUI commands provide two independent layers of feedback:
@@ -316,7 +312,7 @@ case 'help': {
    ```typescript
    if (isGUICommand(command)) {
      useUIStore.getState().openModal('identity');  // Open modal panel
-     // Note: Still follows WebSocket flow, modal is just presentation
+     // Note: Still follows REST flow, modal is just presentation
    }
    ```
 
@@ -339,10 +335,10 @@ case 'help': {
    useChatStore.setState(state => ({ messages: [...state.messages, pendingMsg] }));
    ```
 
-4. **Sign and Send Command** (same as standard WebSocket):
+4. **Sign and Send Command** (via HTTP POST):
    ```typescript
    const auth = await IdentityService.signCommand('/identity');
-   websocketManager.sendCommand('/identity', auth);
+   const result = await streamManager.executeCommand('/identity', auth);
    ```
 
 5. **Panel Shows Success** (immediate UI feedback, doesn't wait for backend):
@@ -384,10 +380,10 @@ return {
 
 **Why This Architecture?**
 
-1. **Consistency**: All WebSocket commands (GUI or not) follow identical message flow
+1. **Consistency**: All REST commands (GUI or not) follow identical message flow
 2. **No Duplicate Messages**: Only one system message per action (pending gets updated, not replaced)
 3. **Data Accuracy**: Backend is single source of truth, frontend doesn't hardcode results
-4. **User Experience**: Panel provides instant feedback while backend processes asynchronously
+4. **User Experience**: Panel provides instant feedback while backend processes synchronously
 
 **Special Case: Pure Frontend Operations**
 
@@ -418,7 +414,7 @@ const completedMsg: Message = {
 ```python
 COMMAND_DEFINITION = {
     "name": "identity",
-    "handler": "websocket",
+    "handler": "rest",
     "requiresSignature": True,
     "requiresGUI": True,  # Triggers modal in frontend
 }
@@ -426,9 +422,9 @@ COMMAND_DEFINITION = {
 
 ---
 
-#### Handler Type 3: REST
+#### Handler Type 3: REST (Advanced - Custom Endpoints)
 
-**When**: Future stateless operations (e.g., `/config`, `/prompt` - planned)
+**When**: Future advanced operations requiring custom HTTP methods (e.g., `/config` with PUT, `/prompt` with DELETE - planned)
 
 **Process**:
 1. Construct HTTP request from `command.restOptions`
@@ -438,13 +434,13 @@ COMMAND_DEFINITION = {
 **Configuration**:
 ```typescript
 interface RestOptions {
-  endpoint: string;      // '/api/v1/execute'
+  endpoint: string;      // '/api/v1/config'
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   headers?: Record<string, string>;
 }
 ```
 
-**Future Development**: REST-based GUI commands may follow similar dual-feedback pattern, but using HTTP instead of WebSocket for backend communication.
+**Current Status**: Most commands use Handler Type 2 (REST POST to `/commands/execute`). Handler Type 3 is reserved for future commands requiring custom HTTP methods or endpoints.
 
 ---
 
@@ -499,7 +495,7 @@ timestamp: 1234567890.123
 #### Frontend Types (`command.types.ts`)
 
 ```typescript
-type CommandHandler = 'client' | 'websocket' | 'rest';
+type CommandHandler = 'client' | 'rest';
 
 interface Command {
   name: string;  // Without / prefix (e.g., "ping")
@@ -526,7 +522,7 @@ COMMAND_DEFINITION = {
     "name": str,  # Without / prefix (internal state)
     "description": str,
     "usage": str,  # With / prefix (external presentation)
-    "handler": "client" | "websocket" | "rest",
+    "handler": "client" | "rest",
     "examples": list[str],  # With / prefix
     "requiresSignature": bool,  # optional, triggers signature verification
     "requiresGUI": bool  # optional, triggers modal panel in frontend
@@ -544,62 +540,76 @@ COMMAND_DEFINITION = {
 
 ## Integration Points
 
-### 1. WebSocket Protocol
+### 1. HTTP + SSE Protocol
 
-**Message Flow**:
+**Command Execution** (Synchronous HTTP POST):
 
-**Client → Backend** (system_command):
-```json
+**Client → Backend**:
+```http
+POST /api/v1/commands/execute HTTP/1.1
+Authorization: Bearer {public_key}
+Content-Type: application/json
+
 {
-  "type": "system_command",
-  "payload": {
-    "command": "/ping",
-    "session_id": "0x...",
-    "auth": {                    // optional (if requiresSignature)
-      "publicKey": "0x...",
-      "signature": "0x..."
-    }
+  "command": "/ping",
+  "auth": {                    // optional (if requiresSignature)
+    "publicKey": "0x...",
+    "signature": "0x..."
   }
 }
 ```
 
-**Backend → Client** (command_result):
+**Backend → Client** (JSON response):
 ```json
 {
-  "event": "command_result",
-  "run_id": "run_abc123",
-  "payload": {
-    "command": "/ping",          // echoed back (prevents race conditions)
-    "result": {
-      "status": "success",
-      "message": "pong",
-      "data": { "latency_ms": 0.5 }
-    }
-  }
+  "status": "success",
+  "message": "pong",
+  "data": { "latency_ms": 0.5 }
 }
+```
+
+**Command Results via SSE** (Persistent stream):
+
+**Client → Backend** (establish persistent connection):
+```http
+GET /api/v1/stream/{public_key} HTTP/1.1
+```
+
+**Backend → Client** (SSE stream):
+```
+event: connection_state
+data: {"visitor": false}
+
+event: command_result
+data: {"command": "/ping", "result": {"status": "success", ...}}
+
+: keepalive
 ```
 
 **Integration Files**:
-- Backend: `nexus/interfaces/websocket.py` (lines 140-174: `handle_command_result`)
-- Frontend: `aura/src/services/websocket/protocol.ts` (CommandResultPayload type)
+- Backend: `nexus/interfaces/sse.py` (SSE interface implementation)
+- Backend: `nexus/interfaces/rest.py` (REST endpoints)
+- Frontend: `aura/src/services/stream/manager.ts` (StreamManager implementation)
+- Frontend: `aura/src/services/stream/protocol.ts` (Protocol types)
 
 ---
 
 ### 2. NexusBus Event Topics
 
-**Topic**: `Topics.SYSTEM_COMMAND`
-- **Publisher**: `WebsocketInterface` (on receiving client command)
-- **Subscriber**: `CommandService.handle_command`
-
 **Topic**: `Topics.COMMAND_RESULT`
 - **Publisher**: `CommandService._publish_result`
-- **Subscriber**: `WebsocketInterface.handle_command_result`
+- **Subscriber**: `SSEInterface.handle_command_result`
 
 **Data Flow**:
 ```
-User → WS → WebsocketInterface → SYSTEM_COMMAND topic → CommandService
-CommandService → COMMAND_RESULT topic → WebsocketInterface → WS → chatStore
+User → HTTP POST /commands/execute → CommandService
+CommandService → COMMAND_RESULT topic → SSEInterface → SSE stream → chatStore
+
+Alternatively (synchronous):
+User → HTTP POST /commands/execute → CommandService → JSON response → chatStore
 ```
+
+**Note**: Commands are now executed synchronously via HTTP POST, with results returned directly in the response. The SSE stream is used for asynchronous command result delivery if needed.
 
 ---
 
@@ -612,6 +622,7 @@ CommandService → COMMAND_RESULT topic → WebsocketInterface → WS → chatSt
 2. Hash command with keccak256: `hash = keccak(command.encode('utf-8'))`
 3. Sign hash with secp256k1: `signature = privateKey.sign(hash)`
 4. Return `{ publicKey: address, signature: hex }`
+5. Include in HTTP POST body: `{ command: "/identity", auth: { publicKey, signature } }`
 
 **Backend** (`CommandService._verify_signature`):
 1. Hash command identically: `message_hash = keccak(command_str.encode('utf-8'))`
@@ -621,7 +632,8 @@ CommandService → COMMAND_RESULT topic → WebsocketInterface → WS → chatSt
 
 **Integration Files**:
 - Frontend: `aura/src/services/identity/identity.ts`
-- Backend: `nexus/services/command.py` (lines 280-370)
+- Frontend: `aura/src/services/stream/manager.ts` (executeCommand method)
+- Backend: `nexus/services/command.py` (signature verification logic)
 
 ---
 
@@ -630,20 +642,20 @@ CommandService → COMMAND_RESULT topic → WebsocketInterface → WS → chatSt
 **Command Result Handling** (`chatStore.handleCommandResult`):
 
 **Payload Types**:
-1. **Wrapped** (preferred, as of latest refactor):
+1. **Direct HTTP Response** (primary, as of SSE migration):
+   ```typescript
+   { status: "success", message: "pong", data: { latency_ms: 0.5 } }
+   ```
+2. **SSE Stream Event** (for async results):
    ```typescript
    { command: "/ping", result: { status: "success", ... } }
-   ```
-2. **Raw** (legacy fallback):
-   ```typescript
-   { status: "success", message: "...", data: {...} }
    ```
 
 **Matching Strategy** (to update correct pending message):
 1. **Primary**: Find by `command` text match in pending SYSTEM messages
 2. **Fallback**: Find most recent pending SYSTEM message (last-in-first-out)
 
-**Race Condition Prevention**: The wrapped payload with explicit `command` field ensures concurrent commands (`/ping` + `/identity`) update their respective messages accurately.
+**Race Condition Prevention**: The command text matching ensures concurrent commands (`/ping` + `/identity`) update their respective messages accurately.
 
 ---
 
@@ -655,10 +667,12 @@ CommandService → COMMAND_RESULT topic → WebsocketInterface → WS → chatSt
 - Commands auto-discovered from `nexus/commands/definition/`
 - Logs command execution at INFO level
 - No CORS restrictions on REST API if `ALLOWED_ORIGINS` includes `localhost:5173`
+- SSE stream available at `GET /api/v1/stream/{public_key}`
 
 **Frontend**:
 - Fetches commands from `http://localhost:8000/api/v1/commands`
-- WebSocket connects to `ws://localhost:8000/api/v1/ws/{publicKey}`
+- Executes commands via `POST /api/v1/commands/execute`
+- Establishes persistent SSE connection to `GET /api/v1/stream/{public_key}`
 - Fallback commands kick in if backend not running
 
 **Environment Variables**:
@@ -682,11 +696,12 @@ VITE_WS_URL=ws://localhost:8000/api/v1/ws
   ```bash
   ALLOWED_ORIGINS=https://your-aura-app.onrender.com
   ```
-- WebSocket uses WSS (secure) if behind HTTPS proxy
+- SSE stream uses standard HTTPS (no special proxy config needed)
 
 **Frontend**:
 - Fetches commands from production API URL
-- WebSocket uses `wss://` protocol
+- Executes commands via HTTPS POST
+- SSE stream uses standard HTTPS connection
 - Fallback commands still available if connection lost
 
 **Critical**: Ensure `ALLOWED_ORIGINS` matches exact frontend URL in production, or CORS preflight will fail (HTTP 400/405).
@@ -735,19 +750,19 @@ VITE_WS_URL=ws://localhost:8000/api/v1/ws
 pong
 ```
 
-**Root Cause**: Pending SYSTEM message wasn't created before sending WebSocket command
+**Root Cause**: Pending SYSTEM message wasn't created before sending HTTP command
 
-**Fixed In**: Latest refactor (commit `bac76a9`) - `commandExecutor.ts` now creates pending message before `websocketManager.sendCommand()`
+**Fixed In**: Latest refactor (SSE migration) - `commandExecutor.ts` now creates pending message before `streamManager.executeCommand()`
 
 **Verification**:
 ```typescript
-// In commandExecutor.ts (executeWebSocketCommand)
+// In commandExecutor.ts (executeServerCommand)
 const pendingMsg: Message = {
   content: { command: commandText },  // "/ping" stored here
   metadata: { status: 'pending' }
 };
 useChatStore.setState(...);  // Add pending message
-websocketManager.sendCommand(...);   // Then send
+const result = await streamManager.executeCommand(...);   // Then send
 ```
 
 ---
@@ -766,26 +781,26 @@ payload: { command: "/ping", result: {...} }
 Frontend matches by exact command text, not just recency.
 
 **Files**:
-- Backend: `nexus/interfaces/websocket.py` (lines 160-180)
-- Frontend: `aura/src/features/chat/store/chatStore.ts` (lines 345-365)
+- Backend: `nexus/interfaces/rest.py` (POST /commands/execute endpoint)
+- Frontend: `aura/src/features/chat/store/chatStore.ts` (handleCommandResult method)
 
 ---
 
 ### Issue 4: `/help` Triggers Network Request
 
-**Symptoms**: Network tab shows WebSocket message when executing `/help`
+**Symptoms**: Network tab shows HTTP request when executing `/help`
 
-**Root Cause**: `/help` handler set to `"websocket"` instead of `"client"`
+**Root Cause**: `/help` handler set to `"rest"` instead of `"client"`
 
 **Fix**:
 ```python
 # nexus/commands/definition/help.py
 COMMAND_DEFINITION = {
-    "handler": "client"  # Not "websocket"
+    "handler": "client"  # Not "rest"
 }
 ```
 
-**Verification**: Execute `/help` → check Network tab → no new WS frames
+**Verification**: Execute `/help` → check Network tab → no new HTTP requests
 
 ---
 
@@ -833,7 +848,7 @@ if (Array.isArray(value)) {
 **❌ Old (incorrect) pattern**:
 ```typescript
 // GUI panel action handler
-websocketManager.sendCommand('/identity', auth);
+const result = await streamManager.executeCommand('/identity', auth);
 createSystemMessage('/identity', '身份已创建');  // ❌ Manual creation
 // Later: handleCommandResult creates another message → DUPLICATE
 ```
@@ -850,7 +865,7 @@ const pendingMsg: Message = {
 useChatStore.setState(state => ({ messages: [...state.messages, pendingMsg] }));
 
 // Step 2: Send command
-websocketManager.sendCommand('/identity', auth);
+const result = await streamManager.executeCommand('/identity', auth);
 
 // Step 3: handleCommandResult automatically updates pending → completed
 // Result: Only ONE system message
@@ -918,7 +933,7 @@ COMMAND_DEFINITION = {
     "name": "mycommand",  # Without / prefix (internal state)
     "description": "Does something useful",
     "usage": "/mycommand",  # With / prefix (display format)
-    "handler": "websocket",  # or "client"
+    "handler": "rest",  # or "client"
     "examples": ["/mycommand"],  # With / prefix
     "requiresSignature": False  # optional
 }
@@ -985,7 +1000,7 @@ AURA will fetch updated command list on next page load via `/api/v1/commands`.
 ```python
 COMMAND_DEFINITION = {
     "name": "myguicommand",
-    "handler": "websocket",  # or "rest" for future REST-based GUI commands
+    "handler": "rest",  # HTTP POST to /commands/execute
     "requiresGUI": True,  # ✅ Triggers modal panel
     "requiresSignature": True,  # optional, if needed
     # ... other fields
@@ -1020,7 +1035,7 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useChatStore } from '@/features/chat/store/chatStore';
-import { websocketManager } from '@/services/websocket/manager';
+import { streamManager } from '@/services/stream/manager';
 import type { Message } from '@/features/chat/types';
 
 export const MyGUICommandPanel: React.FC = () => {
@@ -1046,7 +1061,7 @@ export const MyGUICommandPanel: React.FC = () => {
       }));
       
       // Step 2: Send command to backend
-      websocketManager.sendCommand('/myguicommand');
+      const result = await streamManager.executeCommand('/myguicommand');
       
       // Step 3: Show in-panel success (immediate UI feedback)
       setFeedback({ state: 'success' });
@@ -1149,7 +1164,7 @@ expect(commands.map(c => c.name)).toContain('mycommand');
 
 **Client Commands**: < 10ms (synchronous, no network)
 
-**WebSocket Commands**:
+**REST Commands** (HTTP POST):
 - Network RTT: ~50-200ms (local dev)
 - Backend execution: varies by command (e.g., `/ping` < 1ms, database queries may be 10-100ms)
 - Total: typically 100-300ms for simple commands
@@ -1187,7 +1202,7 @@ COMMAND_DEFINITION = {"requiresSignature": True}
 
 **Attack Vectors**:
 - **Replay**: Not prevented (same signature can be reused). Consider adding nonce if needed.
-- **MitM**: Signatures are sent over WebSocket. Use WSS in production.
+- **MitM**: Signatures are sent over HTTP. Use HTTPS in production.
 
 ### Command Injection
 
@@ -1219,7 +1234,7 @@ COMMAND_DEFINITION = {"requiresSignature": True}
 
 - **Architecture Overview**: `../02_NEXUS_ARCHITECTURE.md`
 - **Environment Setup**: `environment_configuration.md`
-- **WebSocket Protocol**: `aura/src/services/websocket/protocol.ts` (inline docs)
+- **SSE Protocol**: `docs/api_reference/02_SSE_PROTOCOL.md`
 - **Identity System**: `aura/src/services/identity/identity.ts`
 
 ### Key Code Files
@@ -1227,8 +1242,8 @@ COMMAND_DEFINITION = {"requiresSignature": True}
 **Backend**:
 - `nexus/services/command.py` - CommandService implementation
 - `nexus/commands/definition/` - All command definitions
-- `nexus/interfaces/rest.py` - `/api/v1/commands` endpoint
-- `nexus/interfaces/websocket.py` - Command result publishing
+- `nexus/interfaces/rest.py` - `/api/v1/commands` and `/api/v1/commands/execute` endpoints
+- `nexus/interfaces/sse.py` - SSE interface for persistent streams
 
 **Frontend**:
 - `aura/src/features/command/commandExecutor.ts` - Execution router
@@ -1237,19 +1252,25 @@ COMMAND_DEFINITION = {"requiresSignature": True}
 - `aura/src/features/command/components/IdentityPanel.tsx` - GUI command reference implementation
 - `aura/src/features/chat/components/ChatMessage.tsx` - Result rendering
 - `aura/src/features/chat/store/chatStore.ts` - Result handling (handleCommandResult)
+- `aura/src/services/stream/manager.ts` - StreamManager for HTTP+SSE communication
 
 ### External Resources
 
 - **Ethereum Signature Standard**: EIP-191 (message signing)
-- **WebSocket Protocol**: RFC 6455
+- **HTTP Streaming**: Server-Sent Events (SSE) - RFC 8030
 
 ---
 
-**Last Updated**: 2025-10-16  
-**Version**: NEXUS v0.2.0  
+**Last Updated**: 2025-12-11  
+**Version**: NEXUS v0.3.0  
 **Maintainer**: AI Collaboration Team
 
 **Recent Updates**:
+- 2025-12-11: WebSocket to SSE/HTTP migration
+  - Handler Type 2: Changed from WebSocket to HTTP POST (`/commands/execute`)
+  - Handler Type 2.5: Updated GUI commands to use HTTP POST
+  - Integration Points: Updated to reflect SSE protocol and REST endpoints
+  - Architecture: Simplified to HTTP+SSE instead of WebSocket
 - 2025-10-16: Added comprehensive GUI command (modal-based) architecture documentation
   - Handler Type 2.5: WebSocket with GUI pattern
   - Dual feedback mechanism architecture

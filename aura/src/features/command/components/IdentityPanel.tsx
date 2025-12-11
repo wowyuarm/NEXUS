@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { useChatStore } from "@/features/chat/store/chatStore";
 import { useUIStore } from "@/stores/uiStore";
 import { IdentityService } from "@/services/identity/identity";
-import { websocketManager } from "@/services/websocket/manager";
+import { streamManager } from "@/services/stream/manager";
 import { v4 as uuidv4 } from "uuid";
 import { FRAMER } from "@/lib/motion";
 import type { Message } from "@/features/chat/types";
@@ -127,9 +127,9 @@ export const IdentityPanel: React.FC = () => {
             }));
 
             const auth = await IdentityService.signCommand("/identity");
-            websocketManager.sendCommand("/identity", auth);
+            streamManager.sendCommand("/identity", auth);
 
-            await websocketManager.reconnect();
+            await streamManager.reconnect();
             
             setActionState("success");
             setTimeout(() => closeModal(), 800);
@@ -150,7 +150,7 @@ export const IdentityPanel: React.FC = () => {
 
         try {
             const newPublicKey = await IdentityService.importFromMnemonic(mnemonicInput);
-            await websocketManager.reconnect(newPublicKey);
+            await streamManager.reconnect(newPublicKey);
 
             const completedMsg: Message = {
                 id: uuidv4(),
@@ -234,13 +234,13 @@ export const IdentityPanel: React.FC = () => {
             }));
 
             const auth = await IdentityService.signCommand("/identity/delete");
-            websocketManager.sendCommand("/identity/delete", auth);
+            streamManager.sendCommand("/identity/delete", auth);
 
             await new Promise((resolve) => setTimeout(resolve, 300));
 
             IdentityService.clearIdentity();
             closeModal();
-            websocketManager.disconnect();
+            streamManager.disconnect();
 
             setTimeout(() => {
                 window.location.reload();

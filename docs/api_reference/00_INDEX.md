@@ -8,10 +8,10 @@ Unlike the [Knowledge Base](../knowledge_base/00_INDEX.md) which explains concep
 
 ## Table of Contents
 
-1. **[01 WebSocket Protocol](./01_WEBSOCKET_PROTOCOL.md)**
-   - A complete specification of the real-time communication protocol between the AURA frontend and the NEXUS backend
-   - Details every message type, direction, and payload structure for chat interactions
-   - Covers client-to-server (`user_message`, `ping`) and server-to-client (UI events) messages
+1. **[01 SSE Protocol](./01_SSE_PROTOCOL.md)**
+   - A complete specification of the HTTP + SSE communication protocol between the AURA frontend and the NEXUS backend
+   - Details chat streaming (`POST /chat`), command execution (`POST /commands/execute`), and persistent streams (`GET /stream/{public_key}`)
+   - Covers all event types: `run_started`, `text_chunk`, `tool_call_*`, `run_finished`, `error`, `command_result`
 
 2. **[02 Configuration Reference](./02_CONFIGURATION_REFERENCE.md)**
    - Exhaustive documentation of the genesis configuration document structure
@@ -32,14 +32,14 @@ Unlike the [Knowledge Base](../knowledge_base/00_INDEX.md) which explains concep
 
 ### For Frontend Developers
 
--   **[01 WebSocket Protocol](./01_WEBSOCKET_PROTOCOL.md)**: Implement real-time chat interface
+-   **[01 SSE Protocol](./01_SSE_PROTOCOL.md)**: Implement real-time chat interface with streaming responses
 -   **[03 REST API Protocol](./03_REST_API.md)**: Build configuration panels and settings UI
 -   **[02 Configuration Reference](./02_CONFIGURATION_REFERENCE.md)**: Understand available configuration options and UI metadata
 
 ### For Backend Developers
 
 -   **[02 Configuration Reference](./02_CONFIGURATION_REFERENCE.md)**: Modify system defaults and add new configuration options
--   **[01 WebSocket Protocol](./01_WEBSOCKET_PROTOCOL.md)**: Extend event types or add new server-to-client messages
+-   **[01 SSE Protocol](./01_SSE_PROTOCOL.md)**: Extend event types or add new server-to-client messages
 -   **[03 REST API Protocol](./03_REST_API.md)**: Add new REST endpoints or modify authentication logic
 
 ### For System Administrators
@@ -51,16 +51,16 @@ Unlike the [Knowledge Base](../knowledge_base/00_INDEX.md) which explains concep
 
 ## Key Architectural Concepts
 
-### Event-Driven vs REST
+### HTTP + SSE Architecture
 
-NEXUS employs a **dual-interface architecture**:
+NEXUS employs a **unified HTTP architecture**:
 
 | Interface | Purpose | Use Cases |
-|-----------|---------|-----------|
-| **WebSocket** (01) | Real-time, bidirectional communication | Chat messages, streaming responses, tool execution updates |
-| **REST API** (03) | Stateless, CRUD operations | Configuration management, historical data retrieval, user preferences |
+|-----------|---------|----------|
+| **SSE Streaming** (01) | Real-time, server-to-client streaming | Chat responses, tool execution updates, connection state |
+| **REST API** (03) | Stateless, CRUD operations | Configuration management, command execution, historical data retrieval |
 
-**Design Principle**: Use WebSocket for **dynamic interactions**, REST for **static data**.
+**Design Principle**: Use SSE for **streaming responses**, REST for **request-response operations**.
 
 ### Configuration Inheritance
 
@@ -93,18 +93,18 @@ Three-tier authentication (03):
 
 ## Cross-Document References
 
-### WebSocket ↔ REST Integration
+### SSE ↔ REST Integration
 
--   **Identity**: Users authenticate via public key in both protocols
-    -   WebSocket: Embedded in session context
+-   **Identity**: Users authenticate via public key (Bearer token) in all requests
+    -   SSE streams: Token in Authorization header or path parameter
     -   REST: Provided as Bearer token
 
--   **Configuration**: User config from REST API affects WebSocket behavior
-    -   `config.model` determines which LLM processes WebSocket messages
+-   **Configuration**: User config from REST API affects chat behavior
+    -   `config.model` determines which LLM processes chat messages
     -   `config.history_context_size` affects context loading in `ContextService`
 
--   **Message History**: Written via WebSocket, read via REST
-    -   `PersistenceService` saves all WebSocket messages
+-   **Message History**: Written via chat endpoint, read via REST
+    -   `PersistenceService` saves all chat messages
     -   `GET /api/v1/messages` retrieves historical data
 
 ### Configuration ↔ Code Integration
@@ -120,6 +120,7 @@ Three-tier authentication (03):
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1 | 2025-12-11 | Migrated from WebSocket to SSE Protocol (01) |
 | 1.0 | 2025-10-20 | Added REST API Protocol (03), Updated Configuration Reference (02) |
 | 0.9 | 2025-10-15 | Initial WebSocket Protocol (01) and Configuration Reference (02) |
 
@@ -140,4 +141,4 @@ This is a living document. If you find:
 -   **Missing Information**: Suggest additions via pull request
 -   **Unclear Explanations**: Request clarification in discussions
 
-**Maintenance Responsibility**: Backend team owns 02-03, Frontend team owns 01.
+**Maintenance Responsibility**: Backend team owns 01-03, Frontend team collaborates on 01.

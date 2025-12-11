@@ -7,7 +7,7 @@ This document provides a comprehensive reference for configuring the NEXUS proje
 **Current Deployment Architecture:**
 - **Frontend (AURA)**: Deployed on Vercel as static site (global CDN)
 - **Backend (NEXUS)**: Deployed on Render as Docker container (Singapore region)
-- **Communication**: Direct HTTPS/WSS connections from browser to backend
+- **Communication**: Direct HTTPS/SSE connections from browser to backend (REST API + Server-Sent Events)
 
 ---
 
@@ -31,7 +31,7 @@ This document provides a comprehensive reference for configuring the NEXUS proje
 | Component | Technology | Deployment | Purpose |
 |-----------|-----------|------------|---------|
 | **AURA (Frontend)** | React 19 + Vite + TypeScript | Vercel (CDN) | User interface, static assets |
-| **NEXUS (Backend)** | Python 3.11 + FastAPI | Render (Docker) | API, WebSocket, LLM orchestration |
+| **NEXUS (Backend)** | Python 3.11 + FastAPI | Render (Docker) | REST API, SSE streaming, LLM orchestration |
 | **MongoDB Atlas** | MongoDB 7.0 | Cloud | Persistent data storage |
 | **GitHub Actions** | Workflow automation | GitHub | Backend keepalive (prevents cold starts) |
 
@@ -48,14 +48,14 @@ This document provides a comprehensive reference for configuring the NEXUS proje
 
 **Key Points:**
 - Frontend runs on Vite dev server with hot reload
-- Vite proxy forwards `/api/*` and `/ws/*` to backend
+- Vite proxy forwards `/api/*` to backend
 - Single `.env` file configures both services
 - CORS not needed (same-origin via proxy)
 
 #### Production Environment
 ```
 ┌─────────────┐                         ┌──────────────┐
-│   Browser   │ ──── HTTPS/WSS ───────> │   Backend    │
+│   Browser   │ ──── HTTPS/SSE ───────> │   Backend    │
 │  (Global)   │                         │  (Render)    │
 └─────────────┘                         │  Singapore   │
        │                                └──────────────┘
@@ -105,22 +105,20 @@ VITE_APP_NAME=AURA
    ```typescript
    // vite.config.ts
    proxy: {
-     '/api': { target: env.VITE_NEXUS_BASE_URL || 'http://localhost:8000' },
-     '/ws': { target: env.VITE_NEXUS_BASE_URL || 'http://localhost:8000', ws: true }
+     '/api': { target: env.VITE_NEXUS_BASE_URL || 'http://localhost:8000' }
    }
    ```
 3. **Frontend code** reads via `import.meta.env.VITE_NEXUS_BASE_URL`
 4. **URL construction** in `config/nexus.ts`:
    ```typescript
    const devBase = import.meta.env.VITE_NEXUS_BASE_URL || 'http://localhost:8000';
-   wsUrl = `${devBase.replace('http', 'ws')}/api/v1/ws`;
    apiUrl = `${devBase}/api/v1`;
    ```
 
 **Key Files:**
 - `aura/vite.config.ts` - Loads env and configures proxy
 - `aura/src/config/nexus.ts` - Centralized configuration logic
-- `aura/src/services/websocket/manager.ts` - Uses `getNexusConfig()`
+- `aura/src/services/stream/manager.ts` - Uses `getNexusConfig()`
 - `aura/src/features/command/api.ts` - Uses `getNexusConfig()`
 
 ### Production Environment (Vercel)
@@ -131,7 +129,6 @@ VITE_APP_NAME=AURA
 
 | Variable | Example Value | Environment | Purpose |
 |----------|--------------|-------------|---------|
-| `VITE_AURA_WS_URL` | `wss://nexus-backend-xxx.onrender.com/api/v1/ws` | Production, Preview | WebSocket endpoint |
 | `VITE_AURA_API_URL` | `https://nexus-backend-xxx.onrender.com/api/v1` | Production, Preview | REST API endpoint |
 | `VITE_AURA_ENV` | `production` | Production | Environment identifier (optional) |
 | `VITE_APP_NAME` | `AURA` | Production, Preview | Application name (optional) |
@@ -139,7 +136,7 @@ VITE_APP_NAME=AURA
 **Important Notes:**
 - ⚠️ **Build-time variables** - These are baked into the static bundle during build
 - Changes require **redeployment** to take effect (`vercel --prod`)
-- Use **wss://** (not https://) for WebSocket URL
+- Use **https://** for API endpoints
 - Get backend URL from Render Dashboard after deployment
 
 **Build Process:**
@@ -162,32 +159,29 @@ VITE_APP_NAME=AURA
 export const getNexusConfig = (): NexusConfig => {
   const env = import.meta.env.PROD ? 'production' : 'development';
   
-  let wsUrl = import.meta.env.VITE_AURA_WS_URL;
   let apiUrl = import.meta.env.VITE_AURA_API_URL;
   
   if (env === 'production') {
-    if (!wsUrl || !apiUrl) {
-      console.error('❌ Missing backend URLs in production!');
-      // Fallback URLs (will fail but provide clear error)
-      wsUrl = 'wss://backend-not-configured/api/v1/ws';
+    if (!apiUrl) {
+      console.error('❌ Missing backend URL in production!');
+      // Fallback URL (will fail but provide clear error)
       apiUrl = 'https://backend-not-configured/api/v1';
     }
   } else {
     // Development: Use localhost or explicit override
     const devBase = import.meta.env.VITE_NEXUS_BASE_URL || 'http://localhost:8000';
-    wsUrl = wsUrl || `${devBase.replace('http', 'ws')}/api/v1/ws`;
     apiUrl = apiUrl || `${devBase}/api/v1`;
   }
   
-  return { env, wsUrl, apiUrl };
+  return { env, apiUrl };
 };
 ```
 
 **Verification:**
 Open browser console after deployment:
 ```javascript
-// Should see your actual backend URLs
-🔗 Connecting to WebSocket: wss://nexus-backend-xxx.onrender.com/api/v1/ws
+// Should see your actual backend URL
+🔗 API Base URL: https://nexus-backend-xxx.onrender.com/api/v1
 ```
 
 ### Centralized Configuration Pattern
@@ -199,15 +193,14 @@ All frontend code gets backend URLs through **one function**:
 import { getNexusConfig } from '@/config/nexus';
 
 const config = getNexusConfig();
-const wsUrl = config.wsUrl;
 const apiUrl = config.apiUrl;
 
 // ❌ WRONG - Don't read env vars directly
-const wsUrl = import.meta.env.VITE_AURA_WS_URL;  // Don't do this!
+const apiUrl = import.meta.env.VITE_AURA_API_URL;  // Don't do this!
 ```
 
 **Files Using This Pattern:**
-- `aura/src/services/websocket/manager.ts`
+- `aura/src/services/stream/manager.ts`
 - `aura/src/features/command/api.ts`
 - `aura/src/features/command/commandExecutor.ts`
 
@@ -341,7 +334,6 @@ http://localhost:5173,http://127.0.0.1:5173,https://your-app.vercel.app
                       │                  │               │
                       ↓                  ↓               ↓
               CORS, DB, LLM      getNexusConfig()    /api → :8000
-                                                     /ws → :8000
 ```
 
 ### Production Build Flow
@@ -401,14 +393,14 @@ http://localhost:5173,http://127.0.0.1:5173,https://your-app.vercel.app
 ┌────────────────────────────────────────────────────────┐
 │ Browser makes requests to backend directly:            │
 │ - HTTPS: https://nexus-backend-xxx.onrender.com/api/v1 │
-│ - WSS: wss://nexus-backend-xxx.onrender.com/api/v1/ws  │
+│ - SSE: https://nexus-backend-xxx.onrender.com/api/v1   │
 └────────────────────────────────────────────────────────┘
                         │
                         ↓
 ┌────────────────────────────────────────────────────────┐
 │ Render backend processes requests                      │
 │ - CORS check passes (Vercel domain allowed)            │
-│ - WebSocket connection established                     │
+│ - SSE stream established                               │
 │ - REST API responds with JSON                          │
 └────────────────────────────────────────────────────────┘
 ```
@@ -417,19 +409,20 @@ http://localhost:5173,http://127.0.0.1:5173,https://your-app.vercel.app
 
 ## Network Communication
 
-### WebSocket Connection
+### SSE Connection (Persistent Stream)
 
 #### Development
 ```typescript
 // Frontend derives URL
 const config = getNexusConfig();
-// config.wsUrl = "ws://localhost:8000/api/v1/ws"
+// config.apiUrl = "http://localhost:8000/api/v1"
 
-// Browser establishes WebSocket
-new WebSocket("ws://localhost:8000/api/v1/ws/0x...")
+// Browser establishes SSE connection
+new EventSource("http://localhost:8000/api/v1/stream/0x...")
   ↓
 // Backend accepts connection
-// Heartbeat every 30 seconds
+// Sends connection_state event
+// Keepalive every 30 seconds
 // Event streaming begins
 ```
 
@@ -437,15 +430,16 @@ new WebSocket("ws://localhost:8000/api/v1/ws/0x...")
 ```typescript
 // Frontend uses baked-in URL
 const config = getNexusConfig();
-// config.wsUrl = "wss://nexus-backend-xxx.onrender.com/api/v1/ws"
+// config.apiUrl = "https://nexus-backend-xxx.onrender.com/api/v1"
 
-// Browser establishes WebSocket
-new WebSocket("wss://nexus-backend-xxx.onrender.com/api/v1/ws/0x...")
+// Browser establishes SSE connection
+new EventSource("https://nexus-backend-xxx.onrender.com/api/v1/stream/0x...")
   ↓
 // Render backend accepts connection
 // CORS check: Vercel domain allowed ✓
-// WebSocket tunnel established
-// Heartbeat every 30 seconds
+// SSE stream established
+// Sends connection_state event
+// Keepalive every 30 seconds
 // Event streaming begins
 ```
 
@@ -551,8 +545,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       proxy: {
-        '/api': { target: env.VITE_NEXUS_BASE_URL || 'http://localhost:8000' },
-        '/ws': { target: env.VITE_NEXUS_BASE_URL || 'http://localhost:8000', ws: true }
+        '/api': { target: env.VITE_NEXUS_BASE_URL || 'http://localhost:8000' }
       }
     }
   };
@@ -633,11 +626,11 @@ Backend `ALLOWED_ORIGINS` doesn't include Vercel domain.
    ```
 3. Backend will restart automatically with new env vars
 
-### Issue 3: WebSocket Connection Timeout
+### Issue 3: SSE Connection Timeout
 
 **Symptoms:**
 ```
-WebSocket connection to 'wss://...' failed: Error during WebSocket handshake
+SSE connection to 'https://...' failed: Network error
 ```
 
 **Possible Causes:**
@@ -706,8 +699,8 @@ Render free tier sleeps after 15 minutes of inactivity. This is normal.
 
 3. **Use browser DevTools**
    - Network tab: Verify proxy is working
-   - Console tab: Check WebSocket connection logs
-   - Look for "Derived WebSocket URL" messages
+   - Console tab: Check SSE connection logs
+   - Look for "API Base URL" messages
 
 4. **Don't hardcode URLs**
    - ❌ `const url = "http://localhost:8000/api/v1"`
@@ -754,8 +747,8 @@ Render free tier sleeps after 15 minutes of inactivity. This is normal.
    - Only allow necessary domains
    - Remove old/unused domains regularly
 
-3. **Use HTTPS/WSS in production**
-   - Never use HTTP/WS for production
+3. **Use HTTPS in production**
+   - Never use HTTP for production
    - Vercel and Render provide free SSL certificates
 
 4. **Rotate API keys periodically**
@@ -812,5 +805,11 @@ The old Render frontend architecture (with nginx reverse proxy) was deprecated o
 
 ---
 
-_Last Updated: 2025-10-26_  
+_Last Updated: 2025-12-11_  
 _Maintainer: Update this document when environment configuration changes_
+
+**Recent Updates:**
+- 2025-12-11: Migrated from WebSocket to HTTP+SSE architecture
+  - Removed WebSocket/WSS references
+  - Updated to SSE-based persistent connections
+  - Simplified configuration (single API URL instead of separate WS URL)

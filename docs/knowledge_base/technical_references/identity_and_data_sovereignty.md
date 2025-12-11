@@ -22,7 +22,7 @@ This document covers the complete implementation of the `DATA-SOVEREIGNTY-1.0` i
 ┌─────────────────────────────────────────────────────────────┐
 │                        AURA (Frontend)                       │
 │  ┌──────────────┐    ┌───────────────┐   ┌──────────────┐  │
-│  │IdentityService│───▶│ WebSocket Mgr │───│ Chat Store   │  │
+│  │IdentityService│───▶│ StreamManager │───│ Chat Store   │  │
 │  │(Key Gen/Sign)│    │ (public_key)  │   │(visitorMode) │  │
 │  └──────────────┘    └───────────────┘   └──────────────┘  │
 └────────────────────────────┬────────────────────────────────┘
@@ -30,7 +30,7 @@ This document covers the complete implementation of the `DATA-SOVEREIGNTY-1.0` i
 ┌────────────────────────────▼────────────────────────────────┐
 │                       NEXUS (Backend)                        │
 │  ┌──────────────────┐      ┌────────────────────────────┐  │
-│  │WebSocketInterface│─────▶│   OrchestratorService      │  │
+│  │REST Interface    │─────▶│   OrchestratorService      │  │
 │  │(Routing)         │      │   (Gatekeeper Logic)       │  │
 │  └──────────────────┘      └────────────┬───────────────┘  │
 │                                          │                   │
@@ -267,7 +267,7 @@ command_service = CommandService(
 User sends message
       │
       ▼
-WebSocketInterface wraps in Run(owner_key=public_key)
+REST Interface wraps in Run(owner_key=public_key)
       │
       ▼
 Publishes to RUNS_NEW topic
@@ -364,7 +364,7 @@ COMMAND_DEFINITION = {
     "name": "identity",
     "description": "Verify your identity and display your public key through cryptographic signature",
     "usage": "/identity",
-    "handler": "websocket",
+    "handler": "rest",
     "requiresSignature": True,  # ✅ Enforces cryptographic proof
     "examples": ["/identity"]
 }
@@ -380,11 +380,11 @@ AURA Frontend                           NEXUS Backend
      ├─ IdentityService.signCommand()        │
      │   └─ Signs command with private key   │
      │                                        │
-     ├─ WebSocket.send({                     │
-     │     type: "system_command",            │
-     │     payload: {                         │
-     │       command: "/identity",            │
-     │       public_key: "0x...",             │
+     ├─ HTTP POST /commands/execute {        │
+     │     command: "/identity",              │
+     │     auth: {                            │
+     │       publicKey: "0x...",              │
+     │       signature: "0x..."               │
      │       auth: {                          │
      │         publicKey: "0x...",            │
      │         signature: "0x..."             │
@@ -412,13 +412,12 @@ AURA Frontend                           NEXUS Backend
      │                                        │   │   │
      │                                        │   │   └─ Return success message
      │                                        │   │
-     │                                        │   └─ Publish to COMMAND_RESULT
+     │                                        │   └─ Return JSON response
      │                                        │
-     │◀──────────────────────────────────────┤ WebSocket.send({
-     │                                        │   event: "command_result",
-     │                                        │   payload: {
-     │                                        │     status: "success",
-     │                                        │     message: "✨ 身份已创建！...",
+     │◀──────────────────────────────────────┤ HTTP 200 {
+     │                                        │   status: "success",
+     │                                        │   message: "✨ 身份已创建！...",
+     │                                        │   data: {
      │                                        │     data: {
      │                                        │       public_key: "0x...",
      │                                        │       verified: true,
@@ -476,35 +475,36 @@ async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
 
 ### 6. Frontend Integration
 
-#### WebSocket Connection (`aura/src/services/websocket/manager.ts`)
+#### SSE Connection (`aura/src/services/stream/manager.ts`)
 
-**Old Route:** `/api/v1/ws/{session_id}`  
-**New Route:** `/api/v1/ws/{public_key}`
+**Endpoint:** `/api/v1/stream/{public_key}`  
+**Purpose:** Persistent connection for connection_state and command results
 
+**Connection Logic:**
 ```typescript
-async connect(): Promise<void> {
+async connect() {
   // Get persistent public key from IdentityService
   this.publicKey = await this._getPublicKey();
   
-  // Construct WebSocket URL with public_key as route parameter
-  const fullUrl = `${this.baseUrl}/${this.publicKey}`;
+  // Construct SSE URL with public_key as route parameter
+  const fullUrl = `${this.baseUrl}/stream/${this.publicKey}`;
   
-  this.ws = new WebSocket(fullUrl);
+  this.eventSource = new EventSource(fullUrl);
   
-  this.ws.onopen = () => {
+  this.eventSource.onopen = () => {
     this.isConnected = true;
     this.emitter.emit('connected', { publicKey: this.publicKey });
   };
   
   // Backend now sends connection_state event on connect
-  this.ws.onmessage = (event) => {
+  this.eventSource.onmessage = (event) => {
     const nexusEvent = parseNexusEvent(event.data);
     this.emitter.emit(nexusEvent.event, nexusEvent.payload);
   };
 }
 ```
 
-#### Protocol Changes (`aura/src/services/websocket/protocol.ts`)
+#### Protocol Changes (`aura/src/services/stream/protocol.ts`)
 
 **New Event Type:**
 ```typescript
@@ -532,11 +532,11 @@ export interface ClientMessage {
   };
 }
 
-export interface SystemCommandMessage {
-  type: 'system_command';
-  payload: {
-    command: string;
-    public_key: string;  // ✅ Changed from session_id
+export interface CommandExecuteRequest {
+  command: string;
+  auth?: {
+    publicKey: string;  // ✅ Signature verification
+    signature: string;
     auth?: {
       publicKey: string;
       signature: string;
@@ -635,11 +635,11 @@ const loadCommands = async (visitorMode: boolean = false) => {
 **Scenario: Registered Member Sends Message**
 
 ```
-1. Frontend: ChatInput → websocketManager.sendMessage("Hello")
-   └─ Payload: { type: "user_message", payload: { content: "Hello", public_key: "0x..." } }
+1. Frontend: ChatInput → streamManager.sendMessage("Hello")
+   └─ HTTP POST /api/v1/chat { content: "Hello" }
 
-2. Backend: WebsocketInterface.websocket_endpoint()
-   ├─ Extracts public_key from route parameter
+2. Backend: REST Interface /chat endpoint
+   ├─ Extracts public_key from Authorization header
    ├─ Creates Message(owner_key=public_key, role=HUMAN, content="Hello")
    └─ Publishes to RUNS_NEW
 
@@ -674,8 +674,8 @@ const loadCommands = async (visitorMode: boolean = false) => {
    ├─ Publishes to UI_EVENTS
    └─ STOPS PROCESSING (no CONTEXT_BUILD_REQUEST)
 
-4. WebsocketInterface.handle_ui_event()
-   └─ Sends guidance message to frontend WebSocket
+4. SSE Interface.handle_ui_event()
+   └─ Sends guidance message to frontend SSE stream
 
 5. Frontend: ChatStore.handleTextChunk() or similar
    └─ Displays system message: "身份未验证。请通过 /identity..."
@@ -697,9 +697,9 @@ const loadCommands = async (visitorMode: boolean = false) => {
 - Database name: `nexus_dev`
 - Collections: `identities`, `messages`, `system_configurations`
 
-**WebSocket:**
-- Connects to `ws://localhost:8000/api/v1/ws/{public_key}`
-- No TLS encryption (plain WebSocket)
+**SSE Stream:**
+- Connects to `http://localhost:8000/api/v1/stream/{public_key}`
+- No TLS encryption (plain HTTP)
 
 ### Production Environment (Render)
 
@@ -714,9 +714,9 @@ const loadCommands = async (visitorMode: boolean = false) => {
 - Database name configured in `config.yml`
 - Automatic index creation on first connection
 
-**WebSocket:**
-- Connects via `wss://nexus-api.onrender.com/api/v1/ws/{public_key}`
-- TLS-encrypted WebSocket
+**SSE Stream:**
+- Connects via `https://nexus-api.onrender.com/api/v1/stream/{public_key}`
+- TLS-encrypted HTTPS
 - Connection validated against registered identities
 
 ---
@@ -834,12 +834,12 @@ async def handle_new_run(self, message: Message):
 
 **Diagnosis:**
 ```typescript
-// Check WebSocket event subscription in useAura.ts
+// Check SSE event subscription in useAura.ts
 useEffect(() => {
-  websocketManager.on('connection_state', onConnectionState);  // ✅ Must be present
+  streamManager.on('connection_state', onConnectionState);  // ✅ Must be present
   
   return () => {
-    websocketManager.off('connection_state', onConnectionState);
+    streamManager.off('connection_state', onConnectionState);
   };
 }, [onConnectionState]);  // ✅ Must include dependency
 ```
@@ -1149,7 +1149,7 @@ messages = db.messages.find({})  # ❌ DANGEROUS: Exposes all user data
   - `nexus/commands/definition/identity.py` - `/identity` command
 - **Frontend**:
   - `aura/src/services/identity/identity.ts` - Key generation & signing
-  - `aura/src/services/websocket/manager.ts` - WebSocket with public_key
+  - `aura/src/services/stream/manager.ts` - SSE with public_key
   - `aura/src/features/chat/store/chatStore.ts` - Visitor mode state
 
 ### External Resources

@@ -133,7 +133,7 @@ class TestCommandServiceIntegration:
         assert "theme" in commands
 
         # Verify handler field is present
-        assert commands["ping"]["handler"] == "websocket"
+        assert commands["ping"]["handler"] == "server"
         assert (
             commands["help"]["handler"] == "client"
         )  # help is now a client-side command

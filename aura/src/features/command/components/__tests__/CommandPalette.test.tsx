@@ -28,9 +28,9 @@ vi.mock('@/lib/utils', () => ({
 
 // Helper function to create test commands
 const createTestCommands = (): Command[] => [
-  { name: 'ping', description: 'Check connection to the NEXUS core.', usage: '/ping', handler: 'websocket', examples: ['/ping'] },
-  { name: 'help', description: 'Display information about available commands.', usage: '/help', handler: 'websocket', examples: ['/help'] },
-  { name: 'identity', description: 'Manage your user identity.', usage: '/identity', handler: 'websocket', examples: ['/identity'] }
+  { name: 'ping', description: 'Check connection to the NEXUS core.', usage: '/ping', handler: 'server', examples: ['/ping'] },
+  { name: 'help', description: 'Display information about available commands.', usage: '/help', handler: 'server', examples: ['/help'] },
+  { name: 'identity', description: 'Manage your user identity.', usage: '/identity', handler: 'server', examples: ['/identity'] }
 ];
 
 // Helper function to create default props for testing
