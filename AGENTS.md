@@ -6,6 +6,8 @@ This file provides guidance to AI agents when working with code in this reposito
 - `docs/developer_guides/04_AI_COLLABORATION_CHARTER.md` – mandatory planning, retry, and communication protocol.
 - `tests/README.md` – TDD workflow and testing pyramid expectations.
 - `docs/rules/frontend_design_principles.md` – required for any UI, motion, or styling work.
+- `docs/rules/LOGIC_SCHEMA.md` – logic-first meta-language schema + playbook (treat it as an executable prompt).
+- `LOGIC_MAP.md` – project logic map index (if missing, create/update it using `docs/rules/LOGIC_SCHEMA.md`).
 - `docs/developer_guides/02_CONTRIBUTING_GUIDE.md` and `docs/developer_guides/03_TESTING_STRATEGY.md` – workflow and test patterns.
 - `docs/tasks/` – Three-part task files (Task Brief → Implementation Plan → Completion Report) for single-conversation work. See `tasks/README.md` for detailed format specifications.
 - `docs/strategic_plans/` – Strategic planning documents for large-scale initiatives requiring multiple conversations or exceeding context limits.
@@ -13,6 +15,32 @@ This file provides guidance to AI agents when working with code in this reposito
 - `docs/learn/` – past incident reports and lessons; scan for similar issues when debugging.
 - `docs/Future_Roadmap.md` – upcoming initiatives that may affect scope or design decisions.
 - For unfamiliar domains, inspect at least three related implementations or tests before writing new code. Reference the material you consult in task files or status updates.
+
+## Logic Map Protocol (MANDATORY)
+
+This repository uses a logic-first mapping layer to make both humans and agents effective at navigating the codebase.
+
+- `docs/rules/LOGIC_SCHEMA.md` defines the schema + methodology (treat it as an executable prompt).
+- `LOGIC_MAP.md` (repo root) is the project-specific instance (small, stable, frequently updated).
+
+### Required behavior (every task)
+
+1. **Bootstrap / read**
+   - If `LOGIC_MAP.md` exists: read it first and use its `FLOW-*` / `CMP-*` / `INV-*` nodes to scope exploration.
+   - If `LOGIC_MAP.md` does not exist: create it using the template in `docs/rules/LOGIC_SCHEMA.md` (§6.1). Keep v0 intentionally small; anchors must be grep-able (`file#SymbolPath`), avoid line numbers.
+
+2. **Explore via graph, not by scanning**
+   - Traverse `relations` outward to find entrypoints, implementations, and constraints.
+   - Follow `anchors` / `refs` into code/tests/config.
+   - Only if anchors are insufficient: search for symbols, then write new anchors/relations back into `LOGIC_MAP.md`.
+
+3. **Maintenance is part of done**
+   - Before declaring completion, update `LOGIC_MAP.md` to reflect what you learned or changed:
+     - behavior changes: update `FLOW-*`
+     - dependency changes: update/add `REL-*`
+     - new constraints: update/add `INV-*` and preferably `EVD-*`
+     - moved symbols: update anchors
+   - If no update is needed, explicitly state why (map already covered it).
 
 ## Architecture Overview
 - **Backend (NEXUS)** – FastAPI event-driven service orchestrating `NexusBus`, `ConfigService`, `DatabaseService`, `PersistenceService`, `IdentityService`, `CommandService`, `ContextService`, `ToolExecutorService`, `LLMService`, and `OrchestratorService`, plus REST/WebSocket interfaces (`nexus/main.py`).

@@ -52,12 +52,12 @@ llm:
 
   # 模型名录 (不可被 user_config 覆写) - “模型即服务商”的核心实现
   catalog:
-    gemini-2.5-flash:
+    gemini-3-flash:
       provider: google
       # provider具体模型ID（与key相同则可省略），id 是 provider 的模型ID
-      id: gemini-2.5-flash
+      id: gemini-3-flash-preview
       # 友好别名（供UI/用户选择），aliases 是模型的别名，用于在 UI 中显示
-      aliases: ["Gemini-2.5-Flash"]
+      aliases: ["Gemini-3-Flash"]
       default_params:
         temperature: 0.7
         max_tokens: 8192
@@ -85,7 +85,7 @@ llm:
 user_defaults:
   # 默认的、可被 user_config 覆写的运行时配置
   config:
-    model: "gemini-2.5-flash" # 用户的默认模型选择
+    model: "gemini-3-flash" # 用户的默认模型选择
     temperature: 0.8          # 用户可以覆写 catalog 中的默认值
     max_tokens: 4096
     history_context_size: 20
@@ -121,7 +121,7 @@ ui:
     "config.model":
       type: "select"
       # 这个列表可以由后端在启动时动态地从llm.catalog的key中生成, 注意，这里的选项需要是aliases的值
-      options: ["Gemini-2.5-Flash", "DeepSeek-Chat", "Kimi-K2"]
+      options: ["Gemini-3-Flash", "DeepSeek-Chat", "Kimi-K2"]
     # 在config面板中，可将以下作为进阶配置而不是默认显示，提升体验
     "config.temperature":
       type: "slider"
