@@ -5,10 +5,10 @@ These tests verify that Pydantic models have the correct default behaviors
 and field types as specified in the core models module.
 """
 
-import pytest
 import uuid
-from datetime import datetime, timezone
-from nexus.core.models import Message, Run, Role, RunStatus
+from datetime import UTC, datetime
+
+from nexus.core.models import Message, Role, Run, RunStatus
 
 
 class TestMessageDefaults:
@@ -32,7 +32,7 @@ class TestMessageDefaults:
         assert message.role == Role.HUMAN
         assert message.content == "Hello, world!"
         assert isinstance(message.timestamp, datetime)
-        assert message.timestamp.tzinfo == timezone.utc
+        assert message.timestamp.tzinfo == UTC
         assert message.metadata == {}
 
         # Verify that the id is a valid UUID (without the prefix)

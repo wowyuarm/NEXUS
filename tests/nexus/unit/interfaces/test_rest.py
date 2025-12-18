@@ -5,10 +5,11 @@ Tests the REST API endpoints for NEXUS, verifying proper separation
 from WebSocket interface and correct handling of command queries.
 """
 
-import pytest
+from unittest.mock import Mock
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from unittest.mock import Mock
+
 from nexus.interfaces import rest
 
 

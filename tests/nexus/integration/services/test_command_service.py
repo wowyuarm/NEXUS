@@ -7,14 +7,15 @@ dependencies are mocked to ensure isolation while testing the service's integrat
 with the event bus system.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from eth_keys import keys
-from eth_hash.auto import keccak
+from unittest.mock import AsyncMock, Mock, patch
 
-from nexus.services.command import CommandService
+import pytest
+from eth_hash.auto import keccak
+from eth_keys import keys
+
 from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
+from nexus.services.command import CommandService
 
 
 class TestCommandServiceIntegration:

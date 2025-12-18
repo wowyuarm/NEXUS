@@ -7,12 +7,13 @@ dependencies (LLM providers, API calls) are mocked to ensure isolation while tes
 the service's integration with the event bus system.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
-from nexus.services.llm.service import LLMService
+import pytest
+
 from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
+from nexus.services.llm.service import LLMService
 
 
 class TestLLMServiceIntegration:

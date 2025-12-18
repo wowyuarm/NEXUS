@@ -5,9 +5,8 @@ Tests the shared signature verification functionality used across
 NEXUS interfaces for cryptographic authentication.
 """
 
-import pytest
-from eth_keys import keys
 from eth_hash.auto import keccak
+from eth_keys import keys
 
 from nexus.core.auth import verify_signature
 

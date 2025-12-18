@@ -5,9 +5,11 @@ These tests verify that the NexusBus correctly manages its internal data structu
 and handles edge cases gracefully.
 """
 
-import pytest
 import asyncio
 from unittest.mock import AsyncMock, patch
+
+import pytest
+
 from nexus.core.bus import NexusBus
 from nexus.core.models import Message, Role
 

@@ -1,8 +1,7 @@
 """Unit tests for prompt management."""
 
-import pytest
 
-from nexus.services.context.prompts import PromptManager, CORE_IDENTITY
+from nexus.services.context.prompts import CORE_IDENTITY, PromptManager
 
 
 class TestCoreIdentity:

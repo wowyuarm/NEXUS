@@ -7,12 +7,13 @@ and multi-tool synchronization. All external dependencies are mocked to ensure i
 while testing the service's integration with the event bus system.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
-from nexus.services.orchestrator import OrchestratorService
-from nexus.core.models import Message, Run, RunStatus, Role
+import pytest
+
+from nexus.core.models import Message, Role, Run, RunStatus
 from nexus.core.topics import Topics
+from nexus.services.orchestrator import OrchestratorService
 
 
 class TestOrchestratorFlows:

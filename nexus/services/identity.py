@@ -107,6 +107,7 @@ class IdentityService:
             "metadata": metadata or {},
             "config_overrides": {},
             "prompt_overrides": {},
+            "turn_count": 0,
         }
 
         # Call database service in thread pool (it's synchronous)

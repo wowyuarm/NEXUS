@@ -6,9 +6,10 @@ including retrieval and creation of user identities.
 All external dependencies are mocked to ensure isolation.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock
 from datetime import datetime
+from unittest.mock import Mock
+
+import pytest
 
 from nexus.services.identity import IdentityService
 

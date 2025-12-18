@@ -8,12 +8,13 @@ with the event bus system.
 """
 
 import asyncio
-import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
-from nexus.services.tool_executor import ToolExecutorService
+import pytest
+
 from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
+from nexus.services.tool_executor import ToolExecutorService
 
 
 class TestToolExecutorServiceIntegration:
@@ -381,7 +382,6 @@ class TestToolExecutorServiceIntegration:
 
         # Configure mock tool registry to return a slow async function
         async def slow_tool_function(duration):
-            import asyncio
 
             await asyncio.sleep(duration)
             return "completed"

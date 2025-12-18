@@ -7,12 +7,13 @@ All external dependencies are mocked to ensure isolation while testing the servi
 integration with the event bus system and database operations.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
-from nexus.services.persistence import PersistenceService
-from nexus.core.models import Message, Run, RunStatus, Role
+import pytest
+
+from nexus.core.models import Message, Role, Run, RunStatus
 from nexus.core.topics import Topics
+from nexus.services.persistence import PersistenceService
 
 
 class TestPersistenceServiceIntegration:

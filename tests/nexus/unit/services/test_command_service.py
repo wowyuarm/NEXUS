@@ -5,8 +5,9 @@ These tests verify the core functionality of CommandService methods in isolation
 without requiring event bus integration or external dependencies.
 """
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
 
 from nexus.services.command import CommandService
 

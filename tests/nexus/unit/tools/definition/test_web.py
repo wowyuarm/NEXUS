@@ -6,16 +6,17 @@ result formatting, and error handling. All external dependencies are mocked
 to ensure isolation.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
 import os
+from unittest.mock import Mock
+
+import pytest
 
 from nexus.tools.definition.web import (
-    web_search,
-    web_extract,
-    _format_search_results,
-    WEB_SEARCH_TOOL,
     WEB_EXTRACT_TOOL,
+    WEB_SEARCH_TOOL,
+    _format_search_results,
+    web_extract,
+    web_search,
 )
 
 

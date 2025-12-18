@@ -9,10 +9,11 @@ Key classes:
 - MongoProvider: Concrete implementation of DatabaseProvider for MongoDB
 """
 
+import asyncio
 import logging
 from typing import Any
 
-from pymongo import DESCENDING, MongoClient
+from pymongo import DESCENDING, MongoClient, ReturnDocument
 from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.errors import ConnectionFailure, OperationFailure
@@ -373,6 +374,74 @@ class MongoProvider(DatabaseProvider):
             return self._handle_operation_failure("identity update", e)
         except Exception as e:
             return self._handle_unexpected_error("identity update", e)
+
+    async def increment_turn_count_and_check_threshold(
+        self, public_key: str, threshold: int
+    ) -> tuple[bool, int]:
+        """
+        Atomically increment turn_count and check if threshold is reached.
+
+        Args:
+            public_key: User's public key
+            threshold: Learning trigger threshold (e.g., 20)
+
+        Returns:
+            tuple[bool, int]: (should_learn, new_count)
+            - should_learn: True if threshold reached (new_count % threshold == 0)
+            - new_count: The incremented turn count value
+        """
+        if self.identities_collection is None:
+            logger.error("MongoDB not connected. Cannot increment turn count.")
+            return False, 0
+
+        # Define synchronous helper function
+        def _sync_increment() -> tuple[bool, int]:
+            try:
+                # Atomic increment using find_one_and_update
+                if self.identities_collection is None:
+                    raise RuntimeError("Database not connected: identities_collection is None")
+                result = self.identities_collection.find_one_and_update(
+                    {"public_key": public_key},
+                    {"$inc": {"turn_count": 1}},
+                    return_document=ReturnDocument.AFTER,
+                    projection={"turn_count": 1},
+                )
+
+                if not result:
+                    # Identity doesn't exist (should not happen for members)
+                    logger.warning(f"No identity found for public_key: {public_key}")
+                    return False, 0
+
+                new_count = result.get("turn_count", 0)
+                should_learn = new_count > 0 and new_count % threshold == 0
+
+                if should_learn:
+                    # Reset counter after triggering learning
+                    if self.identities_collection is None:
+                        raise RuntimeError("Database not connected: identities_collection is None")
+                    self.identities_collection.update_one(
+                        {"public_key": public_key}, {"$set": {"turn_count": 0}}
+                    )
+                    logger.info(
+                        f"Learning threshold reached for public_key={public_key}, "
+                        f"turn_count={new_count}, resetting to 0"
+                    )
+
+                logger.debug(
+                    f"Turn count incremented for public_key={public_key}: "
+                    f"new_count={new_count}, should_learn={should_learn}"
+                )
+                return should_learn, new_count
+
+            except OperationFailure as e:
+                self._handle_operation_failure("turn count increment", e)
+                return False, 0
+            except Exception as e:
+                self._handle_unexpected_error("turn count increment", e)
+                return False, 0
+
+        # Execute synchronous operation in thread pool
+        return await asyncio.to_thread(_sync_increment)
 
     def delete_identity(self, public_key: str) -> bool:
         """Delete an identity from the database.

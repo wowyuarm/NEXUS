@@ -6,9 +6,9 @@ discovery, and management functionality. All external dependencies are mocked
 to ensure isolation.
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-import importlib
 
 from nexus.tools.registry import ToolRegistry
 

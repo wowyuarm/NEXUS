@@ -6,13 +6,13 @@ including connection management, message persistence, and query operations.
 All external dependencies are mocked to ensure isolation.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
-from pymongo.errors import ConnectionFailure, OperationFailure
-from pymongo.collection import Collection
+from unittest.mock import Mock
 
-from nexus.services.database.providers.mongo import MongoProvider
+import pytest
+from pymongo.errors import ConnectionFailure, OperationFailure
+
 from nexus.core.models import Message, Role
+from nexus.services.database.providers.mongo import MongoProvider
 
 
 class TestMongoProvider:
@@ -372,3 +372,98 @@ class TestMongoProvider:
         result = provider.upsert_configuration("production", config_data)
 
         assert result is False
+
+    @pytest.mark.asyncio
+    async def test_increment_turn_count_and_check_threshold_success(self, mocker):
+        """Test successful turn count increment and threshold check."""
+        # Mock MongoDB collection and find_one_and_update result
+        mock_collection = Mock()
+        mock_result = {"_id": "test_id", "public_key": "0x123", "turn_count": 5}
+        mock_collection.find_one_and_update.return_value = mock_result
+        mock_collection.update_one = Mock()
+
+        provider = MongoProvider("mongodb://localhost:27017", "test_db")
+        provider.identities_collection = mock_collection
+
+        should_learn, new_count = await provider.increment_turn_count_and_check_threshold(
+            "0x123", threshold=20
+        )
+
+        assert should_learn is False  # 5 % 20 != 0
+        assert new_count == 5
+        mock_collection.find_one_and_update.assert_called_once_with(
+            {"public_key": "0x123"},
+            {"$inc": {"turn_count": 1}},
+            return_document=mocker.ANY,
+            projection={"turn_count": 1}
+        )
+        mock_collection.update_one.assert_not_called()  # No reset
+
+    @pytest.mark.asyncio
+    async def test_increment_turn_count_and_check_threshold_reached(self, mocker):
+        """Test turn count increment when threshold is reached."""
+        mock_collection = Mock()
+        # Simulate count = 19 before increment, after increment = 20
+        mock_result = {"_id": "test_id", "public_key": "0x123", "turn_count": 20}
+        mock_collection.find_one_and_update.return_value = mock_result
+        mock_collection.update_one = Mock()
+
+        provider = MongoProvider("mongodb://localhost:27017", "test_db")
+        provider.identities_collection = mock_collection
+
+        should_learn, new_count = await provider.increment_turn_count_and_check_threshold(
+            "0x123", threshold=20
+        )
+
+        assert should_learn is True  # 20 % 20 == 0
+        assert new_count == 20
+        mock_collection.update_one.assert_called_once_with(
+            {"public_key": "0x123"},
+            {"$set": {"turn_count": 0}}
+        )
+
+    @pytest.mark.asyncio
+    async def test_increment_turn_count_and_check_threshold_no_identity(self, mocker):
+        """Test turn count increment when identity doesn't exist."""
+        mock_collection = Mock()
+        mock_collection.find_one_and_update.return_value = None
+
+        provider = MongoProvider("mongodb://localhost:27017", "test_db")
+        provider.identities_collection = mock_collection
+
+        should_learn, new_count = await provider.increment_turn_count_and_check_threshold(
+            "0x123", threshold=20
+        )
+
+        assert should_learn is False
+        assert new_count == 0
+        mock_collection.update_one.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_increment_turn_count_and_check_threshold_not_connected(self):
+        """Test turn count increment when not connected to database."""
+        provider = MongoProvider("mongodb://localhost:27017", "test_db")
+        # provider.identities_collection is None
+
+        should_learn, new_count = await provider.increment_turn_count_and_check_threshold(
+            "0x123", threshold=20
+        )
+
+        assert should_learn is False
+        assert new_count == 0
+
+    @pytest.mark.asyncio
+    async def test_increment_turn_count_and_check_threshold_operation_failure(self, mocker):
+        """Test turn count increment when MongoDB operation fails."""
+        mock_collection = Mock()
+        mock_collection.find_one_and_update.side_effect = OperationFailure("Update failed")
+
+        provider = MongoProvider("mongodb://localhost:27017", "test_db")
+        provider.identities_collection = mock_collection
+
+        should_learn, new_count = await provider.increment_turn_count_and_check_threshold(
+            "0x123", threshold=20
+        )
+
+        assert should_learn is False
+        assert new_count == 0

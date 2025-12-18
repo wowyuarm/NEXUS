@@ -11,23 +11,21 @@ Tests the full HTTP request-response flow including:
 Note: These tests require a running database connection and full service initialization.
 """
 
-import pytest
-import json
 from datetime import datetime
-from typing import Dict, Any
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+from eth_hash.auto import keccak
+from eth_keys import keys
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from eth_keys import keys
-from eth_hash.auto import keccak
 
 # Import services and router
 from nexus.interfaces import rest
-from nexus.services.identity import IdentityService
-from nexus.services.config import ConfigService
-from nexus.services.persistence import PersistenceService
 from nexus.services.command import CommandService
+from nexus.services.config import ConfigService
+from nexus.services.identity import IdentityService
+from nexus.services.persistence import PersistenceService
 
 
 class TestRESTAPIIntegration:

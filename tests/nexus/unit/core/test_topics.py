@@ -4,7 +4,6 @@ Unit tests for Topics class to ensure topic constant uniqueness and integrity.
 These tests verify that all topic constants are unique and properly defined.
 """
 
-import pytest
 from nexus.core.topics import Topics
 
 

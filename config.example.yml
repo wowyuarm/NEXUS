@@ -1,6 +1,5 @@
 # ===================================================================
-# NEXUS 配置模板 (Configuration Template) v1.0
-# 存在于'configurations'集合中的唯一文档
+# NEXUS 配置，存在于'configurations'集合中
 # ===================================================================
 
 # -------------------------------------------------------------------
@@ -13,14 +12,9 @@ system:
   max_tool_iterations: 5
   # 工具执行超时时间（秒）
   tool_execution_timeout: 20
-  # 定义应用名称，可下发给前端用于显示，（可选）也可作用户自定义
+  # 定义应用名称，可下发给前端用于显示
   app_name: "NEXUS"
 
-# -------------------------------------------------------------------
-# Server Configuration (服务器配置)
-#    - 控制服务器监听的地址和端口
-#    - 生产环境会优先使用环境变量 HOST 和 PORT
-# -------------------------------------------------------------------
 server:
   host: "0.0.0.0"  # 开发环境监听所有接口；生产环境由 HOST 环境变量覆盖
   port: 8000       # 开发环境端口；生产环境由 PORT 环境变量覆盖
@@ -33,12 +27,20 @@ security:
     - "prompt"
 
 # -------------------------------------------------------------------
+# Memory Learning Configuration
+#    - Controls automatic profile learning from conversation history
+memory:
+  learning:
+    enabled: true
+    threshold_turns: 20  # Learn every 20 conversation turns
+    llm_model: "system"  # "system": use system default, "user": use user's model
+
+# -------------------------------------------------------------------
 # B. LLM 引擎目录 (LLM Engine Directory)
 #    - 定义了系统可用的所有AI模型及其访问方式。
 #    - Provider部分定义如何连接，Catalog部分定义有哪些模型。
 # -------------------------------------------------------------------
 llm:
-  # 服务商连接信息 (不可被 user_config 覆写)
   providers:
     google:
       api_key: "${GEMINI_API_KEY}"
@@ -50,7 +52,6 @@ llm:
       api_key: "${OPENROUTER_API_KEY}"
       base_url: "https://openrouter.ai/api/v1"
 
-  # 模型名录 (不可被 user_config 覆写) - “模型即服务商”的核心实现
   catalog:
     gemini-3-flash:
       provider: google
@@ -77,11 +78,7 @@ llm:
       default_params:
         temperature: 0.8
         max_tokens: 8192
-# -------------------------------------------------------------------
-# C. 默认用户画像 (Default User Profile)
-#    - 这是所有新成员创建时，所继承的默认配置。
-#    - 也是所有成员在未进行个性化配置时的默认行为。
-# -------------------------------------------------------------------
+
 user_defaults:
   # 默认的、可被 user_config 覆写的运行时配置
   config:

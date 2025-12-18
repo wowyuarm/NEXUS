@@ -183,6 +183,20 @@ components:
         target: "nexus/services/persistence.py#PersistenceService"
         why: "Persists validated-member history and exposes get_history."
 
+  - id: CMP-memory-learning
+    title: Memory Learning Service
+    purpose: "Automatically learns user profiles from conversation history every N turns, updating the friends_profile used in [FRIENDS_INFO]."
+    anchors:
+      - kind: code
+        target: "nexus/services/memory_learning.py#MemoryLearningService"
+        why: "Subscribes to CONTEXT_BUILD_REQUEST, increments turn counts, triggers LLM-based profile extraction."
+      - kind: code
+        target: "nexus/services/memory_learning.py#MemoryLearningService.handle_context_build_request"
+        why: "Checks learning threshold and triggers learning process."
+      - kind: code
+        target: "nexus/services/database/providers/mongo.py#MongoProvider.increment_turn_count_and_check_threshold"
+        why: "Atomic turn counting with threshold check."
+
   - id: CMP-aura-app-shell
     title: Frontend App Shell + Chat UI
     purpose: "Boots AURA UI, mounts chat experience, renders messages and command palette UI."
@@ -675,6 +689,32 @@ relations:
       - kind: test
         target: "aura/src/features/command/store/__tests__/commandStore.test.ts"
         why: "Evidences command store behaviors."
+
+  - id: REL-memory-learning-subscribes-context
+    from: CMP-memory-learning
+    to: CMP-orchestrator
+    kind: subscribes
+    note: "MemoryLearningService subscribes to Topics.CONTEXT_BUILD_REQUEST (published by Orchestrator) to increment turn counts and trigger learning."
+    refs:
+      - kind: code
+        target: "nexus/services/memory_learning.py#MemoryLearningService.subscribe_to_bus"
+        why: "Subscribes to CONTEXT_BUILD_REQUEST."
+      - kind: code
+        target: "nexus/services/orchestrator.py#OrchestratorService.handle_new_run"
+        why: "Publishes CONTEXT_BUILD_REQUEST with Run object."
+
+  - id: REL-memory-learning-uses-database
+    from: CMP-memory-learning
+    to: CMP-persistence-config-db
+    kind: uses
+    note: "MemoryLearningService uses DatabaseService for atomic turn counting and PersistenceService for conversation history."
+    refs:
+      - kind: code
+        target: "nexus/services/memory_learning.py#MemoryLearningService._should_learn"
+        why: "Calls database provider increment_turn_count_and_check_threshold."
+      - kind: code
+        target: "nexus/services/memory_learning.py#MemoryLearningService._get_recent_history"
+        why: "Calls persistence_service.get_history."
 
   - id: REL-evd-aura-identity
     from: EVD-aura-identity

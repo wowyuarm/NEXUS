@@ -743,3 +743,39 @@ class LLMService:
         # Publish the result
         await self.bus.publish(Topics.LLM_RESULTS, result_message)
         logger.info(f"Published LLM result for run_id={run_id}")
+
+    async def generate_text_sync(self, messages, user_profile=None):
+        """
+        Generate text synchronously (non-streaming) for internal use.
+
+        Args:
+            messages: List of message dicts with 'role' and 'content'
+            user_profile: Optional user profile dict with config_overrides
+
+        Returns:
+            str: Generated text content, or empty string on error
+        """
+        try:
+            # Compose effective configuration
+            effective_config = self._compose_effective_config(user_profile or {})
+            model_name = effective_config["model"]
+            temperature = effective_config["temperature"]
+            max_tokens = effective_config["max_tokens"]
+
+            # Get provider for the model
+            provider = self._get_provider_for_model(model_name)
+
+            # Call provider with stream=False
+            result = await provider.chat_completion(
+                messages,
+                tools=[],
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=False,
+            )
+
+            return result.get("content", "")
+
+        except Exception as e:
+            logger.error(f"Error in generate_text_sync: {e}")
+            return ""

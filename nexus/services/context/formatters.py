@@ -129,10 +129,6 @@ class FriendsInfoFormatter:
         prompt_overrides = user_profile.get("prompt_overrides", {})
         friends_profile = prompt_overrides.get("friends_profile", "")
 
-        # Also check for legacy 'learning' field for backward compatibility
-        if not friends_profile:
-            friends_profile = prompt_overrides.get("learning", "")
-
         if friends_profile and friends_profile.strip():
             lines.append(friends_profile.strip())
         else:

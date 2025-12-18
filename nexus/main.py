@@ -22,6 +22,7 @@ from nexus.services.context import ContextBuilder
 from nexus.services.database.service import DatabaseService
 from nexus.services.identity import IdentityService
 from nexus.services.llm.service import LLMService
+from nexus.services.memory_learning import MemoryLearningService
 from nexus.services.orchestrator import OrchestratorService
 from nexus.services.persistence import PersistenceService
 from nexus.services.tool_executor import ToolExecutorService
@@ -113,6 +114,16 @@ async def main() -> None:
         bus, config_service, identity_service=identity_service
     )
 
+    # Memory learning service for friend profile extraction
+    memory_learning_service = MemoryLearningService(
+        bus,
+        identity_service=identity_service,
+        persistence_service=persistence_service,
+        llm_service=llm_service,
+        config_service=config_service,
+        database_service=database_service,
+    )
+
     # SSE interface for HTTP + SSE communication
     sse_interface = SSEInterface(bus, database_service, identity_service)
 
@@ -124,6 +135,7 @@ async def main() -> None:
         context_builder,
         command_service,
         orchestrator_service,
+        memory_learning_service,
         sse_interface,
     ]
 

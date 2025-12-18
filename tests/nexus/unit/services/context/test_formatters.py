@@ -1,11 +1,9 @@
 """Unit tests for context formatters."""
 
-import pytest
-from datetime import datetime, timezone
 
 from nexus.services.context.formatters import (
-    MemoryFormatter,
     FriendsInfoFormatter,
+    MemoryFormatter,
     MomentFormatter,
 )
 
@@ -124,17 +122,6 @@ class TestFriendsInfoFormatter:
         assert "[FRIENDS_INFO]" in result
         assert "This friend prefers concise answers" in result
 
-    def test_format_friends_info_legacy_learning_field(self):
-        """Backward compatibility: legacy learning field still works."""
-        user_profile = {
-            "public_key": "0xABC123",
-            "prompt_overrides": {"learning": "Legacy learning content."},
-        }
-
-        result = FriendsInfoFormatter.format_friends_info(user_profile)
-
-        assert "[FRIENDS_INFO]" in result
-        assert "Legacy learning content" in result
 
     def test_format_friends_info_empty(self):
         """Empty profile returns placeholder."""

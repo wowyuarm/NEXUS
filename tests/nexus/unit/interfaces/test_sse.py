@@ -7,12 +7,13 @@ real-time communication via HTTP + SSE.
 
 import asyncio
 import json
-import pytest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
-from nexus.interfaces.sse import SSEInterface
+import pytest
+
 from nexus.core.models import Message, Role
 from nexus.core.topics import Topics
+from nexus.interfaces.sse import SSEInterface
 
 
 class TestSSEInterface:

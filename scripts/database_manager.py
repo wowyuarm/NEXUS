@@ -271,18 +271,24 @@ class DatabaseManager:
         # Date filtering
         if options.days:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=options.days)
-            query['timestamp'] = {'$lt': cutoff_date}
+            if options.collection == 'identities':
+                query['created_at'] = {'$lt': cutoff_date}
+            elif options.collection == 'configurations':
+                # configurations may not have timestamp, skip date filtering
+                pass
+            else:
+                query['timestamp'] = {'$lt': cutoff_date}
 
-        # Role filtering
-        if options.role:
+        # Role filtering (only for messages collection)
+        if options.role and options.collection not in ['identities', 'configurations']:
             query['role'] = options.role
 
-        # Session filtering
-        if options.session_id:
+        # Session filtering (only for messages collection)
+        if options.session_id and options.collection not in ['identities', 'configurations']:
             query['session_id'] = options.session_id
 
-        # Content filtering
-        if options.content_filter:
+        # Content filtering (only for messages collection)
+        if options.content_filter and options.collection not in ['identities', 'configurations']:
             query['content'] = {'$regex': options.content_filter, '$options': 'i'}
 
         return query
@@ -304,7 +310,11 @@ class DatabaseManager:
             return mock_docs
 
         try:
-            collection = getattr(self.provider, f'{options.collection}_collection')
+            # Map collection names to provider attributes
+            if options.collection == 'configurations':
+                collection = self.provider.config_collection
+            else:
+                collection = getattr(self.provider, f'{options.collection}_collection')
             if collection is None:
                 logger.error(f"Collection '{options.collection}' not found")
                 return []
@@ -314,13 +324,35 @@ class DatabaseManager:
             # Sort direction: -1 for descending (newest first), 1 for ascending (oldest first)
             sort_direction = -1 if options.newest_first else 1
 
-            cursor = collection.find(query).sort("timestamp", sort_direction).limit(options.count)
+            # Determine sort field based on collection type
+            if options.collection == 'identities':
+                sort_field = 'created_at'
+            elif options.collection == 'configurations':
+                sort_field = '_id'  # configurations may not have timestamp
+            else:
+                sort_field = 'timestamp'
+
+            cursor = collection.find(query).sort(sort_field, sort_direction).limit(options.count)
             documents = list(cursor)
 
             # Convert ObjectId to string for display
             for doc in documents:
                 if '_id' in doc:
                     doc['_id'] = str(doc['_id'])
+                # Ensure document has an 'id' field for deletion logic
+                if 'id' not in doc:
+                    # For identities collection, use public_key as id
+                    if options.collection == 'identities' and 'public_key' in doc:
+                        doc['id'] = doc['public_key']
+                    # For configurations collection, use environment as id
+                    elif options.collection == 'configurations' and 'environment' in doc:
+                        doc['id'] = doc['environment']
+                    # Fallback to _id
+                    elif '_id' in doc:
+                        doc['id'] = str(doc['_id'])
+                    else:
+                        # Generate a placeholder (should not happen)
+                        doc['id'] = 'unknown'
 
             return documents
         except Exception as e:
@@ -335,14 +367,25 @@ class DatabaseManager:
             return len(document_ids)
 
         try:
-            collection = getattr(self.provider, f'{collection_name}_collection')
+            # Map collection names to provider attributes
+            if collection_name == 'configurations':
+                collection = self.provider.config_collection
+            else:
+                collection = getattr(self.provider, f'{collection_name}_collection')
             if collection is None:
                 logger.error(f"Collection '{collection_name}' not found")
                 return 0
 
-            # Delete by message_id field (not MongoDB _id)
+            # Determine field to use for deletion based on collection type
+            if collection_name == 'identities':
+                field_name = 'public_key'
+            elif collection_name == 'configurations':
+                field_name = 'environment'
+            else:
+                field_name = 'id'
+
             result = collection.delete_many({
-                "id": {"$in": document_ids}
+                field_name: {"$in": document_ids}
             })
 
             deleted_count = result.deleted_count
@@ -379,10 +422,21 @@ class DatabaseManager:
             # Show preview
             print(f"\n=== Documents to be deleted ===")
             for i, doc in enumerate(documents_to_delete[:5]):
-                timestamp = doc.get('timestamp', 'Unknown')
-                doc_id = doc.get('id', 'Unknown')
-                role = doc.get('role', 'Unknown')
-                content = str(doc.get('content', ''))[:50] + '...' if len(str(doc.get('content', ''))) > 50 else str(doc.get('content', ''))
+                if options.collection == 'identities':
+                    timestamp = doc.get('created_at', 'Unknown')
+                    doc_id = doc.get('public_key', 'Unknown')
+                    role = 'IDENTITY'
+                    content = f"config_overrides: {len(doc.get('config_overrides', {}))}, prompt_overrides: {len(doc.get('prompt_overrides', {}))}"
+                elif options.collection == 'configurations':
+                    timestamp = 'N/A'
+                    doc_id = doc.get('environment', 'Unknown')
+                    role = 'CONFIG'
+                    content = f"system: {len(doc.get('system', {}))}, llm: {len(doc.get('llm', {}))}"
+                else:
+                    timestamp = doc.get('timestamp', 'Unknown')
+                    doc_id = doc.get('id', 'Unknown')
+                    role = doc.get('role', 'Unknown')
+                    content = str(doc.get('content', ''))[:50] + '...' if len(str(doc.get('content', ''))) > 50 else str(doc.get('content', ''))
                 print(f"{i+1}. {timestamp} | {role} | {doc_id} | {content}")
 
             if len(documents_to_delete) > 5:
@@ -410,7 +464,11 @@ class DatabaseManager:
     def export_collection(self, options: ExportOptions) -> bool:
         """Export collection data to file."""
         try:
-            collection = getattr(self.provider, f'{options.collection}_collection')
+            # Map collection names to provider attributes
+            if options.collection == 'configurations':
+                collection = self.provider.config_collection
+            else:
+                collection = getattr(self.provider, f'{options.collection}_collection')
             if collection is None:
                 logger.error(f"Collection '{options.collection}' not found")
                 return False
@@ -452,7 +510,11 @@ class DatabaseManager:
     def analyze_collection(self, collection_name: str) -> Dict[str, Any]:
         """Analyze collection data patterns."""
         try:
-            collection = getattr(self.provider, f'{collection_name}_collection')
+            # Map collection names to provider attributes
+            if collection_name == 'configurations':
+                collection = self.provider.config_collection
+            else:
+                collection = getattr(self.provider, f'{collection_name}_collection')
             if collection is None:
                 return {}
 
@@ -502,18 +564,18 @@ class DatabaseManager:
         
         if not config_file.exists():
             logger.error(f"Configuration template not found: {config_file}")
-            print(f"✗ 错误: 配置模板文件不存在: {config_file}")
+            print(f"✗ Error: Configuration template file not found: {config_file}")
             raise FileNotFoundError(f"Configuration template not found: {config_file}")
         
         try:
             with open(config_file, 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f)
             logger.info(f"Successfully loaded configuration template from: {config_file}")
-            print(f"✓ 成功加载配置模板: {config_file}")
+            print(f"✓ Successfully loaded configuration template: {config_file}")
             return config
         except Exception as e:
             logger.error(f"Error loading configuration template: {e}")
-            print(f"✗ 加载配置模板失败: {e}")
+            print(f"✗ Failed to load configuration template: {e}")
             raise
 
     def build_configuration_document(self, environment: str) -> dict:
@@ -523,30 +585,136 @@ class DatabaseManager:
         directly in code (nexus/services/context/prompts.py). The config only
         contains runtime settings and the friends_profile field for user personalization.
         """
-        print("\n开始构建配置文档...")
+        print("\nStarting to build configuration document...")
         print("-" * 60)
         
         # Load configuration template from YAML file
         config_template = self.load_config_template()
         
+        # Display what sections are being loaded
+        print("✓ Configuration template contains the following sections:")
+        for section_name in config_template.keys():
+            if section_name != 'environment':
+                section_data = config_template[section_name]
+                if isinstance(section_data, dict):
+                    print(f"  • {section_name}: {len(section_data)} items")
+                else:
+                    print(f"  • {section_name}: {type(section_data).__name__}")
+        
         # Add environment identifier
         config_template["environment"] = environment
         
-        print("✓ 配置文档构建完成\n")
+        print(f"\n✓ Configuration document build completed (environment: {environment})")
         print("Note: CORE_IDENTITY is now defined in code (nexus/services/context/prompts.py)")
         print("      Config only contains runtime settings and friends_profile.\n")
         return config_template
 
+    def _display_configuration_summary(self, stored_config: dict) -> None:
+        """Display a dynamic summary of the stored configuration."""
+        print("\nVerification results:")
+        print("-" * 60)
+        print(f"  ✓ Environment: {stored_config.get('environment', 'unknown')}")
+        
+        # Display all top-level sections dynamically
+        for section_name, section_data in stored_config.items():
+            if section_name == 'environment':
+                continue  # Already displayed above
+                
+            if section_name == 'llm':
+                # Special handling for LLM section
+                llm_config = section_data
+                if isinstance(llm_config, dict):
+                    catalog = llm_config.get('catalog', {})
+                    providers = llm_config.get('providers', {})
+                    print(f"  ✓ LLM Catalog: {len(catalog)} models")
+                    print(f"  ✓ LLM Providers: {len(providers)} providers")
+                    
+                    # Show model details
+                    for model_key, model_config in catalog.items():
+                        if isinstance(model_config, dict):
+                            aliases = model_config.get('aliases', [])
+                            print(f"    • {model_key}: {', '.join(aliases) if aliases else 'No aliases'}")
+            
+            elif section_name == 'user_defaults':
+                # Special handling for user_defaults section
+                user_defaults = section_data
+                if isinstance(user_defaults, dict):
+                    print(f"  ✓ User Defaults:")
+                    
+                    for subsection_name, subsection_data in user_defaults.items():
+                        if subsection_name == 'config':
+                            if isinstance(subsection_data, dict):
+                                print(f"    - config: {len(subsection_data)} items")
+                                for key, value in subsection_data.items():
+                                    print(f"      • {key}: {value}")
+                        elif subsection_name == 'prompts':
+                            if isinstance(subsection_data, dict):
+                                print(f"    - prompts: {len(subsection_data)} modules")
+                                for key, prompt_obj in subsection_data.items():
+                                    if isinstance(prompt_obj, dict):
+                                        content_len = len(prompt_obj.get('content', ''))
+                                        editable = prompt_obj.get('editable', False)
+                                        description = prompt_obj.get('description', '')
+                                        print(f"      • {key}: {content_len} characters (editable={editable})")
+                                        if description:
+                                            print(f"        Description: {description}")
+                        else:
+                            if isinstance(subsection_data, dict):
+                                print(f"    - {subsection_name}: {len(subsection_data)} items")
+                            else:
+                                print(f"    - {subsection_name}: {subsection_data}")
+            
+            elif section_name == 'ui':
+                # Special handling for UI section
+                ui_config = section_data
+                if isinstance(ui_config, dict):
+                    print(f"  ✓ UI Configuration:")
+                    for key, value in ui_config.items():
+                        if isinstance(value, list):
+                            print(f"    - {key}: {len(value)} items")
+                        elif isinstance(value, dict):
+                            print(f"    - {key}: {len(value)} items")
+                        else:
+                            print(f"    - {key}: {value}")
+            
+            elif isinstance(section_data, dict):
+                # Generic handling for other dictionary sections
+                print(f"  ✓ {section_name}: {len(section_data)} items")
+                # Show first few keys as examples
+                keys = list(section_data.keys())[:3]
+                for key in keys:
+                    value = section_data[key]
+                    if isinstance(value, (str, int, float, bool)):
+                        print(f"    • {key}: {value}")
+                    else:
+                        print(f"    • {key}: {type(value).__name__}")
+                if len(section_data) > 3:
+                    print(f"    ... and {len(section_data) - 3} more items")
+            
+            else:
+                # Simple values
+                print(f"  ✓ {section_name}: {section_data}")
+        
+        # Special note about CORE_IDENTITY if prompts section exists
+        if 'user_defaults' in stored_config and isinstance(stored_config['user_defaults'], dict):
+            prompts = stored_config['user_defaults'].get('prompts', {})
+            if isinstance(prompts, dict) and 'friends_profile' in prompts:
+                print("\n  ℹ️  Note: CORE_IDENTITY is defined in code, not in config")
+        
+        print("-" * 60)
+        print("\n✓ Initialization completed!")
+        print(f"{'='*60}\n")
+
     def init_configurations(self, options: InitConfigOptions) -> bool:
         """Initialize configurations collection."""
         print(f"\n{'='*60}")
-        print(f"NEXUS Configuration Initialization (v2)")
+        print(f"NEXUS Configuration Initialization")
         print(f"Target Environment: {options.environment}")
         print(f"{'='*60}\n")
         
         if not self.client:
             logger.error("No database connection available")
-            print("✗ 错误: 没有可用的数据库连接")
+            print("✗ Error: No database connection available")
             return False
         
         # Map environment to database name
@@ -558,15 +726,15 @@ class DatabaseManager:
         target_db = env_to_db.get(options.environment)
         if not target_db:
             logger.error(f"Unknown environment: {options.environment}")
-            print(f"✗ 错误: 未知环境: {options.environment}")
+            print(f"✗ Error: Unknown environment: {options.environment}")
             return False
         
         # Switch to target database if different from current
         if self.current_db != target_db:
-            print(f"切换到目标数据库: {target_db}")
+            print(f"Switching to target database: {target_db}")
             if not self.switch_database(target_db):
                 logger.error(f"Failed to switch to database: {target_db}")
-                print(f"✗ 错误: 无法切换到数据库: {target_db}")
+                print(f"✗ Error: Unable to switch to database: {target_db}")
                 return False
         
         print(f"Target Database: {self.current_db}")
@@ -577,7 +745,7 @@ class DatabaseManager:
         # Write to database (idempotent operation)
         try:
             print(f"\n{'='*60}")
-            print("开始写入数据库...")
+            print("Starting to write to database...")
             print("-" * 60)
             
             database = self.client[self.current_db]
@@ -590,58 +758,27 @@ class DatabaseManager:
             )
             
             if result.upserted_id:
-                print(f"✓ 创建新的configuration文档")
+                print(f"✓ Created new configuration document")
                 print(f"  Document ID: {result.upserted_id}")
             else:
-                print(f"✓ 更新已存在的configuration文档")
-                print(f"  匹配文档数: {result.matched_count}")
-                print(f"  修改文档数: {result.modified_count}")
+                print(f"✓ Updated existing configuration document")
+                print(f"  Matched documents: {result.matched_count}")
+                print(f"  Modified documents: {result.modified_count}")
             
             print("-" * 60)
             
             # Verify write
             stored_config = configurations_collection.find_one({"environment": options.environment})
             if stored_config:
-                print("\n验证结果:")
-                print("-" * 60)
-                print(f"  ✓ Environment: {stored_config['environment']}")
-                print(f"  ✓ System配置: {len(stored_config.get('system', {}))} 项")
-                print(f"  ✓ Security配置: {len(stored_config.get('security', {}))} 项")
-                
-                llm_config = stored_config.get('llm', {})
-                print(f"  ✓ LLM Catalog: {len(llm_config.get('catalog', {}))} 个模型")
-                print(f"  ✓ LLM Providers: {len(llm_config.get('providers', {}))} 个服务商")
-                
-                user_defaults = stored_config.get('user_defaults', {})
-                print(f"  ✓ User Defaults:")
-                print(f"    - config: {len(user_defaults.get('config', {}))} 项")
-                print(f"    - prompts: {len(user_defaults.get('prompts', {}))} 个模块")
-                
-                prompts = user_defaults.get('prompts', {})
-                for key, prompt_obj in prompts.items():
-                    if isinstance(prompt_obj, dict):
-                        content_len = len(prompt_obj.get('content', ''))
-                        editable = prompt_obj.get('editable', False)
-                        print(f"      • {key}: {content_len} 字符 (editable={editable})")
-                
-                print("\n  ℹ️  Note: CORE_IDENTITY is defined in code, not in config")
-                
-                ui_config = stored_config.get('ui', {})
-                print(f"  ✓ UI配置:")
-                print(f"    - editable_fields: {len(ui_config.get('editable_fields', []))} 个")
-                print(f"    - field_options: {len(ui_config.get('field_options', {}))} 个")
-                
-                print("-" * 60)
-                print("\n✓ 初始化完成！")
-                print(f"{'='*60}\n")
+                self._display_configuration_summary(stored_config)
             else:
-                print("✗ 警告: 无法验证写入的文档")
+                print("✗ Warning: Unable to verify written document")
             
             return True
             
         except Exception as e:
             logger.error(f"Error writing to database: {e}")
-            print(f"✗ 写入数据库失败: {e}")
+            print(f"✗ Failed to write to database: {e}")
             import traceback
             traceback.print_exc()
             return False

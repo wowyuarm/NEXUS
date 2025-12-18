@@ -6,15 +6,15 @@ including chat completion requests, response processing, and error handling.
 All external dependencies are mocked to ensure isolation.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
-import asyncio
+from unittest.mock import AsyncMock, Mock
 
-from nexus.services.llm.providers.deepseek import DeepSeekLLMProvider
+import pytest
+
 from nexus.services.llm.providers.common import (
-    handle_streaming_response,
     handle_non_streaming_response,
+    handle_streaming_response,
 )
+from nexus.services.llm.providers.deepseek import DeepSeekLLMProvider
 
 
 class TestDeepSeekLLMProvider:

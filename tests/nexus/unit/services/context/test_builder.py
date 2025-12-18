@@ -1,10 +1,11 @@
 """Unit tests for ContextBuilder."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from nexus.core.models import Message, Role, Run
 from nexus.services.context.builder import ContextBuilder
-from nexus.core.models import Run, Message, Role
 
 
 class TestContextBuilder:

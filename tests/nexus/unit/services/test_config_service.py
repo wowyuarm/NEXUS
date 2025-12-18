@@ -6,9 +6,10 @@ from database with fallback to hardcoded defaults. All external dependencies
 are mocked to ensure isolation and test the "database-first, code fallback" logic.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock
 import logging
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from nexus.services.config import ConfigService
 

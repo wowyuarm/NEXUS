@@ -642,7 +642,11 @@ async def execute_command(
             }
 
         result = await executor(context)
-        return result if isinstance(result, dict) else {"status": "success", "data": result}
+        return (
+            result
+            if isinstance(result, dict)
+            else {"status": "success", "data": result}
+        )
 
     except Exception as e:
         logger.error(f"Error executing command: {e}")

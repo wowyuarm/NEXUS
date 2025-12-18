@@ -226,7 +226,9 @@ class SSEInterface:
         if client_timestamp_utc:
             user_message_metadata["client_timestamp_utc"] = client_timestamp_utc
         if client_timezone_offset != 0:
-            user_message_metadata["client_timezone_offset"] = str(client_timezone_offset)
+            user_message_metadata["client_timezone_offset"] = str(
+                client_timezone_offset
+            )
 
         user_message = Message(
             run_id=run_id,

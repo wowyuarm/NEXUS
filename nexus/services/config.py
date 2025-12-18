@@ -128,6 +128,13 @@ class ConfigService:
                 },
                 "prompts": {},
             },
+            "memory": {
+                "learning": {
+                    "enabled": True,
+                    "threshold_turns": 20,
+                    "llm_model": "system",
+                }
+            },
         }
 
     def _substitute_env_vars(self, value: Any) -> Any:
