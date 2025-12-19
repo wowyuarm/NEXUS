@@ -202,3 +202,17 @@ class TestMomentFormatter:
         assert "Line 1" in result
         assert "Line 2" in result
         assert "Line 3" in result
+
+    def test_format_this_moment_string_timezone_offset(self):
+        """Handle timezone_offset as string (bug regression test)."""
+        result = MomentFormatter.format_this_moment(
+            current_input="Test",
+            timestamp_utc="2025-12-19T02:17:24.260Z",
+            timezone_offset="-480",  # String instead of int (from metadata)
+        )
+
+        assert "[THIS_MOMENT]" in result
+        assert "<human_input>" in result
+        assert "Test" in result
+        # Should correctly format time without warning
+        assert "10:17:24+08:00" in result

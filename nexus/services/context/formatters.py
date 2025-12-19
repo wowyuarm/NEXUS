@@ -216,12 +216,15 @@ class MomentFormatter:
             # Parse UTC timestamp
             utc_dt = datetime.fromisoformat(timestamp_utc.replace("Z", "+00:00"))
 
+            # Coerce timezone_offset to int (may come as string from metadata)
+            offset_minutes = int(timezone_offset)
+
             # Apply timezone offset (negative because getTimezoneOffset returns minutes west)
-            offset_td = timedelta(minutes=-timezone_offset)
+            offset_td = timedelta(minutes=-offset_minutes)
             local_dt = utc_dt + offset_td
 
             # Calculate offset hours and minutes for display
-            total_minutes = -timezone_offset
+            total_minutes = -offset_minutes
             offset_hours = abs(total_minutes) // 60
             offset_mins = abs(total_minutes) % 60
             offset_sign = "+" if total_minutes >= 0 else "-"
