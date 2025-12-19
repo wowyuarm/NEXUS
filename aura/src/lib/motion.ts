@@ -10,8 +10,6 @@
  * 
  * Unlike mechanical systems that use uniform timing, this system matches animation tempo
  * to human cognitive processing speed through five distinct layers.
- * 
- * @see .cursor/rules/frontend-design-principles.mdc - Design Philosophy
  */
 
 /**

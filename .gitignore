@@ -33,7 +33,6 @@ aura/node_modules/
 .windsurf/
 
 # Third-party
-lib/
 vendor/
 dist/
 .pyscn/

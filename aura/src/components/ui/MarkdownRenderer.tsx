@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TAILWIND } from '@/lib/motion';
+import { preprocessMarkdownBold } from '@/lib/markdownPreprocessor';
 
 // ===== Internal component definitions =====
 
@@ -315,8 +316,11 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content, 
   className 
 }) => {
+  // Preprocess content to fix Chinese full-width punctuation in bold syntax
+  const processedContent = preprocessMarkdownBold(content);
+  
   return (
-    <div className={cn("w-full prose max-w-none", className)}>
+    <div className={cn("w-full prose max-w-none", className)} data-testid="markdown-content">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -522,7 +526,7 @@ li: ((allProps: { children?: React.ReactNode; [key: string]: unknown }) => {
           ),
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );
