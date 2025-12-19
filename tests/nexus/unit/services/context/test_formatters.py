@@ -103,6 +103,292 @@ class TestMemoryFormatter:
         second_pos = result.find("Second")
         assert first_pos < second_pos
 
+    def test_merge_messages_by_run_id_simple(self):
+        """Basic merging of AI messages within same run_id."""
+        messages = [
+            {
+                "id": "msg1",
+                "run_id": "run_abc",
+                "role": "human",
+                "content": "Hello",
+                "timestamp": "2025-12-10T15:30:00Z",
+            },
+            {
+                "id": "msg2",
+                "run_id": "run_abc",
+                "role": "ai",
+                "content": "First AI response",
+                "timestamp": "2025-12-10T15:31:00Z",
+            },
+            {
+                "id": "msg3",
+                "run_id": "run_abc",
+                "role": "ai",
+                "content": "Second AI response",
+                "timestamp": "2025-12-10T15:32:00Z",
+                "metadata": {"has_tool_calls": False},
+            },
+        ]
+
+        merged = MemoryFormatter._merge_messages_by_run_id(messages)
+
+        # Should have 2 messages: 1 human + 1 merged AI
+        assert len(merged) == 2
+
+        # AI message first (newest timestamp)
+        ai_msg = merged[0]
+        assert ai_msg["role"] == "ai"
+        assert "First AI response" in ai_msg["content"]
+        assert "Second AI response" in ai_msg["content"]
+        assert ai_msg["run_id"] == "run_abc"
+
+        # Human message second (older timestamp)
+        human_msg = merged[1]
+        assert human_msg["role"] == "human"
+        assert human_msg["content"] == "Hello"
+
+    def test_merge_messages_by_run_id_multiple_human(self):
+        """Multiple human messages within same run_id (all kept)."""
+        messages = [
+            {
+                "id": "msg1",
+                "run_id": "run_abc",
+                "role": "human",
+                "content": "First question",
+                "timestamp": "2025-12-10T15:30:00Z",
+            },
+            {
+                "id": "msg2",
+                "run_id": "run_abc",
+                "role": "human",
+                "content": "Second question",
+                "timestamp": "2025-12-10T15:31:00Z",
+            },
+            {
+                "id": "msg3",
+                "run_id": "run_abc",
+                "role": "ai",
+                "content": "AI response",
+                "timestamp": "2025-12-10T15:32:00Z",
+            },
+        ]
+
+        merged = MemoryFormatter._merge_messages_by_run_id(messages)
+
+        # Should have 3 messages: 1 ai + 2 human (newest to oldest)
+        assert len(merged) == 3
+        assert merged[0]["role"] == "ai"
+        assert merged[0]["content"] == "AI response"
+        assert merged[1]["role"] == "human"
+        assert merged[1]["content"] == "Second question"
+        assert merged[2]["role"] == "human"
+        assert merged[2]["content"] == "First question"
+
+    def test_merge_messages_by_run_id_no_run_id(self):
+        """Messages without run_id remain unchanged."""
+        messages = [
+            {
+                "id": "msg1",
+                "role": "human",  # No run_id
+                "content": "Hello",
+                "timestamp": "2025-12-10T15:30:00Z",
+            },
+            {
+                "id": "msg2",
+                "role": "ai",  # No run_id
+                "content": "Hi",
+                "timestamp": "2025-12-10T15:31:00Z",
+            },
+        ]
+
+        merged = MemoryFormatter._merge_messages_by_run_id(messages)
+
+        # Should have 2 messages, sorted by timestamp descending
+        assert len(merged) == 2
+        assert merged[0]["role"] == "ai"  # Newer timestamp (15:31)
+        assert merged[1]["role"] == "human"  # Older timestamp (15:30)
+
+    def test_extract_tool_call_annotation_web_search(self):
+        """Extract annotation for web_search tool."""
+        tool_calls = [
+            {
+                "name": "web_search",
+                "arguments": {"query": "人工智能发展现状"},
+                "id": "call_123",
+            }
+        ]
+
+        annotation = MemoryFormatter._extract_tool_call_annotation(tool_calls)
+        assert annotation == "[tool_use:web_search, query:人工智能发展现状]"
+
+    def test_extract_tool_call_annotation_empty(self):
+        """Empty tool_calls returns empty string."""
+        annotation = MemoryFormatter._extract_tool_call_annotation([])
+        assert annotation == ""
+
+    def test_extract_tool_call_annotation_multiple_tools(self):
+        """Multiple tools separated by semicolon."""
+        tool_calls = [
+            {
+                "name": "web_search",
+                "arguments": {"query": "AI trends"},
+                "id": "call_1",
+            },
+            {
+                "name": "calculator",
+                "arguments": {"expression": "2+2"},
+                "id": "call_2",
+            },
+        ]
+
+        annotation = MemoryFormatter._extract_tool_call_annotation(tool_calls)
+        assert "[tool_use:web_search, query:AI trends" in annotation
+        assert "tool_use:calculator, expression:2+2" in annotation
+        assert ";" in annotation  # Semicolon separator
+
+    def test_format_shared_memory_with_merged_messages(self):
+        """format_shared_memory uses merged messages."""
+        history = [
+            {
+                "id": "msg1",
+                "run_id": "run_abc",
+                "role": "human",
+                "content": "Search for AI",
+                "timestamp": "2025-12-10T15:30:00Z",
+            },
+            {
+                "id": "msg2",
+                "run_id": "run_abc",
+                "role": "ai",
+                "content": "I'll search...",
+                "timestamp": "2025-12-10T15:31:00Z",
+                "metadata": {
+                    "has_tool_calls": True,
+                    "tool_calls": [
+                        {
+                            "name": "web_search",
+                            "arguments": {"query": "AI development 2025"},
+                            "id": "call_123",
+                        }
+                    ],
+                },
+            },
+            {
+                "id": "msg3",
+                "run_id": "run_abc",
+                "role": "ai",
+                "content": "Based on search results...",
+                "timestamp": "2025-12-10T15:32:00Z",
+            },
+        ]
+
+        result = MemoryFormatter.format_shared_memory(history)
+
+        # Count should be 2 (human + merged ai)
+        assert "[SHARED_MEMORY count=2]" in result
+        # Should contain tool annotation
+        assert "[tool_use:web_search, query:AI development 2025]" in result
+        # Should contain both AI messages
+        assert "I'll search..." in result
+        assert "Based on search results..." in result
+
+        # Verify annotation is between the two AI messages (not at the end)
+        # Split result into lines and find relevant lines
+        lines = result.split('\n')
+
+        # Find the line with "Nexus: I'll search..."
+        nexus_line_index = -1
+        for i, line in enumerate(lines):
+            if 'Nexus:' in line and "I'll search..." in line:
+                nexus_line_index = i
+                break
+
+        assert nexus_line_index >= 0, "Should find Nexus line with 'I'll search...'"
+
+        # The next line should be the annotation
+        assert nexus_line_index + 1 < len(lines), "Should have annotation line after Nexus line"
+        annotation_line = lines[nexus_line_index + 1]
+        assert annotation_line == "[tool_use:web_search, query:AI development 2025]", \
+            f"Expected annotation line, got: {annotation_line}"
+
+        # The line after annotation should be "Based on search results..."
+        assert nexus_line_index + 2 < len(lines), "Should have 'Based on search results...' line after annotation"
+        based_line = lines[nexus_line_index + 2]
+        assert based_line == "Based on search results...", \
+            f"Expected 'Based on search results...', got: {based_line}"
+
+    def test_format_shared_memory_count_updated(self):
+        """Count reflects merged message count, not original count."""
+        history = [
+            {
+                "id": "msg1",
+                "run_id": "run_abc",
+                "role": "human",
+                "content": "Hello",
+                "timestamp": "2025-12-10T15:30:00Z",
+            },
+            {
+                "id": "msg2",
+                "run_id": "run_abc",
+                "role": "ai",
+                "content": "First",
+                "timestamp": "2025-12-10T15:31:00Z",
+            },
+            {
+                "id": "msg3",
+                "run_id": "run_abc",
+                "role": "ai",
+                "content": "Second",
+                "timestamp": "2025-12-10T15:32:00Z",
+            },
+            # Another run_id - should be separate
+            {
+                "id": "msg4",
+                "run_id": "run_def",
+                "role": "human",
+                "content": "Another",
+                "timestamp": "2025-12-10T15:33:00Z",
+            },
+            {
+                "id": "msg5",
+                "run_id": "run_def",
+                "role": "ai",
+                "content": "Response",
+                "timestamp": "2025-12-10T15:34:00Z",
+            },
+        ]
+
+        result = MemoryFormatter.format_shared_memory(history)
+
+        # Should have count=4 (run_abc: human + merged ai, run_def: human + ai)
+        assert "[SHARED_MEMORY count=4]" in result
+
+    def test_format_shared_memory_limit_applied_after_merge(self):
+        """Limit is applied after merging, not before."""
+        history = [
+            {
+                "id": f"msg{i}",
+                "run_id": f"run_{i}",
+                "role": "human",
+                "content": f"Question {i}",
+                "timestamp": f"2025-12-10T15:{30+i}:00Z",
+            }
+            for i in range(10)
+        ]
+        # Add AI responses for each
+        for i in range(10):
+            history.append({
+                "id": f"msg_ai_{i}",
+                "run_id": f"run_{i}",
+                "role": "ai",
+                "content": f"Answer {i}",
+                "timestamp": f"2025-12-10T15:{40+i}:00Z",
+            })
+
+        # With limit=5, should get 5 merged pairs (human+ai) = 5 total messages
+        result = MemoryFormatter.format_shared_memory(history, limit=5)
+        assert "[SHARED_MEMORY count=5]" in result
+
 
 class TestFriendsInfoFormatter:
     """Tests for FriendsInfoFormatter."""

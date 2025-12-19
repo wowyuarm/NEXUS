@@ -13,6 +13,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Configuration constants
+DEFAULT_TRUNCATION_LIMIT = 1000
+
 # Role mapping constants
 NEXUS_ROLE_HUMAN = "human"
 NEXUS_ROLE_AI = "ai"
@@ -29,6 +32,7 @@ class MemoryFormatter:
         Args:
             history: List of message dicts from database (newest first)
             limit: Maximum number of messages to include
+            config_service: Optional ConfigService for configuration
 
         Returns:
             Formatted [SHARED_MEMORY] block string
@@ -43,9 +47,12 @@ class MemoryFormatter:
         if not history:
             return "[SHARED_MEMORY count=0]\nRecent conversation memory:\n\n(No previous conversations yet)"
 
-        # Filter to human and AI messages only, limit count
+        # 1. Merge messages by run_id
+        merged_messages = MemoryFormatter._merge_messages_by_run_id(history)
+
+        # 2. Apply limit after merging
         filtered = []
-        for msg in history:
+        for msg in merged_messages:
             role = msg.get("role", "").lower()
             if role in (NEXUS_ROLE_HUMAN, NEXUS_ROLE_AI):
                 filtered.append(msg)
@@ -62,6 +69,7 @@ class MemoryFormatter:
         ]
 
         # Reverse to chronological order (oldest first)
+        prev_role = None
         for msg in reversed(filtered):
             timestamp = msg.get("timestamp", "")
             role = msg.get("role", "").lower()
@@ -74,10 +82,22 @@ class MemoryFormatter:
             role_display = "Human" if role == NEXUS_ROLE_HUMAN else "Nexus"
 
             # Truncate very long messages
-            if len(content) > 500:
-                content = content[:497] + "..."
+            if len(content) > DEFAULT_TRUNCATION_LIMIT:
+                content = content[:DEFAULT_TRUNCATION_LIMIT-3] + "..."
 
-            lines.append(f"[{time_str}] {role_display}: {content}")
+            # Determine if we should show timestamp for this message
+            # Show timestamp for human messages, and for AI messages that don't follow a human
+            if role == NEXUS_ROLE_HUMAN:
+                lines.append(f"[{time_str}] {role_display}: {content}")
+            else:  # AI message
+                if prev_role == NEXUS_ROLE_HUMAN:
+                    # AI follows human - indent without timestamp
+                    lines.append(f"  {role_display}: {content}")
+                else:
+                    # AI doesn't follow human (e.g., first message is AI) - show timestamp
+                    lines.append(f"[{time_str}] {role_display}: {content}")
+
+            prev_role = role
 
         return "\n".join(lines)
 
@@ -98,6 +118,164 @@ class MemoryFormatter:
                 return str(timestamp)
         except Exception:
             return "Unknown time"
+
+    @staticmethod
+    def _merge_messages_by_run_id(messages: list[dict]) -> list[dict]:
+        """
+        Merge AI messages by run_id and annotate tool calls.
+
+        Input: Raw message list (newest first)
+        Output: Merged message list (chronological order across run_ids)
+
+        Processing:
+        1. Filter: keep only role in ("human", "ai")
+        2. Group by run_id
+        3. For each run_id group:
+           - Separate human and ai messages
+           - Human messages: keep all (usually one)
+           - AI messages: merge all ai messages in chronological order
+           - Extract tool call info, generate annotation string
+           - Build merged ai message (using latest timestamp)
+        4. Reorder: ascending by timestamp (oldest first)
+        """
+        # 1. Filter human and AI messages only
+        filtered = []
+        for msg in messages:
+            role = msg.get("role", "").lower()
+            if role in (NEXUS_ROLE_HUMAN, NEXUS_ROLE_AI):
+                filtered.append(msg)
+
+        if not filtered:
+            return []
+
+        # 2. Group by run_id
+        groups: dict[str | None, list[dict]] = {}
+        for msg in filtered:
+            run_id = msg.get("run_id")
+            # If no run_id, treat as separate group (use None as key)
+            groups.setdefault(run_id, []).append(msg)
+
+        merged_messages = []
+
+        for run_id, group_msgs in groups.items():
+            # Skip if run_id is None (messages without run_id remain unchanged)
+            if run_id is None:
+                merged_messages.extend(group_msgs)
+                continue
+
+            # Sort group by timestamp ascending (oldest first)
+            group_msgs.sort(key=lambda x: x.get("timestamp", ""))
+
+            # Separate human and AI messages
+            human_msgs = [msg for msg in group_msgs if msg.get("role", "").lower() == NEXUS_ROLE_HUMAN]
+            ai_msgs = [msg for msg in group_msgs if msg.get("role", "").lower() == NEXUS_ROLE_AI]
+
+            # Keep all human messages unchanged
+            merged_messages.extend(human_msgs)
+
+            # Merge AI messages if any
+            if ai_msgs:
+                # Sort AI messages by timestamp (should already be sorted)
+                ai_msgs.sort(key=lambda x: x.get("timestamp", ""))
+
+                # Collect contents and tool calls, track first message with tool calls
+                contents = []
+                all_tool_calls = []
+                first_tool_call_index = -1  # Index of first AI message with tool calls
+
+                for i, ai_msg in enumerate(ai_msgs):
+                    content = ai_msg.get("content", "")
+                    if content:
+                        contents.append(content)
+
+                    # Extract tool calls if present
+                    metadata = ai_msg.get("metadata", {})
+                    tool_calls = metadata.get("tool_calls", [])
+                    if tool_calls:
+                        all_tool_calls.extend(tool_calls)
+                        if first_tool_call_index == -1:
+                            first_tool_call_index = i
+
+                # Build merged content with annotation inserted at correct position
+                if all_tool_calls:
+                    annotation = MemoryFormatter._extract_tool_call_annotation(all_tool_calls)
+                    # Insert annotation after the message where tool call was declared
+                    if contents and first_tool_call_index >= 0:
+                        # Insert annotation after the message at first_tool_call_index
+                        # If there are more messages after it, annotation goes before next message
+                        # If it's the last message, annotation goes at the end
+                        insertion_index = first_tool_call_index + 1
+                        contents.insert(insertion_index, annotation)
+                    else:
+                        # Fallback: append at end
+                        contents.append(annotation)
+
+                merged_content = "\n".join(contents)
+
+                # Use latest AI message as base for merged message
+                latest_ai = ai_msgs[-1]
+                merged_ai = {
+                    "id": f"merged_ai_{run_id}",
+                    "run_id": run_id,
+                    "role": "ai",
+                    "content": merged_content,
+                    "timestamp": latest_ai.get("timestamp"),
+                    "metadata": {
+                        "source": "merged",
+                        "original_count": len(ai_msgs),
+                        "has_tool_calls": bool(all_tool_calls),
+                    }
+                }
+
+                merged_messages.append(merged_ai)
+
+        # Sort all messages by timestamp descending (newest first)
+        # This ensures format_shared_memory's reversed() produces chronological order
+        merged_messages.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        return merged_messages
+
+    @staticmethod
+    def _extract_tool_call_annotation(tool_calls: list) -> str:
+        """
+        Generate annotation string from tool_calls.
+
+        Format: [tool_use:web_search, query:人工智能最新发展]
+        Multiple tools: [tool_use:web_search, query:...; tool_use:calculator, expression:...]
+
+        Only extract key parameters: query for web_search, first param for others.
+        """
+        if not tool_calls:
+            return ""
+
+        annotations = []
+        for tool_call in tool_calls:
+            name = tool_call.get("name", "unknown")
+            arguments = tool_call.get("arguments", {})
+
+            # Extract key parameter based on tool name
+            if name == "web_search":
+                key_param = arguments.get("query", "")
+                if key_param:
+                    annotations.append(f"tool_use:{name}, query:{key_param}")
+                else:
+                    annotations.append(f"tool_use:{name}")
+            else:
+                # For other tools, take first parameter if available
+                if arguments:
+                    first_key = next(iter(arguments), None)
+                    first_value = arguments.get(first_key, "")
+                    if first_key and first_value:
+                        annotations.append(f"tool_use:{name}, {first_key}:{first_value}")
+                    else:
+                        annotations.append(f"tool_use:{name}")
+                else:
+                    annotations.append(f"tool_use:{name}")
+
+        # Join with semicolon and wrap in brackets
+        if len(annotations) == 1:
+            return f"[{annotations[0]}]"
+        else:
+            return f"[{'; '.join(annotations)}]"
 
 
 class FriendsInfoFormatter:

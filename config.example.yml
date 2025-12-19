@@ -1,17 +1,12 @@
-# ===================================================================
 # NEXUS 配置，存在于'configurations'集合中
-# ===================================================================
 
-# -------------------------------------------------------------------
-# A. 系统核心法则 (Core System Laws)
-#    - 由系统管理员定义，不可被用户覆写。
-#    - 控制系统的基本行为和安全边界。
-# -------------------------------------------------------------------
+# Core System Laws
+# 由系统定义，不可被覆写，控制系统的基本行为和安全边界。
 system:
   log_level: "INFO"
-  max_tool_iterations: 5
+  max_tool_iterations: 20
   # 工具执行超时时间（秒）
-  tool_execution_timeout: 20
+  tool_execution_timeout: 30
   # 定义应用名称，可下发给前端用于显示
   app_name: "NEXUS"
 
@@ -26,20 +21,18 @@ security:
     - "config"
     - "prompt"
 
-# -------------------------------------------------------------------
-# Memory Learning Configuration
-#    - Controls automatic profile learning from conversation history
+# Memory Learning
+# Controls automatic profile learning from conversation history
 memory:
   learning:
     enabled: true
     threshold_turns: 20  # Learn every 20 conversation turns
     llm_model: "system"  # "system": use system default, "user": use user's model
 
-# -------------------------------------------------------------------
-# B. LLM 引擎目录 (LLM Engine Directory)
-#    - 定义了系统可用的所有AI模型及其访问方式。
-#    - Provider部分定义如何连接，Catalog部分定义有哪些模型。
-# -------------------------------------------------------------------
+# LLM Engine Directory
+
+# 定义了系统可用的所有AI模型及其访问方式。
+# Provider部分定义如何连接，Catalog部分定义有哪些模型。
 llm:
   providers:
     google:
@@ -53,12 +46,12 @@ llm:
       base_url: "https://openrouter.ai/api/v1"
 
   catalog:
-    gemini-3-flash:
+    gemini-2.5-flash:
       provider: google
       # provider具体模型ID（与key相同则可省略），id 是 provider 的模型ID
-      id: gemini-3-flash-preview
+      id: gemini-2.5-flash
       # 友好别名（供UI/用户选择），aliases 是模型的别名，用于在 UI 中显示
-      aliases: ["Gemini-3-Flash"]
+      aliases: ["Gemini-2.5-Flash"]
       default_params:
         temperature: 0.7
         max_tokens: 8192
@@ -68,7 +61,7 @@ llm:
       id: deepseek-chat
       aliases: ["DeepSeek-Chat"]
       default_params:
-        temperature: 0.9
+        temperature: 1.0
         max_tokens: 8192
 
     moonshotai/kimi-k2:free: # OpenRouter一个模型的命名示例
@@ -82,7 +75,7 @@ llm:
 user_defaults:
   # 默认的、可被 user_config 覆写的运行时配置
   config:
-    model: "gemini-3-flash" # 用户的默认模型选择
+    model: "gemini-2.5-flash" # 用户的默认模型选择
     temperature: 0.8          # 用户可以覆写 catalog 中的默认值
     max_tokens: 4096
     history_context_size: 20
@@ -100,10 +93,8 @@ user_defaults:
       editable: true
       description: "About this friend - preferences, patterns, and context that AI should know"
 
-# -------------------------------------------------------------------
-# D. UI 渲染元数据 (UI Rendering Metadata)
-#    - 后端下发给前端的“渲染指南”，实现前后端解耦。
-# -------------------------------------------------------------------
+# UI Rendering Metadata
+# 后端下发给前端的“渲染指南”，实现前后端解耦。
 ui:
   # 告诉/config面板哪些字段是允许用户编辑的
   editable_fields:
@@ -111,14 +102,14 @@ ui:
     - "config.temperature"
     - "config.max_tokens"
     - "config.history_context_size"
-    - "prompts.friends_profile" # 允许编辑用户档案（关于这位朋友的信息）
+    - "prompts.friends_profile" # 允许编辑 memory（关于这位朋友的信息）
 
   # 告诉/config面板每个字段的类型和可选值
   field_options:
     "config.model":
       type: "select"
       # 这个列表可以由后端在启动时动态地从llm.catalog的key中生成, 注意，这里的选项需要是aliases的值
-      options: ["Gemini-3-Flash", "DeepSeek-Chat", "Kimi-K2"]
+      options: ["Gemini-2.5-Flash", "DeepSeek-Chat", "Kimi-K2"]
     # 在config面板中，可将以下作为进阶配置而不是默认显示，提升体验
     "config.temperature":
       type: "slider"
