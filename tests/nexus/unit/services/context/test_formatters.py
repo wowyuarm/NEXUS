@@ -75,7 +75,7 @@ class TestMemoryFormatter:
 
     def test_format_shared_memory_truncates_long_content(self):
         """Long messages are truncated."""
-        long_content = "A" * 600
+        long_content = "A" * 1200  # Longer than DEFAULT_TRUNCATION_LIMIT (1000)
         history = [
             {
                 "role": "human",

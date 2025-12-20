@@ -32,7 +32,6 @@ class MemoryFormatter:
         Args:
             history: List of message dicts from database (newest first)
             limit: Maximum number of messages to include
-            config_service: Optional ConfigService for configuration
 
         Returns:
             Formatted [SHARED_MEMORY] block string

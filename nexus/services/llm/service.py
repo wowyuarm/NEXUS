@@ -37,6 +37,7 @@ from nexus.services.config import ConfigService
 
 from .providers.deepseek import DeepSeekLLMProvider
 from .providers.google import GoogleLLMProvider
+from .providers.moonshot import MoonshotLLMProvider
 from .providers.openrouter import OpenRouterLLMProvider
 
 logger = logging.getLogger(__name__)
@@ -244,6 +245,13 @@ class LLMService:
             )
         elif provider_name == "openrouter":
             return OpenRouterLLMProvider(
+                api_key=provider_config["api_key"],
+                base_url=provider_config["base_url"],
+                model=catalog.get(model_name, {}).get("id", model_name),
+                timeout=timeout,
+            )
+        elif provider_name == "moonshot":
+            return MoonshotLLMProvider(
                 api_key=provider_config["api_key"],
                 base_url=provider_config["base_url"],
                 model=catalog.get(model_name, {}).get("id", model_name),

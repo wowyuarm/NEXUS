@@ -44,6 +44,9 @@ llm:
     openrouter:
       api_key: "${OPENROUTER_API_KEY}"
       base_url: "https://openrouter.ai/api/v1"
+    moonshot:
+      api_key: "${MOONSHOT_API_KEY}"
+      base_url: "https://api.moonshot.cn/v1"
 
   catalog:
     gemini-2.5-flash:
@@ -64,9 +67,9 @@ llm:
         temperature: 1.0
         max_tokens: 8192
 
-    moonshotai/kimi-k2:free: # OpenRouter一个模型的命名示例
-      provider: openrouter
-      id: moonshotai/kimi-k2:free
+    kimi-k2:
+      provider: moonshot
+      id: kimi-k2-0905-preview
       aliases: ["Kimi-K2"]
       default_params:
         temperature: 0.8
